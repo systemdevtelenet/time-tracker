@@ -5,8 +5,6 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { 
   Zap, 
-  Sun, 
-  Moon, 
   Settings, 
   LogOut, 
   Clock, 
@@ -16,8 +14,8 @@ import {
 
 interface TopNavProps {
   currentDateTime: string;
-  isDark: boolean;
-  onToggleTheme: () => void;
+  isDark?: boolean;
+  onToggleTheme?: () => void;
   onOpenSettings: () => void;
   isSettingsActive?: boolean;
   onOpenFlowHub?: () => void;
@@ -31,8 +29,6 @@ interface TopNavProps {
 
 export default function TopNav({
   currentDateTime,
-  isDark,
-  onToggleTheme,
   onOpenSettings,
   isSettingsActive = false,
   onOpenFlowHub,
@@ -52,7 +48,7 @@ export default function TopNav({
         {/* Left: Brand & Role Badge */}
         <div className="flex items-center gap-2.5 sm:gap-3">
           <Link href="/" className="flex items-center gap-2 group">
-            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-[#1E4E79] to-[#0E2C4C] text-white flex items-center justify-center font-black text-sm shadow-sm shadow-[#1E4E79]/20 group-hover:scale-105 transition-transform">
+            <div className="w-9 h-9 rounded-xl bg-[#1E4E79] text-white flex items-center justify-center font-black text-sm shadow-sm group-hover:scale-105 transition-transform">
               CT
             </div>
             <span className="font-extrabold text-lg sm:text-xl tracking-tight text-slate-900 dark:text-slate-100">
@@ -65,7 +61,7 @@ export default function TopNav({
         </div>
 
         {/* Center: Live Date & Time Pill */}
-        <div className="hidden md:flex items-center gap-2 px-4 py-1.5 rounded-full bg-blue-50/90 dark:bg-blue-950/50 border border-blue-200/60 dark:border-blue-800/50 text-[#1E4E79] dark:text-blue-300 text-xs font-semibold shadow-xs">
+        <div className="hidden md:flex items-center gap-2 px-4 py-1.5 rounded-full bg-blue-50 dark:bg-blue-950/50 border border-blue-200/60 dark:border-blue-800/50 text-[#1E4E79] dark:text-blue-300 text-xs font-semibold shadow-xs">
           <Clock className="w-3.5 h-3.5 text-[#2F6798] dark:text-blue-400" />
           <span>{currentDateTime || '2026-09-15 • 2:43:38 AM'}</span>
         </div>
@@ -84,19 +80,6 @@ export default function TopNav({
           >
             <Zap className={`w-3.5 h-3.5 ${isFlowHubActive ? 'text-amber-300 fill-amber-300' : 'text-amber-500 fill-amber-500'}`} />
             <span>Flow Hub</span>
-          </button>
-
-          {/* Theme Toggle Button */}
-          <button
-            onClick={onToggleTheme}
-            title={isDark ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
-            className="p-2 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700 transition-colors cursor-pointer"
-          >
-            {isDark ? (
-              <Sun className="w-4 h-4 text-amber-400" />
-            ) : (
-              <Moon className="w-4 h-4 text-slate-600 fill-slate-600" />
-            )}
           </button>
 
           {/* Settings Button */}
@@ -139,3 +122,4 @@ export default function TopNav({
     </header>
   );
 }
+

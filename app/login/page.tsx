@@ -105,8 +105,8 @@ export default function LoginPage() {
           backgroundImage: `url("${bgImageUrl}")`,
         }}
       >
-        {/* Soft gradient overlay for optimal card focus */}
-        <div className="absolute inset-0 bg-gradient-to-r from-black/40 via-black/20 to-black/50" />
+        {/* Soft dark overlay for optimal card focus */}
+        <div className="absolute inset-0 bg-black/40" />
       </div>
 
       {/* Main Login Card Modal */}

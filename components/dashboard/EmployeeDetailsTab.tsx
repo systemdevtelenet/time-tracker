@@ -78,7 +78,7 @@ export default function EmployeeDetailsTab({
                 {/* Header: Avatar, Name, Status */}
                 <div className="flex items-start justify-between gap-3 mb-4">
                   <div className="flex items-center gap-3">
-                    <div className="w-12 h-12 rounded-xl bg-gradient-to-tr from-[#1E4E79] to-[#3B82F6] text-white font-black text-base flex items-center justify-center shadow-xs">
+                    <div className="w-12 h-12 rounded-xl bg-[#1E4E79] text-white font-black text-base flex items-center justify-center shadow-xs">
                       {initials}
                     </div>
                     <div>

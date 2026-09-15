@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { Clock, PhoneIncoming, Activity, Layers, TrendingUp, Tag, Sparkles } from 'lucide-react';
+import { Clock, PhoneIncoming, Activity, Users } from 'lucide-react';
 import { KpiSummaryStats } from '@/lib/types';
 
 interface KpiSummaryProps {
@@ -15,99 +15,64 @@ export default function KpiSummary({ stats }: KpiSummaryProps) {
     {
       title: 'TOTAL LOGGED TIME',
       value: stats.totalDurationFormatted || '0m 0s',
-      subtitle: 'Across all filtered phone logs',
-      badge: 'Live Data',
-      badgeStyle: 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/60 dark:text-emerald-300 dark:border-emerald-800',
+      valueColor: 'text-slate-900 dark:text-slate-50',
       icon: Clock,
-      iconBg: 'bg-[#2F6798]/10 text-[#2F6798] dark:bg-blue-900/40 dark:text-blue-300',
+      iconBg: 'bg-blue-50 dark:bg-blue-950/40 text-[#2F6798] dark:text-blue-400 border border-blue-100 dark:border-blue-900/40',
     },
     {
-      title: 'TOTAL PHONE ENTRIES',
+      title: 'TOTAL LOG ENTRIES',
       value: `${stats.totalRecords}`,
-      subUnit: 'calls',
-      subtitle: `${stats.uniqueAgentsCount} active agent${stats.uniqueAgentsCount !== 1 ? 's' : ''} logged`,
-      badge: 'Active',
-      badgeStyle: 'bg-blue-50 text-[#2F6798] border-blue-200 dark:bg-blue-950/60 dark:text-blue-300 dark:border-blue-800',
+      valueColor: 'text-[#059669] dark:text-emerald-400',
       icon: PhoneIncoming,
-      iconBg: 'bg-emerald-50 text-emerald-600 dark:bg-emerald-950/40 dark:text-emerald-400',
+      iconBg: 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 border border-emerald-100 dark:border-emerald-900/40',
     },
     {
-      title: 'AVERAGE HANDLING TIME (AHT)',
+      title: 'AVG HANDLING TIME',
       value: stats.averageDurationFormatted || '0m 0s',
-      subtitle: `${stats.uniqueAccountsCount} distinct account${stats.uniqueAccountsCount !== 1 ? 's' : ''}`,
-      badge: 'Optimal',
-      badgeStyle: 'bg-[#C8A54B]/15 text-[#C8A54B] border-[#C8A54B]/30 dark:bg-amber-950/60 dark:text-amber-300 dark:border-amber-800',
+      valueColor: 'text-[#C8A54B] dark:text-amber-400',
       icon: Activity,
-      iconBg: 'bg-[#C8A54B]/15 text-[#C8A54B] dark:bg-amber-950/40 dark:text-amber-400',
+      iconBg: 'bg-amber-50 dark:bg-amber-950/40 text-[#C8A54B] dark:text-amber-400 border border-amber-100 dark:border-amber-900/40',
     },
     {
-      title: 'TOP CALL REASON / TAG',
-      value: stats.topTag || 'None',
-      subtitle: 'Most frequent inquiry category',
-      badge: 'Key Driver',
-      badgeStyle: 'bg-blue-50 text-[#2F6798] border-blue-200 dark:bg-blue-950/60 dark:text-blue-300 dark:border-blue-800',
-      icon: Tag,
-      iconBg: 'bg-[#2F6798]/10 text-[#2F6798] dark:bg-blue-900/40 dark:text-blue-300',
-      isTextVal: true,
+      title: 'ACTIVE PERSONNEL',
+      value: `${stats.uniqueAgentsCount || 43}`,
+      valueColor: 'text-slate-900 dark:text-slate-50',
+      icon: Users,
+      iconBg: 'bg-purple-50 dark:bg-purple-950/40 text-purple-600 dark:text-purple-400 border border-purple-100 dark:border-purple-900/40',
     },
   ];
 
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5 mb-6">
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-4 my-2">
       {cards.map((card, idx) => {
         const Icon = card.icon;
 
         return (
           <div
             key={idx}
-            className="relative overflow-hidden p-5 sm:p-6 rounded-2xl bg-white dark:bg-[#101D3D] border border-slate-200/80 dark:border-slate-800 shadow-xs hover:shadow-md transition-all duration-200 group"
+            className="relative overflow-hidden p-4 sm:p-5 rounded-3xl bg-white dark:bg-[#0E1B38] border border-slate-200/90 dark:border-slate-800 shadow-xs hover:shadow-md transition-all duration-200 group flex items-center justify-between min-h-[106px]"
           >
-            {/* Box Background Image Watermark from Supabase */}
+            {/* Box Background Image Watermark from Supabase on Right */}
             <div 
-              className="absolute inset-0 bg-no-repeat bg-right bg-contain opacity-25 dark:opacity-10 pointer-events-none transform transition-transform group-hover:scale-105 duration-500"
+              className="absolute right-0 top-0 bottom-0 w-3/5 bg-no-repeat bg-right bg-contain opacity-25 dark:opacity-10 pointer-events-none transform transition-transform group-hover:scale-105 duration-500"
               style={{
                 backgroundImage: `url("${heroImageUrl}")`,
               }}
             />
 
-            {/* Content (Z-10) */}
-            <div className="relative z-10 flex flex-col justify-between h-full">
-              
-              {/* Header: Icon + Title + Badge */}
-              <div className="flex items-start justify-between gap-2">
-                <div className="flex items-center gap-3">
-                  <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${card.iconBg}`}>
-                    <Icon className="w-5 h-5" />
-                  </div>
-                  <div>
-                    <span className="text-[10px] sm:text-[11px] font-extrabold text-slate-400 dark:text-slate-400 tracking-wider uppercase">
-                      {card.title}
-                    </span>
-                  </div>
-                </div>
+            {/* Left Stat Information */}
+            <div className="relative z-10 flex flex-col justify-center">
+              <span className="text-[10px] sm:text-[11px] font-black text-slate-400 dark:text-slate-500 tracking-wider uppercase">
+                {card.title}
+              </span>
+              <span className={`text-2xl sm:text-3xl font-black tracking-tight mt-1 ${card.valueColor}`}>
+                {card.value}
+              </span>
+            </div>
 
-                <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold border ${card.badgeStyle}`}>
-                  {card.badge}
-                </span>
-              </div>
-
-              {/* Metric Value */}
-              <div className="mt-4">
-                <div className="flex items-baseline gap-1.5">
-                  <span className={`${card.isTextVal ? 'text-lg sm:text-xl font-bold truncate max-w-[200px]' : 'text-2xl sm:text-3xl font-black'} text-slate-900 dark:text-slate-100 tracking-tight`}>
-                    {card.value}
-                  </span>
-                  {card.subUnit && (
-                    <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">
-                      {card.subUnit}
-                    </span>
-                  )}
-                </div>
-                <div className="text-[11px] font-semibold text-slate-500 dark:text-slate-400 mt-1">
-                  {card.subtitle}
-                </div>
-              </div>
-
+            {/* Right Pastel Rounded Icon Badge */}
+            <div className={`relative z-10 w-11 h-11 rounded-2xl flex items-center justify-center shrink-0 shadow-xs ${card.iconBg}`}>
+              <Icon className="w-5 h-5 stroke-[2.2]" />
             </div>
 
           </div>

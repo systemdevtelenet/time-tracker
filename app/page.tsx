@@ -1,23 +1,33 @@
 'use client';
 
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import Sidebar, { SupervisorProfile } from '@/components/dashboard/Sidebar';
-import TopNav from '@/components/dashboard/TopNav';
+import CompanySidebar from '@/components/dashboard/CompanySidebar';
+import CompanyTopNav from '@/components/dashboard/CompanyTopNav';
+import HeroKpiCards from '@/components/dashboard/HeroKpiCards';
+import FilterControlsBar from '@/components/dashboard/FilterControlsBar';
+import ExecutivePerformanceOverview from '@/components/dashboard/ExecutivePerformanceOverview';
+import DepartmentalTrendsChart from '@/components/dashboard/DepartmentalTrendsChart';
 import KpiSummary from '@/components/KpiSummary';
 import TimerTracker from '@/components/TimerTracker';
 import ManualEntryModal from '@/components/ManualEntryModal';
 import TimeLogsTable from '@/components/TimeLogsTable';
 import AnalyticsCharts from '@/components/AnalyticsCharts';
+import HoursReportTab from '@/components/dashboard/HoursReportTab';
 import FlowHubView from '@/components/dashboard/FlowHubView';
 import AttendanceCalendarView from '@/components/dashboard/AttendanceCalendarView';
+import AttendanceRosterHub from '@/components/dashboard/AttendanceRosterHub';
+import SupervisorShiftCard from '@/components/dashboard/SupervisorShiftCard';
+import LiveShiftPunchTimeline from '@/components/dashboard/LiveShiftPunchTimeline';
 import SettingsView from '@/components/dashboard/SettingsView';
 import SettingsModal from '@/components/dashboard/SettingsModal';
+import WeatherWidgetCard from '@/components/dashboard/WeatherWidgetCard';
 import { AccountOption, EmployeeOption, PhoneTimeRecord, KpiSummaryStats } from '@/lib/types';
 import { parseDurationToSeconds, formatTotalDurationHuman } from '@/lib/utils';
-import { Plus, BarChart2, Sparkles, PhoneCall, CheckCircle2, User, Building2 } from 'lucide-react';
+import { Plus, CheckCircle2, User, Sparkles } from 'lucide-react';
 
 export default function HomePage() {
-  // State
+  // Navigation & View State
+  const [activeTab, setActiveTab] = useState<string>('dashboard');
   const [currentAgent, setCurrentAgent] = useState<string>('Matt Riner Balaba');
   const [records, setRecords] = useState<PhoneTimeRecord[]>([]);
   const [accounts, setAccounts] = useState<AccountOption[]>([]);
@@ -26,17 +36,19 @@ export default function HomePage() {
   const [isManualModalOpen, setIsManualModalOpen] = useState<boolean>(false);
   const [isTimerRunning, setIsTimerRunning] = useState<boolean>(false);
   const [activeTimerSeconds, setActiveTimerSeconds] = useState<number>(0);
-  const [activeTab, setActiveTab] = useState<'tracker' | 'analytics'>('tracker');
-  const [isFlowHubActive, setIsFlowHubActive] = useState<boolean>(false);
-  const [isSettingsActive, setIsSettingsActive] = useState<boolean>(false);
   const [activeCalendarRecord, setActiveCalendarRecord] = useState<PhoneTimeRecord | null>(null);
   const [isDark, setIsDark] = useState(false);
-  const [currentDateTime, setCurrentDateTime] = useState('');
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [toastMsg, setToastMsg] = useState<string | null>(null);
 
-  // Supervisor Profile matching exact screenshot content
-  const supervisor: SupervisorProfile = {
+  // Filter Bar state for Dashboard
+  const [filterQuarter, setFilterQuarter] = useState('all');
+  const [filterMonth, setFilterMonth] = useState('all');
+  const [filterAccount, setFilterAccount] = useState('all');
+  const [filterSearch, setFilterSearch] = useState('');
+
+  // Supervisor Profile matching exact system content
+  const supervisor = {
     name: 'Nissi-Jeh Reguero',
     id: '1597',
     role: 'SUPERVISOR',
@@ -47,7 +59,7 @@ export default function HomePage() {
     directSupervisor: 'June Babe Caballes',
   };
 
-  // Clock & Dark mode init
+  // Dark mode initialization
   useEffect(() => {
     if (typeof window !== 'undefined') {
       const isDarkMode = document.documentElement.classList.contains('dark') ||
@@ -55,24 +67,6 @@ export default function HomePage() {
       setIsDark(isDarkMode);
       if (isDarkMode) document.documentElement.classList.add('dark');
     }
-
-    const updateTime = () => {
-      const now = new Date();
-      const year = now.getFullYear();
-      const month = String(now.getMonth() + 1).padStart(2, '0');
-      const day = String(now.getDate()).padStart(2, '0');
-      const timeStr = now.toLocaleTimeString('en-US', {
-        hour: 'numeric',
-        minute: '2-digit',
-        second: '2-digit',
-        hour12: true,
-      });
-      setCurrentDateTime(`${year}-${month}-${day} • ${timeStr}`);
-    };
-
-    updateTime();
-    const interval = setInterval(updateTime, 1000);
-    return () => clearInterval(interval);
   }, []);
 
   const toggleTheme = () => {
@@ -187,199 +181,242 @@ export default function HomePage() {
     setActiveTimerSeconds(currentSecs);
   }, []);
 
+  // Title for topnav
+  const getNavTitle = () => {
+    switch (activeTab) {
+      case 'dashboard': return 'Training Performance Hub';
+      case 'tracker': return 'Workforce Portal';
+      case 'flowhub': return 'Flow Hub Focus Studio';
+      case 'attendance': return 'Attendance & Reliability Roster';
+      case 'analytics': return 'Operations Analytics & Insights';
+      case 'settings': return 'Workforce Portal Settings';
+      default: return 'Workforce Portal';
+    }
+  };
+
   return (
-    <div className="min-h-screen bg-[#F3F6FA] dark:bg-[#070D1E] text-slate-900 dark:text-slate-100 flex flex-col transition-colors duration-200">
+    <div className="h-screen overflow-hidden bg-[#F4F7FB] dark:bg-[#070D1E] text-slate-900 dark:text-slate-100 flex transition-colors duration-200">
       
-      {/* Top Company Navigation Bar */}
-      <TopNav
-        currentDateTime={currentDateTime}
-        isDark={isDark}
-        onToggleTheme={toggleTheme}
-        onOpenSettings={() => {
-          setIsSettingsActive(!isSettingsActive);
-          setIsFlowHubActive(false);
+      {/* 1. Left Fixed Sidebar matching exact design structure */}
+      <CompanySidebar
+        currentTab={activeTab}
+        onSelectTab={(tab) => {
+          setActiveTab(tab);
           setActiveCalendarRecord(null);
         }}
-        isSettingsActive={isSettingsActive}
-        onOpenFlowHub={() => {
-          setIsFlowHubActive(!isFlowHubActive);
-          setIsSettingsActive(false);
-          setActiveCalendarRecord(null);
-        }}
-        isFlowHubActive={isFlowHubActive}
         supervisor={supervisor}
+        onPunchAction={(act) => {
+          setToastMsg(`Action recorded: ${act}`);
+          setTimeout(() => setToastMsg(null), 2500);
+        }}
       />
 
-      {/* Main Workspace Layout (Sidebar + Content) */}
-      <div className="flex-1 w-full max-w-[1720px] mx-auto p-4 sm:p-6 lg:p-8 flex flex-col lg:flex-row gap-6">
+      {/* 2. Main Content Viewport (Scrollable) */}
+      <div className="flex-1 flex flex-col min-w-0 h-screen overflow-y-auto">
         
-        {/* Left Sidebar with exact content & design requested */}
-        <Sidebar
+        {/* Top Header Bar matching user screenshot */}
+        <CompanyTopNav
+          title={getNavTitle()}
           supervisor={supervisor}
-          onPunchAction={(act) => {
-            setToastMsg(`Action recorded: ${act}`);
-            setTimeout(() => setToastMsg(null), 2500);
+          onSelectTab={(tab) => {
+            setActiveTab(tab);
+            setActiveCalendarRecord(null);
           }}
         />
 
-        {/* Main Application Container */}
-        <main className="flex-1 flex flex-col min-w-0 space-y-6">
+        {/* Dynamic Main Application Canvas (Reduced Margins by 2) */}
+        <main className="flex-1 px-3 sm:px-4 lg:px-5 pt-2.5 sm:pt-3 pb-6 space-y-4 max-w-[1800px] w-full mx-auto">
           
-          {isSettingsActive ? (
-            /* Dedicated Settings Page View */
-            <SettingsView
-              onBackToDashboard={() => setIsSettingsActive(false)}
-              supervisor={supervisor}
-              isDark={isDark}
-              onToggleTheme={toggleTheme}
-            />
-          ) : isFlowHubActive ? (
-            /* Flow Hub Interactive View matching user screenshots */
-            <FlowHubView onBackToPortal={() => setIsFlowHubActive(false)} />
-          ) : activeCalendarRecord ? (
-            /* Google Calendar Style Attendance View matching user screenshot */
-            <AttendanceCalendarView
-              employeeName={activeCalendarRecord.name || supervisor.name}
-              onBackToRoster={() => setActiveCalendarRecord(null)}
-              records={records}
-            />
-          ) : (
-            /* Standard Time Tracker Portal Dashboard */
-            <>
-              {/* Dashboard Title & Action Controls */}
-              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-                <div>
-                  <span className="text-[10px] font-extrabold text-slate-400 dark:text-slate-500 uppercase tracking-widest block">
-                    OPERATIONS & CALL TRACKING
-                  </span>
-                  <div className="flex items-center gap-2.5 mt-0.5">
-                    <h2 className="text-xl sm:text-2xl font-black tracking-tight text-slate-900 dark:text-slate-50">
-                      Agent Time & Call Tracker
+          {/* Toast Notification */}
+          {toastMsg && (
+            <div className="p-3 rounded-2xl bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-200 dark:border-emerald-800 text-emerald-700 dark:text-emerald-300 text-xs font-bold flex items-center gap-2 animate-in fade-in">
+              <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0" />
+              <span>{toastMsg}</span>
+            </div>
+          )}
+
+          {/* TAB 1: EXECUTIVE TRAINING DASHBOARD */}
+          {activeTab === 'dashboard' && (
+            <div className="space-y-4 animate-in fade-in">
+              {/* Dashboard Top Header: Operations Shift Summary (Left) & Weather Widget (Right) */}
+              <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 items-stretch">
+                <div className="lg:col-span-8 p-5 sm:p-6 rounded-3xl bg-white dark:bg-[#0E1B38] border border-slate-200/90 dark:border-slate-800 shadow-2xs flex flex-col justify-between space-y-4">
+                  <div className="space-y-1.5">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="px-3 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-[#2F6798]/10 text-[#2F6798] dark:text-blue-300 border border-[#2F6798]/20">
+                        Cebu Tele-Net Operations Hub
+                      </span>
+                      <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 flex items-center gap-1.5">
+                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                        Shift Active (9:00 PM – 6:00 AM)
+                      </span>
+                    </div>
+                    <h2 className="text-xl sm:text-2xl font-bold text-slate-900 dark:text-slate-100 tracking-tight">
+                      Welcome back, <span className="text-[#2F6798] dark:text-blue-400 font-extrabold">{supervisor.name}</span>
                     </h2>
-                    <span className="hidden sm:inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-extrabold bg-[#2F6798]/10 text-[#2F6798] dark:text-blue-300 dark:bg-blue-900/40 border border-[#2F6798]/20">
-                      <Sparkles className="w-3 h-3" /> Training Hub DB
-                    </span>
+                    <p className="text-xs text-slate-500 dark:text-slate-400 font-normal max-w-2xl leading-relaxed">
+                      Real-time training analytics, phone duration tracking, and workforce attendance reliability across all active client accounts.
+                    </p>
                   </div>
-                  <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 mt-1 font-medium">
-                    Record live customer interactions, calculate average handling time, and sync with performance reporting.
-                  </p>
+
+                  {/* Operational Metrics Row */}
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 pt-3 border-t border-slate-100 dark:border-slate-800/80">
+                    <div className="p-2.5 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-700/60">
+                      <span className="text-[10px] font-bold text-slate-400 block uppercase">Total Logged Time</span>
+                      <span className="text-sm font-extrabold text-[#2F6798] dark:text-blue-300">{kpiStats.totalDurationFormatted}</span>
+                    </div>
+                    <div className="p-2.5 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-700/60">
+                      <span className="text-[10px] font-bold text-slate-400 block uppercase">Call Volume</span>
+                      <span className="text-sm font-extrabold text-slate-800 dark:text-slate-200">{records.length > 0 ? records.length : 31} Logs</span>
+                    </div>
+                    <div className="p-2.5 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-700/60">
+                      <span className="text-[10px] font-bold text-slate-400 block uppercase">Average AHT</span>
+                      <span className="text-sm font-extrabold text-emerald-600">{kpiStats.averageDurationFormatted}</span>
+                    </div>
+                    <div className="p-2.5 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-700/60">
+                      <span className="text-[10px] font-bold text-slate-400 block uppercase">Attendance</span>
+                      <span className="text-sm font-extrabold text-[#C8A54B]">96.8%</span>
+                    </div>
+                  </div>
                 </div>
 
-                {/* Quick Actions: Agent Selector, View Switcher, Manual Entry */}
-                <div className="flex items-center gap-3 self-stretch sm:self-auto flex-wrap">
-                  
-                  {toastMsg && (
-                    <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-200 dark:border-emerald-800 text-emerald-700 dark:text-emerald-300 text-xs font-bold animate-in fade-in">
-                      <CheckCircle2 className="w-3.5 h-3.5" />
-                      <span>{toastMsg}</span>
-                    </span>
-                  )}
-
-                  {/* Agent Selector Dropdown */}
-                  <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-white dark:bg-[#101D3D] border border-slate-200 dark:border-slate-800 shadow-2xs text-xs">
-                    <User className="w-3.5 h-3.5 text-[#2F6798]" />
-                    <select
-                      value={currentAgent}
-                      onChange={(e) => setCurrentAgent(e.target.value)}
-                      className="bg-transparent font-bold text-slate-800 dark:text-slate-200 outline-none cursor-pointer max-w-[160px] truncate"
-                    >
-                      <option value="Matt Riner Balaba">Matt Riner Balaba</option>
-                      <option value="Jeremy Rigodon">Jeremy Rigodon</option>
-                      {employees
-                        .filter((emp) => emp.name && emp.name !== 'Matt Riner Balaba' && emp.name !== 'Jeremy Rigodon')
-                        .slice(0, 30)
-                        .map((emp, idx) => (
-                          <option key={idx} value={emp.name}>
-                            {emp.name} {emp.role ? `(${emp.role})` : ''}
-                          </option>
-                        ))}
-                    </select>
-                  </div>
-
-                  {/* View Switcher Pills */}
-                  <div className="p-1 rounded-xl bg-slate-200/80 dark:bg-slate-800 flex items-center text-xs font-bold">
-                    <button
-                      onClick={() => setActiveTab('tracker')}
-                      className={`px-3.5 py-1.5 rounded-lg transition-all cursor-pointer ${
-                        activeTab === 'tracker'
-                          ? 'bg-white dark:bg-[#101D3D] text-[#2F6798] dark:text-blue-400 shadow-xs'
-                          : 'text-slate-600 dark:text-slate-400 hover:text-slate-900'
-                      }`}
-                    >
-                      Tracker & Logs
-                    </button>
-                    <button
-                      onClick={() => setActiveTab('analytics')}
-                      className={`px-3.5 py-1.5 rounded-lg transition-all cursor-pointer ${
-                        activeTab === 'analytics'
-                          ? 'bg-white dark:bg-[#101D3D] text-[#2F6798] dark:text-blue-400 shadow-xs'
-                          : 'text-slate-600 dark:text-slate-400 hover:text-slate-900'
-                      }`}
-                    >
-                      Analytics
-                    </button>
-                  </div>
-
-                  {/* Manual Entry Button in Primary Blue #2F6798 */}
-                  <button
-                    onClick={() => setIsManualModalOpen(true)}
-                    className="inline-flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl bg-[#2F6798] hover:bg-[#235179] active:bg-[#1c4366] text-white text-xs font-bold shadow-sm shadow-[#2F6798]/20 transition-all cursor-pointer"
-                  >
-                    <Plus className="w-4 h-4" />
-                    <span>Manual Entry</span>
-                  </button>
-
+                {/* Right: Weather Widget Card */}
+                <div className="lg:col-span-4 flex justify-end">
+                  <WeatherWidgetCard />
                 </div>
               </div>
 
-              {/* Top KPI Summary Cards with ligh_mode_hero.png background watermark */}
+              {/* 4 System-Related Hero KPI Cards */}
+              <HeroKpiCards records={records} kpiStats={kpiStats} stats={{ activeCount: 43 }} />
+
+              {/* Dynamic Filter Controls Bar */}
+              <FilterControlsBar
+                quarter={filterQuarter}
+                month={filterMonth}
+                account={filterAccount}
+                searchTerm={filterSearch}
+                onQuarterChange={setFilterQuarter}
+                onMonthChange={setFilterMonth}
+                onAccountChange={setFilterAccount}
+                onSearchChange={setFilterSearch}
+              />
+
+              {/* 2-Column Analytics Visualizations */}
+              <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 items-start">
+                <div className="lg:col-span-7">
+                  <ExecutivePerformanceOverview />
+                </div>
+                <div className="lg:col-span-5">
+                  <DepartmentalTrendsChart />
+                </div>
+              </div>
+
+              {/* Quick Summary & Real-time Shift Log Feed */}
+              <div className="space-y-3 pt-1">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-sm font-extrabold text-slate-800 dark:text-slate-200 flex items-center gap-2">
+                    <span>Recent Live Attendance & Punch Logs</span>
+                    <span className="text-[10px] px-2 py-0.5 rounded-md bg-[#2F6798]/10 text-[#2F6798] dark:text-blue-300 font-black">
+                      Live Feed
+                    </span>
+                  </h3>
+                  <button
+                    onClick={() => setActiveTab('tracker')}
+                    className="text-xs font-bold text-[#2F6798] hover:underline cursor-pointer"
+                  >
+                    Open Workforce Portal →
+                  </button>
+                </div>
+                <TimeLogsTable
+                  records={records}
+                  isLoading={isLoading}
+                  onRefresh={fetchData}
+                  onDeleteRecord={handleDeleteRecord}
+                  onOpenCalendar={(rec) => {
+                    setActiveCalendarRecord(rec);
+                    setActiveTab('attendance');
+                  }}
+                  accounts={accounts}
+                />
+              </div>
+
+            </div>
+          )}
+
+          {/* TAB 2: WORKFORCE PORTAL (Time Clock & Live Shift Punch Timeline for Trainers/QA) */}
+          {activeTab === 'tracker' && (
+            <div className="space-y-4 animate-in fade-in">
+              {/* 4 KPI Summary Boxes */}
               <KpiSummary stats={kpiStats} />
 
-              {/* Dynamic View: Tracker & Logs vs Analytics */}
-              {activeTab === 'tracker' ? (
-                <>
-                  {/* Live Interactive Stopwatch & Call Timer Widget */}
-                  <TimerTracker
-                    currentAgent={currentAgent}
-                    accounts={accounts}
-                    onRecordSaved={handleRecordAdded}
-                    onTimerStateChange={handleTimerStateChange}
-                  />
+              {/* TIME CLOCK & PUNCH (Horizontal Full-Length Card below the 4 boxes) */}
+              <SupervisorShiftCard 
+                supervisor={supervisor}
+                onPunchAction={(act) => {
+                  setToastMsg(`Action recorded: ${act}`);
+                  setTimeout(() => setToastMsg(null), 2500);
+                }}
+              />
 
-                  {/* Analytics Breakdown Preview */}
-                  <AnalyticsCharts records={records} />
+              {/* Live Shift Punch Timeline & Handover Notes Audit Log */}
+              <LiveShiftPunchTimeline />
+            </div>
+          )}
 
-                  {/* Shift & Phone Time Logs Table */}
-                  <TimeLogsTable
-                    records={records}
-                    isLoading={isLoading}
-                    onRefresh={fetchData}
-                    onDeleteRecord={handleDeleteRecord}
-                    onOpenCalendar={(rec) => setActiveCalendarRecord(rec)}
-                    accounts={accounts}
-                  />
-                </>
-              ) : (
-                <>
-                  {/* Analytics Focused View */}
-                  <AnalyticsCharts records={records} />
+          {/* TAB 3: FLOW HUB */}
+          {activeTab === 'flowhub' && (
+            <div className="animate-in fade-in">
+              <FlowHubView onBackToPortal={() => setActiveTab('dashboard')} />
+            </div>
+          )}
 
-                  {/* Shift & Phone Time Logs Table */}
-                  <TimeLogsTable
-                    records={records}
-                    isLoading={isLoading}
-                    onRefresh={fetchData}
-                    onDeleteRecord={handleDeleteRecord}
-                    onOpenCalendar={(rec) => setActiveCalendarRecord(rec)}
-                    accounts={accounts}
-                  />
-                </>
-              )}
-            </>
+          {/* TAB 4: ATTENDANCE & ROSTER HUB (Roster, Calendar, Hours Report, Employee Details) */}
+          {activeTab === 'attendance' && (
+            <div className="animate-in fade-in">
+              <AttendanceRosterHub
+                records={records}
+                supervisorName={supervisor.name}
+                initialEmployee={activeCalendarRecord?.name}
+              />
+            </div>
+          )}
+
+          {/* TAB 5: ANALYTICS & INSIGHTS */}
+          {activeTab === 'analytics' && (
+            <div className="space-y-6 animate-in fade-in">
+              <div>
+                <span className="text-[10px] font-extrabold text-slate-400 dark:text-slate-500 uppercase tracking-widest block">
+                  PERFORMANCE ANALYTICS
+                </span>
+                <h2 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-slate-50 tracking-tight mt-0.5">
+                  Operations & Call Handling Insights
+                </h2>
+              </div>
+
+              {/* KPI Summary */}
+              <KpiSummary stats={kpiStats} />
+
+              {/* Visual Breakdown Charts */}
+              <AnalyticsCharts records={records} />
+
+              {/* Hours Report Tab */}
+              <HoursReportTab />
+            </div>
+          )}
+
+          {/* TAB 6: SETTINGS */}
+          {activeTab === 'settings' && (
+            <div className="animate-in fade-in">
+              <SettingsView
+                onBackToDashboard={() => setActiveTab('dashboard')}
+                supervisor={supervisor}
+                isDark={isDark}
+                onToggleTheme={toggleTheme}
+              />
+            </div>
           )}
 
         </main>
-
       </div>
 
       {/* Manual Entry Modal Dialog */}
@@ -402,3 +439,4 @@ export default function HomePage() {
     </div>
   );
 }
+

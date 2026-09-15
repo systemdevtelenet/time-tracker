@@ -71,7 +71,7 @@ export default function Header({
         
         {/* Brand / Title */}
         <div className="flex items-center gap-3">
-          <div className="h-10 w-10 rounded-xl bg-gradient-to-tr from-[#2F6798] to-[#1e4566] text-white flex items-center justify-center shadow-md shadow-[#2F6798]/20 ring-2 ring-[#2F6798]/30">
+          <div className="h-10 w-10 rounded-xl bg-[#2F6798] text-white flex items-center justify-center shadow-md ring-2 ring-[#2F6798]/30">
             <PhoneCall className="h-5 w-5" />
           </div>
           <div>

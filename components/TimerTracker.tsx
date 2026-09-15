@@ -263,7 +263,7 @@ export default function TimerTracker({
         )}
 
         {/* Stopwatch & Action Controls Card */}
-        <div className="p-6 rounded-2xl bg-gradient-to-br from-slate-50 to-blue-50/40 dark:from-slate-900/60 dark:to-blue-950/20 border border-slate-200/80 dark:border-slate-800/80 flex flex-col md:flex-row items-center justify-between gap-6">
+        <div className="p-6 rounded-2xl bg-slate-50/90 dark:bg-slate-900/60 border border-slate-200/80 dark:border-slate-800/80 flex flex-col md:flex-row items-center justify-between gap-6">
           
           {/* Large Digital Stopwatch Display */}
           <div className="flex flex-col items-center md:items-start">

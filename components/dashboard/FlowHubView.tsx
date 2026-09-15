@@ -56,6 +56,8 @@ import {
   ChevronRight
 } from 'lucide-react';
 
+import FlowHubNotesPlanner from './FlowHubNotesPlanner';
+
 interface FlowHubViewProps {
   onBackToPortal: () => void;
 }
@@ -1062,20 +1064,22 @@ export default function FlowHubView({ onBackToPortal }: FlowHubViewProps) {
   return (
     <div className="space-y-6 animate-in fade-in duration-300">
       
-      {/* Top Banner Card with Weather & Date/Time */}
-      <div className="p-6 sm:p-7 rounded-3xl bg-white dark:bg-[#101D3D] border border-slate-200/80 dark:border-slate-800 shadow-sm flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
+      {/* 1. Top Banner Card with Date/Time & Functional Live Open-Meteo Weather */}
+      <div className="p-6 sm:p-7 rounded-2xl bg-white dark:bg-[#101D3D] border border-slate-200/90 dark:border-slate-800 shadow-sm flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
         
-        <div className="space-y-1">
-          <span className="text-xs font-bold text-slate-400 dark:text-slate-500">
-            5
-          </span>
+        <div className="space-y-1.5">
+          <div className="flex items-center gap-2">
+            <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-[#2F6798]/10 text-[#2F6798] dark:text-blue-300">
+              Live Focus Studio • Cebu Tele-Net
+            </span>
+          </div>
           <h2 className="text-2xl sm:text-3xl font-black text-slate-900 dark:text-slate-50 tracking-tight">
             {currentDateTime.dateStr}
           </h2>
-          <div className="text-3xl sm:text-4xl font-mono font-black text-[#2F6798] dark:text-blue-400 tracking-tight mt-1">
+          <div className="text-3xl sm:text-4xl font-mono font-black text-[#2F6798] dark:text-blue-400 tracking-tight">
             {currentDateTime.timeStr}
           </div>
-          <div className="pt-2 text-xs font-semibold text-slate-500 dark:text-slate-400 flex items-center gap-2 flex-wrap">
+          <div className="pt-1 text-xs font-semibold text-slate-500 dark:text-slate-400 flex items-center gap-2 flex-wrap">
             <span>Sessions today: <b className="text-slate-800 dark:text-slate-200">{sessionsCompleted}</b></span>
             <span>•</span>
             <span>Tasks done: <b className="text-emerald-600 font-bold">{totalTasksDone}</b></span>
@@ -1084,46 +1088,45 @@ export default function FlowHubView({ onBackToPortal }: FlowHubViewProps) {
           </div>
         </div>
 
-        {/* Right Weather & Back to Portal Button */}
-        <div className="flex flex-col sm:flex-row md:flex-col items-start md:items-end justify-between gap-4 self-stretch md:self-auto">
-          
-          <button
-            onClick={onBackToPortal}
-            className="px-4 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-[#2F6798] hover:text-white dark:hover:bg-[#2F6798] text-slate-700 dark:text-slate-300 text-xs font-extrabold border border-slate-200 dark:border-slate-700 transition-all flex items-center gap-1.5 cursor-pointer shadow-2xs self-start md:self-end"
-          >
-            <ArrowLeft className="w-3.5 h-3.5" />
-            <span>Back to Portal</span>
-          </button>
-
-          {/* Weather Widget matching screenshot */}
-          <div className="flex items-center gap-3">
-            <div className="w-12 h-12 rounded-2xl bg-amber-50 dark:bg-amber-950/40 text-amber-500 flex items-center justify-center">
-              <Sun className="w-7 h-7 fill-amber-400" />
-            </div>
-            <div>
-              <div className="text-2xl font-black text-slate-900 dark:text-slate-100">
-                33°
-              </div>
-              <div className="text-[11px] font-semibold text-slate-500 dark:text-slate-400">
-                Sunny • Humidity 65% • Manila
-              </div>
-            </div>
+        {/* Right: Daily Deep Work Session & Focus Goal Pill */}
+        <div className="flex items-center gap-4 bg-slate-50 dark:bg-slate-800/60 p-4 rounded-2xl border border-slate-200/80 dark:border-slate-700/60 shadow-2xs">
+          <div className="w-12 h-12 rounded-2xl bg-[#24537D] text-white flex items-center justify-center shadow-xs">
+            <Timer className="w-6 h-6 stroke-[2.2]" />
           </div>
-
+          <div className="space-y-1">
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-bold uppercase tracking-wider text-slate-400">Daily Focus Target</span>
+              <span className="px-2 py-0.5 rounded-full text-[9px] font-black bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300">
+                {sessionsCompleted >= 4 ? 'Goal Met' : `${sessionsCompleted}/4 Sessions`}
+              </span>
+            </div>
+            <div className="w-36 h-2 rounded-full bg-slate-200 dark:bg-slate-700 overflow-hidden">
+              <div 
+                className="h-full bg-[#24537D] rounded-full transition-all duration-500" 
+                style={{ width: `${Math.min(100, (sessionsCompleted / 4) * 100)}%` }}
+              />
+            </div>
+            <p className="text-[10.5px] font-semibold text-slate-500 dark:text-slate-400">
+              {sessionsCompleted * 25}m deep work recorded today
+            </p>
+          </div>
         </div>
 
       </div>
 
-      {/* Main Grid: Focus Timer (Left) & Task Board (Right) */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+      {/* 2. Unified External Container For All Features (Timer, Task Board, Notes & Habits) */}
+      <div className="p-6 rounded-2xl bg-white dark:bg-[#101D3D] border border-slate-200/90 dark:border-slate-800 shadow-sm space-y-6">
         
-        {/* Left: Focus Timer Widget (Upgraded Aesthetic & Web View Layout) */}
-        <div className="lg:col-span-5 p-5 sm:p-6 rounded-3xl bg-white dark:bg-[#101D3D] border border-slate-200/80 dark:border-slate-800 shadow-sm flex flex-col justify-between space-y-5">
+        {/* Main Grid: Focus Timer (Left) & Task Board (Right) */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+          
+          {/* Left: Focus Timer Widget */}
+          <div className="lg:col-span-5 p-5 sm:p-6 rounded-xl bg-slate-50/60 dark:bg-slate-900/40 border border-slate-200/80 dark:border-slate-800 flex flex-col justify-between space-y-5">
           
           {/* Header Bar */}
           <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
             <div className="flex items-center gap-2.5">
-              <div className="w-9 h-9 rounded-2xl bg-gradient-to-br from-[#24537D] to-[#1B4266] text-white flex items-center justify-center shadow-xs">
+              <div className="w-9 h-9 rounded-2xl bg-[#24537D] text-white flex items-center justify-center shadow-xs">
                 <Timer className="w-4 h-4 stroke-[2.5]" />
               </div>
               <div>
@@ -1137,13 +1140,14 @@ export default function FlowHubView({ onBackToPortal }: FlowHubViewProps) {
             </div>
 
             <div className="flex items-center gap-1.5">
-              <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-extrabold border ${
-                isTimerActive
-                  ? 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/60 dark:text-emerald-300 dark:border-emerald-800 animate-pulse'
-                  : 'bg-slate-100 text-slate-600 border-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700'
+              <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-extrabold uppercase border ${
+                timerMode === 'focus'
+                  ? 'bg-blue-50 dark:bg-blue-950/60 text-[#24537D] dark:text-blue-300 border-blue-200 dark:border-blue-800'
+                  : timerMode === 'short_break'
+                  ? 'bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800'
+                  : 'bg-amber-50 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300 border-amber-200 dark:border-amber-800'
               }`}>
-                <span className={`w-1.5 h-1.5 rounded-full ${isTimerActive ? 'bg-emerald-500' : 'bg-slate-400'}`} />
-                <span>{isTimerActive ? (timerMode === 'focus' ? 'Active Focus' : 'In Break') : 'Idle'}</span>
+                {timerMode === 'focus' ? '🎯 Focus' : timerMode === 'short_break' ? '☕ Rest' : '🌴 Long Rest'}
               </span>
             </div>
           </div>
@@ -1155,7 +1159,7 @@ export default function FlowHubView({ onBackToPortal }: FlowHubViewProps) {
               onClick={() => handleSelectMode('focus', 25)}
               className={`flex-1 py-1.5 px-2 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
                 timerMode === 'focus'
-                  ? 'bg-[#24537D] text-white shadow-xs'
+                  ? 'bg-[#24537D] text-white shadow-xs font-extrabold'
                   : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
               }`}
             >
@@ -1168,7 +1172,7 @@ export default function FlowHubView({ onBackToPortal }: FlowHubViewProps) {
               onClick={() => handleSelectMode('short_break', 5)}
               className={`flex-1 py-1.5 px-2 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
                 timerMode === 'short_break'
-                  ? 'bg-emerald-600 text-white shadow-xs'
+                  ? 'bg-emerald-600 text-white shadow-xs font-extrabold'
                   : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
               }`}
             >
@@ -1181,7 +1185,7 @@ export default function FlowHubView({ onBackToPortal }: FlowHubViewProps) {
               onClick={() => handleSelectMode('long_break', 15)}
               className={`flex-1 py-1.5 px-2 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
                 timerMode === 'long_break'
-                  ? 'bg-amber-600 text-white shadow-xs'
+                  ? 'bg-amber-600 text-white shadow-xs font-extrabold'
                   : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
               }`}
             >
@@ -1200,10 +1204,11 @@ export default function FlowHubView({ onBackToPortal }: FlowHubViewProps) {
               {[15, 25, 45, 60].map((mins) => (
                 <button
                   key={mins}
+                  type="button"
                   onClick={() => handleSelectDuration(mins)}
                   className={`py-2 px-1 rounded-xl text-xs font-bold transition-all cursor-pointer ${
                     selectedDuration === mins
-                      ? 'bg-[#24537D] text-white shadow-xs scale-102 font-extrabold ring-1 ring-[#24537D]'
+                      ? 'bg-[#24537D] text-white shadow-xs font-extrabold ring-1 ring-[#24537D]'
                       : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700'
                   }`}
                 >
@@ -1214,7 +1219,7 @@ export default function FlowHubView({ onBackToPortal }: FlowHubViewProps) {
           </div>
 
           {/* Elevated Circular Countdown Display */}
-          <div className="relative p-4 rounded-3xl bg-gradient-to-b from-slate-50/80 to-slate-100/40 dark:from-slate-800/40 dark:to-slate-900/40 border border-slate-200/60 dark:border-slate-800/80 flex flex-col items-center justify-center">
+          <div className="relative p-4 rounded-3xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200/60 dark:border-slate-800/80 flex flex-col items-center justify-center">
             
             {/* SVG Progress Gauge */}
             <div className="relative w-48 h-48 sm:w-52 sm:h-52 flex items-center justify-center">
@@ -1227,26 +1232,26 @@ export default function FlowHubView({ onBackToPortal }: FlowHubViewProps) {
                   </filter>
                   <linearGradient id="focusTimerGrad" x1="0%" y1="0%" x2="100%" y2="100%">
                     <stop offset="0%" stopColor={timerMode === 'focus' ? '#24537D' : timerMode === 'short_break' ? '#059669' : '#D97706'} />
-                    <stop offset="100%" stopColor={timerMode === 'focus' ? '#C8A54B' : timerMode === 'short_break' ? '#10B981' : '#F59E0B'} />
+                    <stop offset="100%" stopColor={timerMode === 'focus' ? '#24537D' : timerMode === 'short_break' ? '#10B981' : '#F59E0B'} />
                   </linearGradient>
                 </defs>
 
-                {/* Subtle Background Ring */}
+                {/* Track Circle */}
                 <circle
                   cx="50"
                   cy="50"
                   r="42"
-                  className="stroke-slate-200/70 dark:stroke-slate-700/60"
+                  className="stroke-slate-200/80 dark:stroke-slate-700/60"
                   strokeWidth="6"
                   fill="transparent"
                 />
 
-                {/* Animated Progress Ring */}
+                {/* Animated Progress Circle */}
                 {(() => {
-                  const maxSeconds = Math.max(1, selectedDuration * 60);
-                  const progress = Math.min(1, Math.max(0, (maxSeconds - timerSecondsLeft) / maxSeconds));
-                  const circumference = 2 * Math.PI * 42;
-                  const offset = circumference * (1 - progress);
+                  const maxSecs = Math.max(1, selectedDuration * 60);
+                  const progress = Math.min(1, Math.max(0, (maxSecs - timerSecondsLeft) / maxSecs));
+                  const circ = 2 * Math.PI * 42;
+                  const offset = circ * (1 - progress);
                   return (
                     <circle
                       cx="50"
@@ -1254,21 +1259,18 @@ export default function FlowHubView({ onBackToPortal }: FlowHubViewProps) {
                       r="42"
                       stroke="url(#focusTimerGrad)"
                       strokeWidth="7"
-                      strokeDasharray={circumference}
+                      strokeDasharray={circ}
                       strokeDashoffset={offset}
                       strokeLinecap="round"
                       fill="transparent"
-                      className="transition-all duration-700 ease-out"
+                      className="transition-all duration-500 ease-out"
                     />
                   );
                 })()}
               </svg>
 
-              {/* Inner Center Info */}
-              <div className="absolute inset-0 flex flex-col items-center justify-center text-center select-none">
-                <span className="text-[10px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500 mb-1">
-                  {timerMode === 'focus' ? 'DEEP WORK' : timerMode === 'short_break' ? 'BREATHER' : 'LONG PAUSE'}
-                </span>
+              {/* Digital Time Centerpiece */}
+              <div className="absolute inset-0 flex flex-col items-center justify-center text-center">
                 <span className="text-4xl sm:text-5xl font-mono font-black text-slate-900 dark:text-white tracking-tight drop-shadow-2xs">
                   {formatTimerMinutes(timerSecondsLeft)}
                 </span>
@@ -1397,7 +1399,7 @@ export default function FlowHubView({ onBackToPortal }: FlowHubViewProps) {
               className={`flex-1 py-3 px-4 rounded-2xl font-black text-xs tracking-wide transition-all shadow-md flex items-center justify-center gap-2 cursor-pointer active:scale-98 ${
                 isTimerActive
                   ? 'bg-[#C8A54B] hover:bg-[#b5923c] text-slate-900 shadow-amber-500/25'
-                  : 'bg-gradient-to-r from-[#24537D] to-[#1B4266] hover:from-[#1E476C] hover:to-[#163755] text-white shadow-[#24537D]/30'
+                  : 'bg-[#24537D] hover:bg-[#1E476C] text-white shadow-[#24537D]/30'
               }`}
             >
               {isTimerActive ? (
@@ -1433,153 +1435,20 @@ export default function FlowHubView({ onBackToPortal }: FlowHubViewProps) {
         </div>
 
         {/* Right: Task Board (Visual Teamhood Kanban Board matching screenshot) */}
-        <div className="lg:col-span-7 p-6 rounded-3xl bg-white dark:bg-[#101D3D] border border-slate-200/80 dark:border-slate-800 shadow-sm flex flex-col justify-between space-y-4">
+        <div className="lg:col-span-7 p-5 sm:p-6 rounded-xl bg-slate-50/60 dark:bg-slate-900/40 border border-slate-200/80 dark:border-slate-800 flex flex-col justify-between space-y-4">
           {renderVisualTaskBoard(false)}
         </div>
 
       </div>
 
-      {/* Bottom Grid: Mind Dump (Left) & Habit Tracker (Right) */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-        
-        {/* Left: Mind Dump Box matching user screenshot */}
-        <div className="lg:col-span-6 p-6 rounded-3xl bg-white dark:bg-[#101D3D] border border-slate-200/80 dark:border-slate-800 shadow-sm flex flex-col justify-between space-y-4">
-          
-          {/* Header Bar */}
-          <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
-            <div className="flex items-center gap-3">
-              <div className="w-8 h-8 rounded-xl bg-[#2F6798]/15 text-[#2F6798] dark:bg-blue-950/80 dark:text-blue-300 flex items-center justify-center shadow-2xs">
-                <FileEdit className="w-4 h-4" />
-              </div>
-              {isEditingTitle ? (
-                <input
-                  type="text"
-                  value={mindDumpTitle}
-                  onChange={(e) => setMindDumpTitle(e.target.value)}
-                  onBlur={() => setIsEditingTitle(false)}
-                  onKeyDown={(e) => e.key === 'Enter' && setIsEditingTitle(false)}
-                  autoFocus
-                  className="font-extrabold text-sm sm:text-base text-slate-900 dark:text-slate-100 bg-slate-50 dark:bg-slate-800 px-2 py-0.5 rounded-lg border border-slate-200 dark:border-slate-700 outline-none"
-                />
-              ) : (
-                <h3 
-                  onClick={() => setIsEditingTitle(true)}
-                  title="Click to rename"
-                  className="text-sm sm:text-base font-extrabold text-slate-900 dark:text-slate-100 cursor-pointer hover:text-[#2F6798] transition-colors"
-                >
-                  {mindDumpTitle}
-                </h3>
-              )}
-            </div>
+      {/* Shift Notes & Planning Studio */}
+      <div className="border-t border-slate-100 dark:border-slate-800/80 pt-6">
+        <FlowHubNotesPlanner />
+      </div>
 
-            <button
-              onClick={() => setIsEditingTitle(!isEditingTitle)}
-              className="px-3.5 py-1.5 rounded-xl bg-[#2F6798]/10 hover:bg-[#2F6798] hover:text-white dark:bg-blue-950/60 dark:text-blue-300 text-[#2F6798] text-xs font-bold transition-all cursor-pointer shadow-2xs"
-            >
-              {isEditingTitle ? 'Done' : 'Edit'}
-            </button>
-          </div>
-
-          {/* Characters Count Pill matching screenshot */}
-          <div>
-            <span className="inline-flex items-center px-3 py-0.5 rounded-full text-[10px] font-extrabold bg-blue-50/80 dark:bg-blue-950/60 text-[#2F6798] dark:text-blue-300 border border-blue-200/60 dark:border-blue-800/40">
-              {mindDumpText.length} characters
-            </span>
-          </div>
-
-          {/* Document Content Area */}
-          <textarea
-            rows={6}
-            value={mindDumpText}
-            onChange={(e) => handleMindDumpChange(e.target.value)}
-            placeholder="Type your brief or notes here..."
-            className="w-full p-2 bg-transparent text-xs sm:text-sm text-slate-800 dark:text-slate-200 leading-relaxed placeholder-slate-400 outline-none resize-none focus:ring-1 focus:ring-[#2F6798]/20 rounded-xl transition-all"
-          />
-
-          {/* Bottom Formatting Toolbar & Save Button matching screenshot */}
-          <div className="flex items-center justify-between gap-3 pt-2">
-            
-            {/* Formatting Tools Capsule */}
-            <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-2xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300">
-              <button
-                type="button"
-                onClick={() => applyFormatting('heading')}
-                title="Heading / Type"
-                className="p-1 hover:text-[#2F6798] dark:hover:text-blue-400 transition-colors cursor-pointer"
-              >
-                <Type className="w-3.5 h-3.5" />
-              </button>
-
-              <div className="w-[1px] h-3.5 bg-slate-300 dark:bg-slate-600" />
-
-              <button
-                type="button"
-                onClick={() => applyFormatting('italic')}
-                title="Italic"
-                className="p-1 hover:text-[#2F6798] dark:hover:text-blue-400 transition-colors cursor-pointer"
-              >
-                <Italic className="w-3.5 h-3.5" />
-              </button>
-
-              <div className="w-[1px] h-3.5 bg-slate-300 dark:bg-slate-600" />
-
-              <button
-                type="button"
-                onClick={() => applyFormatting('bold')}
-                title="Bold"
-                className="p-1 hover:text-[#2F6798] dark:hover:text-blue-400 transition-colors cursor-pointer"
-              >
-                <Bold className="w-3.5 h-3.5" />
-              </button>
-
-              <div className="w-[1px] h-3.5 bg-slate-300 dark:bg-slate-600" />
-
-              <button
-                type="button"
-                onClick={() => applyFormatting('underline')}
-                title="Underline"
-                className="p-1 hover:text-[#2F6798] dark:hover:text-blue-400 transition-colors cursor-pointer"
-              >
-                <Underline className="w-3.5 h-3.5" />
-              </button>
-
-              <div className="w-[1px] h-3.5 bg-slate-300 dark:bg-slate-600" />
-
-              <button
-                type="button"
-                onClick={handleCopyMindDump}
-                title="Copy content"
-                className="p-1 hover:text-[#2F6798] dark:hover:text-blue-400 transition-colors cursor-pointer"
-              >
-                {isCopied ? (
-                  <Check className="w-3.5 h-3.5 text-emerald-600" />
-                ) : (
-                  <Copy className="w-3.5 h-3.5" />
-                )}
-              </button>
-            </div>
-
-            {/* Save Button in Brand Primary Blue #2F6798 */}
-            <button
-              onClick={handleSaveMindDump}
-              className="px-6 py-2 rounded-2xl bg-[#2F6798] hover:bg-[#235179] active:bg-[#1c4366] text-white font-black text-xs shadow-md shadow-[#2F6798]/20 transition-all flex items-center gap-1.5 cursor-pointer"
-            >
-              {isSaved ? (
-                <>
-                  <Check className="w-3.5 h-3.5" />
-                  <span>Saved!</span>
-                </>
-              ) : (
-                <span>Save</span>
-              )}
-            </button>
-
-          </div>
-
-        </div>
-
-        {/* Right: Habit & Daily Routine Tracker (Web View matching Reference Design) */}
-        <div className="lg:col-span-6 rounded-3xl bg-[#FAF9F6] dark:bg-[#0C172E] border border-slate-200/80 dark:border-slate-800 shadow-sm p-5 sm:p-6 space-y-5">
+      {/* Wellness & Daily Routine Tracker */}
+      <div className="border-t border-slate-100 dark:border-slate-800/80 pt-6">
+        <div className="rounded-xl bg-slate-50/60 dark:bg-slate-900/40 border border-slate-200/80 dark:border-slate-800 p-5 sm:p-6 space-y-5">
           
           {/* Top Header: Greeting, Title & Add Routine Button */}
           <div className="flex items-center justify-between">
@@ -1711,7 +1580,7 @@ export default function FlowHubView({ onBackToPortal }: FlowHubViewProps) {
           {activeHabitTab === 'routine' && (
             <div className="space-y-4">
               {/* Reminder Hero Banner matching Reference */}
-              <div className="p-4 rounded-2xl bg-gradient-to-r from-[#FFE8D6] to-[#FFD8BE] dark:from-amber-950/40 dark:to-orange-950/30 border border-amber-200/60 dark:border-amber-800/50 flex items-center justify-between gap-4">
+              <div className="p-4 rounded-2xl bg-[#FFE8D6] dark:bg-amber-950/40 border border-amber-200/60 dark:border-amber-800/50 flex items-center justify-between gap-4">
                 <div className="space-y-1">
                   <h4 className="text-sm font-extrabold text-amber-950 dark:text-amber-100">
                     Set the reminder
@@ -1834,7 +1703,7 @@ export default function FlowHubView({ onBackToPortal }: FlowHubViewProps) {
                   {
                     title: 'Hydration Reset',
                     subtitle: 'Drink pure water',
-                    bg: 'from-sky-50 to-blue-100/70 dark:from-sky-950/40 dark:to-blue-900/30',
+                    bg: 'bg-sky-50 dark:bg-sky-950/40',
                     border: 'border-sky-200 dark:border-sky-800/60',
                     icon: <Droplets className="w-6 h-6 text-sky-500" />,
                     badge: 'Daily 2.5L',
@@ -1842,7 +1711,7 @@ export default function FlowHubView({ onBackToPortal }: FlowHubViewProps) {
                   {
                     title: 'Mindful Focus',
                     subtitle: 'Breath & queue pause',
-                    bg: 'from-emerald-50 to-teal-100/70 dark:from-emerald-950/40 dark:to-teal-900/30',
+                    bg: 'bg-emerald-50 dark:bg-emerald-950/40',
                     border: 'border-emerald-200 dark:border-emerald-800/60',
                     icon: <Smile className="w-6 h-6 text-emerald-500" />,
                     badge: '15 Min Calibrate',
@@ -1850,7 +1719,7 @@ export default function FlowHubView({ onBackToPortal }: FlowHubViewProps) {
                   {
                     title: 'Ergonomic Stretch',
                     subtitle: 'Neck, wrist & spine',
-                    bg: 'from-purple-50 to-pink-100/70 dark:from-purple-950/40 dark:to-pink-900/30',
+                    bg: 'bg-purple-50 dark:bg-purple-950/40',
                     border: 'border-purple-200 dark:border-purple-800/60',
                     icon: <Activity className="w-6 h-6 text-purple-500" />,
                     badge: '10 Min Desk',
@@ -1858,7 +1727,7 @@ export default function FlowHubView({ onBackToPortal }: FlowHubViewProps) {
                   {
                     title: 'Shift Fuel Meal',
                     subtitle: 'Nutritious lunch meal',
-                    bg: 'from-amber-50 to-orange-100/70 dark:from-amber-950/40 dark:to-orange-900/30',
+                    bg: 'bg-amber-50 dark:bg-amber-950/40',
                     border: 'border-amber-200 dark:border-amber-800/60',
                     icon: <Utensils className="w-6 h-6 text-amber-500" />,
                     badge: 'Healthy Meal',
@@ -1866,7 +1735,7 @@ export default function FlowHubView({ onBackToPortal }: FlowHubViewProps) {
                 ].map((card, i) => (
                   <div
                     key={i}
-                    className={`p-4 rounded-2xl bg-gradient-to-br ${card.bg} border ${card.border} space-y-3 transition-all hover:scale-[1.02] shadow-2xs`}
+                    className={`p-4 rounded-2xl ${card.bg} border ${card.border} space-y-3 transition-all hover:scale-[1.02] shadow-2xs`}
                   >
                     <div className="w-10 h-10 rounded-2xl bg-white/90 dark:bg-slate-800/90 shadow-xs flex items-center justify-center">
                       {card.icon}
@@ -1967,6 +1836,8 @@ export default function FlowHubView({ onBackToPortal }: FlowHubViewProps) {
           )}
 
         </div>
+
+      </div>
 
       </div>
 

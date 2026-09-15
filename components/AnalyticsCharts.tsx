@@ -115,7 +115,7 @@ export default function AnalyticsCharts({ records }: AnalyticsChartsProps) {
 
                   <div className="w-full h-2 rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden">
                     <div
-                      className="h-full rounded-full bg-gradient-to-r from-[#2F6798] to-[#C8A54B] transition-all duration-500"
+                      className="h-full rounded-full bg-[#2F6798] transition-all duration-500"
                       style={{ width: `${percentage}%` }}
                     />
                   </div>
@@ -180,7 +180,7 @@ export default function AnalyticsCharts({ records }: AnalyticsChartsProps) {
 
                     <div className="w-full h-2 rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden">
                       <div
-                        className="h-full rounded-full bg-gradient-to-r from-[#C8A54B] to-emerald-500 transition-all duration-500"
+                        className="h-full rounded-full bg-[#C8A54B] transition-all duration-500"
                         style={{ width: `${percentage}%` }}
                       />
                     </div>

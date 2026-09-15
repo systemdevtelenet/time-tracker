@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 160" width="100%" height="100%">
+  <!-- SUN RAYS (Short rounded golden dashes) -->
+  <g fill="#FDB813">
+    <!-- 12 Radiating rounded pill rays -->
+    {[...Array(12)].map((_, i) => '')}
+    <rect x="97" y="10" width="6" height="20" rx="3" transform="rotate(0 100 20)" />
+    <rect x="97" y="10" width="6" height="20" rx="3" transform="rotate(30 100 80)" />
+    <rect x="97" y="10" width="6" height="20" rx="3" transform="rotate(60 100 80)" />
+    <rect x="97" y="10" width="6" height="20" rx="3" transform="rotate(90 100 80)" />
+    <rect x="97" y="10" width="6" height="20" rx="3" transform="rotate(120 100 80)" />
+    <rect x="97" y="10" width="6" height="20" rx="3" transform="rotate(150 100 80)" />
+    <rect x="97" y="10" width="6" height="20" rx="3" transform="rotate(180 100 80)" />
+    <rect x="97" y="10" width="6" height="20" rx="3" transform="rotate(210 100 80)" />
+    <rect x="97" y="10" width="6" height="20" rx="3" transform="rotate(240 100 80)" />
+    <rect x="97" y="10" width="6" height="20" rx="3" transform="rotate(270 100 80)" />
+    <rect x="97" y="10" width="6" height="20" rx="3" transform="rotate(300 100 80)" />
+    <rect x="97" y="10" width="6" height="20" rx="3" transform="rotate(330 100 80)" />
+  </g>
+
+  <!-- SUN BODY (Warm golden yellow with right-side shadow rim) -->
+  <circle cx="103" cy="83" r="42" fill="#FDB813" />
+  <circle cx="100" cy="80" r="40" fill="#FEE066" />
+</svg>

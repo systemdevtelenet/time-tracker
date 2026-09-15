@@ -162,7 +162,7 @@ export default function SettingsView({
           </button>
           
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-[#24537D] to-[#1B4266] text-white flex items-center justify-center shadow-md shadow-[#24537D]/20">
+            <div className="w-10 h-10 rounded-2xl bg-[#24537D] text-white flex items-center justify-center shadow-md">
               <Settings className="w-5 h-5 stroke-[2.2]" />
             </div>
             <div>
@@ -269,8 +269,8 @@ export default function SettingsView({
               </div>
 
               {/* Profile Card Preview */}
-              <div className="p-5 rounded-2xl bg-gradient-to-r from-blue-50/70 to-amber-50/50 dark:from-blue-950/40 dark:to-amber-950/30 border border-blue-200/60 dark:border-blue-800/40 flex flex-col sm:flex-row items-center gap-5">
-                <div className="w-20 h-20 rounded-full bg-gradient-to-tr from-[#1C4366] via-[#24537D] to-[#C8A54B] text-white font-black text-2xl flex items-center justify-center shadow-lg ring-4 ring-white dark:ring-slate-800 shrink-0">
+              <div className="p-5 rounded-2xl bg-blue-50/70 dark:bg-blue-950/40 border border-blue-200/60 dark:border-blue-800/40 flex flex-col sm:flex-row items-center gap-5">
+                <div className="w-20 h-20 rounded-full bg-[#24537D] text-[#E5CA80] font-black text-2xl flex items-center justify-center shadow-md ring-4 ring-white dark:ring-slate-800 shrink-0 border-2 border-[#C8A54B]/40">
                   NR
                 </div>
                 <div className="space-y-1 text-center sm:text-left">
