@@ -415,13 +415,13 @@ export default function FlowHubNotesPlanner() {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             
             {/* Pending Issues & Escalations */}
-            <div className="p-4 rounded-xl bg-slate-50 dark:bg-slate-900/40 border border-slate-200/80 dark:border-slate-800 space-y-2">
+            <div className="p-3.5 rounded-xl bg-slate-50 dark:bg-slate-900/40 border border-slate-200/80 dark:border-slate-800 space-y-2">
               <div className="flex items-center gap-1.5 text-xs font-black text-rose-700 dark:text-rose-400 uppercase">
                 <AlertTriangle className="w-3.5 h-3.5" />
-                <span>Pending Issues & Trainee Escalations</span>
+                <span>Pending Issues &amp; Trainee Escalations</span>
               </div>
               <textarea
-                rows={4}
+                rows={2}
                 value={handoverPendingIssues}
                 onChange={(e) => setHandoverPendingIssues(e.target.value)}
                 placeholder="Log any unresolved trainer or technical issues..."
@@ -430,13 +430,13 @@ export default function FlowHubNotesPlanner() {
             </div>
 
             {/* Next Shift Endorsements */}
-            <div className="p-4 rounded-xl bg-slate-50 dark:bg-slate-900/40 border border-slate-200/80 dark:border-slate-800 space-y-2">
+            <div className="p-3.5 rounded-xl bg-slate-50 dark:bg-slate-900/40 border border-slate-200/80 dark:border-slate-800 space-y-2">
               <div className="flex items-center gap-1.5 text-xs font-black text-[#2F6798] dark:text-blue-400 uppercase">
                 <ArrowRight className="w-3.5 h-3.5" />
                 <span>Endorsements to Incoming Supervisor</span>
               </div>
               <textarea
-                rows={4}
+                rows={2}
                 value={handoverNextShiftEndorsements}
                 onChange={(e) => setHandoverNextShiftEndorsements(e.target.value)}
                 placeholder="Notes for next shift team..."
@@ -782,7 +782,7 @@ export default function FlowHubNotesPlanner() {
           </div>
 
           <textarea
-            rows={7}
+            rows={5}
             value={mindDumpText}
             onChange={(e) => setMindDumpText(e.target.value)}
             placeholder="Type your notes, ideas, or meeting draft..."

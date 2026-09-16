@@ -149,14 +149,14 @@ export default function CompanyTopNav({
     <header className="sticky top-0 z-40 w-full bg-white dark:bg-[#0E1B38] border-b border-slate-200/80 dark:border-slate-800 transition-colors shadow-2xs">
       <div className="w-full px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-4">
         
-        {/* Left: System Title (Semi Bold) */}
+        {/* Left: System Title (Bold) */}
         <div className="min-w-0 flex items-center gap-3">
-          <h1 className="text-base sm:text-lg font-semibold text-slate-900 dark:text-slate-100 tracking-tight truncate">
+          <h1 className="text-base sm:text-lg font-bold text-slate-900 dark:text-slate-100 tracking-tight truncate font-sans">
             {title}
           </h1>
         </div>
 
-        {/* Center: Search Bar with ⌘K & Functional Command Palette Dropdown */}
+        {/* Center: Search Bar with ⌘K & Functional Command Palette Dropdown (rounded-xl, not very circle) */}
         <div className="hidden md:flex items-center flex-1 max-w-md mx-4 relative" ref={searchContainerRef}>
           <div className="relative w-full">
             <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-[#8A9EB5] stroke-[1.5] pointer-events-none" />
@@ -170,7 +170,7 @@ export default function CompanyTopNav({
                 setIsSearchOpen(true);
               }}
               placeholder="Type name, batch, role, or page..."
-              className="w-full pl-10 pr-12 py-2 rounded-2xl bg-white dark:bg-[#0B132B] hover:bg-white focus:bg-white dark:hover:bg-[#0B132B] dark:focus:bg-[#0B132B] border border-[#E2E8F0] dark:border-slate-700/80 text-xs text-slate-800 dark:text-slate-100 placeholder:text-[#8A9EB5] focus:outline-none focus:ring-1 focus:ring-[#8A9EB5]/40 focus:border-[#8A9EB5] transition-all shadow-2xs font-normal"
+              className="w-full pl-10 pr-12 py-2 rounded-xl bg-white dark:bg-[#0B132B] hover:bg-white focus:bg-white dark:hover:bg-[#0B132B] dark:focus:bg-[#0B132B] border border-[#E2E8F0] dark:border-slate-700/80 text-xs text-slate-800 dark:text-slate-100 placeholder:text-[#8A9EB5] focus:outline-none focus:ring-1 focus:ring-[#8A9EB5]/40 focus:border-[#8A9EB5] transition-all shadow-2xs font-normal"
             />
             <div className="absolute right-2.5 top-1/2 -translate-y-1/2 px-2 py-0.5 rounded-lg border border-[#E2E8F0] dark:border-slate-700 bg-white dark:bg-slate-800 text-[#8A9EB5] dark:text-slate-400 text-xs font-medium select-none flex items-center gap-0.5 shadow-2xs">
               <span className="text-[13px] leading-none">⌘</span>

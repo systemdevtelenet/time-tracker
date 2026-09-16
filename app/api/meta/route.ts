@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getSupabaseAdmin } from '@/lib/supabase/server';
+import { INITIAL_TEAM_ROSTER } from '@/lib/teamRoster';
 
 export const dynamic = 'force-dynamic';
 
@@ -13,31 +14,46 @@ export async function GET() {
       .select('account_id, account_code, account_name')
       .order('account_code');
 
-    // Fetch employees & trainers for agent selector
-    const { data: employeesData } = await supabase
-      .from('employees')
-      .select('id, employee_name, employee_email')
-      .limit(60);
+    // 1. Try to fetch from dedicated team_roster table
+    const { data: rosterData, error: rosterError } = await supabase
+      .from('team_roster')
+      .select('*')
+      .order('id');
 
-    const { data: trainersData } = await supabase
-      .from('trainers_profile')
-      .select('name, position, gmail_account')
-      .limit(30);
+    let employees: any[] = [];
 
-    const employees = [
-      ...(employeesData || []).map((e) => ({
-        id: e.id,
-        name: e.employee_name,
-        email: e.employee_email,
-        role: 'Agent',
-      })),
-      ...(trainersData || []).map((t, idx) => ({
-        id: `trainer-${idx}`,
-        name: t.name,
-        email: t.gmail_account,
-        role: t.position || 'Trainer',
-      })),
-    ];
+    if (!rosterError && rosterData && rosterData.length > 0) {
+      employees = rosterData.map((m) => ({
+        id: m.employee_id,
+        name: m.name,
+        email: `${m.name.toLowerCase().replace(/\s+/g, '.')}@cebutele-net.ph`,
+        role: m.position || m.role || 'Agent',
+        shift: m.shift,
+        shift_type: m.shift_type,
+        account: m.account,
+        supervisor: m.supervisor,
+        department: m.department,
+        hire_date: m.hire_date,
+        tenure: m.tenure,
+        traffic_light_status: m.traffic_light_status,
+      }));
+    } else {
+      // 2. Fallback to INITIAL_TEAM_ROSTER with all 21 members
+      employees = INITIAL_TEAM_ROSTER.map((m) => ({
+        id: m.employee_id,
+        name: m.name,
+        email: `${m.name.toLowerCase().replace(/\s+/g, '.')}@cebutele-net.ph`,
+        role: m.position || m.role || 'Agent',
+        shift: m.shift,
+        shift_type: m.shift_type,
+        account: m.account,
+        supervisor: m.supervisor,
+        department: m.department,
+        hire_date: m.hire_date,
+        tenure: m.tenure,
+        traffic_light_status: m.traffic_light_status,
+      }));
+    }
 
     // Fallback accounts if empty
     const accounts = accountsData && accountsData.length > 0 
@@ -55,6 +71,7 @@ export async function GET() {
     return NextResponse.json({
       accounts,
       employees,
+      roster: rosterData && rosterData.length > 0 ? rosterData : INITIAL_TEAM_ROSTER,
     });
   } catch (err: any) {
     console.error('Error fetching meta info:', err);

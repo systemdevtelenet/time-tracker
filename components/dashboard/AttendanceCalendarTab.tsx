@@ -25,6 +25,7 @@ import { PhoneTimeRecord } from '@/lib/types';
 interface AttendanceCalendarTabProps {
   records?: PhoneTimeRecord[];
   onBackToRoster?: () => void;
+  searchFilter?: string;
 }
 
 type AttendanceStatus = 'P' | 'L' | 'U' | 'A' | 'RD' | null;
@@ -205,12 +206,12 @@ type RangeViewOption = 'all_30' | 'period_1' | 'period_2' | 'current_week';
 export default function AttendanceCalendarTab({
   records = [],
   onBackToRoster,
+  searchFilter = '',
 }: AttendanceCalendarTabProps) {
   const [viewFormat, setViewFormat] = useState<'matrix' | 'google-calendar'>('matrix');
   const [rangeView, setRangeView] = useState<RangeViewOption>('all_30');
   const [currentMonthIndex, setCurrentMonthIndex] = useState(8); // September (0-indexed)
   const [currentYear, setCurrentYear] = useState(2026);
-  const [searchQuery, setSearchQuery] = useState('');
   const [selectedStatusFilter, setSelectedStatusFilter] = useState<string>('all');
   const [selectedIndividualEmployee, setSelectedIndividualEmployee] = useState<string>('Nissi-Jeh Reguero');
 
@@ -252,29 +253,26 @@ export default function AttendanceCalendarTab({
         name: emp.name,
         position: emp.position,
         startDate: emp.startDate,
-        status,
-        hoursWorked,
-        breakMins: status === 'A' || status === 'RD' ? 0 : 15,
-        lunchMins: status === 'A' || status === 'RD' ? 0 : 60,
-        shiftSchedule: '9:00 PM – 6:00 AM',
+        status: status,
+        hoursWorked: hoursWorked,
+        timeIn: status === 'A' || status === 'RD' ? '-' : '8:00 AM',
+        timeOut: status === 'A' || status === 'RD' ? '-' : '5:00 PM',
+        notes: status === 'L' ? 'Tardy 15 mins' : status === 'U' ? 'Undertime departure' : status === 'A' ? 'Unexcused absence' : 'Regular Shift',
       };
     });
   }, [modalDayNumber]);
 
-  // Determine active days slice based on rangeView
-  const displayedDays = useMemo(() => {
-    if (rangeView === 'period_1') {
-      return Array.from({ length: 15 }, (_, i) => i + 1); // Days 1 - 15
+  // Jump to active day column (Sep 16)
+  const handleJumpToToday = () => {
+    if (scrollContainerRef.current) {
+      const todayTh = scrollContainerRef.current.querySelector('[data-today-header="true"]');
+      if (todayTh) {
+        todayTh.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
+      }
     }
-    if (rangeView === 'period_2') {
-      return Array.from({ length: 15 }, (_, i) => i + 16); // Days 16 - 30
-    }
-    if (rangeView === 'current_week') {
-      return [14, 15, 16, 17, 18, 19, 20]; // Current Week around Sep 16
-    }
-    return Array.from({ length: 30 }, (_, i) => i + 1); // Full Month (1 - 30)
-  }, [rangeView]);
+  };
 
+  // Month navigation
   const handlePrevMonth = () => {
     if (currentMonthIndex === 0) {
       setCurrentMonthIndex(11);
@@ -293,25 +291,83 @@ export default function AttendanceCalendarTab({
     }
   };
 
-  // Scroll to active day
-  const handleJumpToToday = () => {
-    setRangeView('all_30');
-    setTimeout(() => {
-      if (scrollContainerRef.current) {
-        const todayHeader = scrollContainerRef.current.querySelector('[data-today-header="true"]');
-        if (todayHeader) {
-          todayHeader.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
-        }
-      }
-    }, 100);
-  };
+  // Days list based on active range
+  const displayedDays = useMemo(() => {
+    const days: number[] = [];
+    let start = 1;
+    let end = 30;
 
-  // Filter employees
+    if (rangeView === 'period_1') {
+      start = 1;
+      end = 15;
+    } else if (rangeView === 'period_2') {
+      start = 16;
+      end = 30;
+    } else if (rangeView === 'current_week') {
+      start = 14;
+      end = 20;
+    }
+
+    for (let i = start; i <= end; i++) {
+      days.push(i);
+    }
+    return days;
+  }, [rangeView]);
+
+  // Dynamic Database Team Roster List
+  const [attendanceDataList, setAttendanceDataList] = useState<EmployeeAttendanceRow[]>(TEAM_ATTENDANCE_DATA);
+
+  // Fetch actual live roster from Supabase database
+  useEffect(() => {
+    async function loadDbTeam() {
+      try {
+        const res = await fetch('/api/team-roster');
+        const json = await res.json();
+        if (json.success && Array.isArray(json.data) && json.data.length > 0) {
+          const mapped: EmployeeAttendanceRow[] = json.data.map((r: any, idx: number) => {
+            const existing = TEAM_ATTENDANCE_DATA.find((e) => e.name.toLowerCase() === r.name.toLowerCase());
+            if (existing) {
+              return {
+                ...existing,
+                startDate: r.hire_date || existing.startDate,
+                position: r.position || existing.position,
+              };
+            }
+
+            // Generate attendance map for database member
+            const attendanceMap: Record<number, AttendanceStatus> = {};
+            for (let d = 1; d <= 30; d++) {
+              const isWeekend = d % 7 === 5 || d % 7 === 6;
+              if (isWeekend) attendanceMap[d] = 'RD';
+              else if (d === 1 || d === 8) attendanceMap[d] = 'L';
+              else if (d === 4 || d === 10) attendanceMap[d] = 'U';
+              else attendanceMap[d] = 'P';
+            }
+
+            return {
+              id: String(r.id || r.employee_id),
+              startDate: r.hire_date || '1/3/2024',
+              position: r.position || 'Trainer',
+              name: r.name,
+              attendanceByDay: attendanceMap,
+            };
+          });
+
+          setAttendanceDataList(mapped);
+        }
+      } catch (err) {
+        console.error('Failed to load database roster in calendar tab:', err);
+      }
+    }
+    loadDbTeam();
+  }, []);
+
+  // Filter employees with top search and status
   const filteredEmployees = useMemo(() => {
-    return TEAM_ATTENDANCE_DATA.filter((emp) => {
+    return attendanceDataList.filter((emp) => {
       const matchesSearch = 
-        emp.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        emp.position.toLowerCase().includes(searchQuery.toLowerCase());
+        emp.name.toLowerCase().includes(searchFilter.toLowerCase()) ||
+        emp.position.toLowerCase().includes(searchFilter.toLowerCase());
       
       if (!matchesSearch) return false;
 
@@ -323,44 +379,44 @@ export default function AttendanceCalendarTab({
 
       return true;
     });
-  }, [searchQuery, selectedStatusFilter]);
+  }, [attendanceDataList, searchFilter, selectedStatusFilter]);
 
-  // Status Styling Helper
+  // Status Styling Helper (Reduced size by 1)
   const getStatusBadge = (status: AttendanceStatus) => {
     switch (status) {
       case 'P':
         return (
-          <span className="w-5 h-5 sm:w-6 sm:h-6 rounded-md bg-[#d1fae5] text-[#065f46] dark:bg-emerald-950/70 dark:text-emerald-300 font-black text-[10px] sm:text-[11px] flex items-center justify-center shadow-2xs">
+          <span className="w-5 h-5 sm:w-6 sm:h-6 rounded-md bg-[#d1fae5] text-[#065f46] dark:bg-emerald-950/70 dark:text-emerald-300 font-extrabold text-[10px] sm:text-[11px] flex items-center justify-center shadow-2xs">
             P
           </span>
         );
       case 'L':
         return (
-          <span className="w-5 h-5 sm:w-6 sm:h-6 rounded-md bg-[#fef3c7] text-[#92400e] dark:bg-amber-950/70 dark:text-amber-300 font-black text-[10px] sm:text-[11px] flex items-center justify-center shadow-2xs">
+          <span className="w-5 h-5 sm:w-6 sm:h-6 rounded-md bg-[#fef3c7] text-[#92400e] dark:bg-amber-950/70 dark:text-amber-300 font-extrabold text-[10px] sm:text-[11px] flex items-center justify-center shadow-2xs">
             L
           </span>
         );
       case 'U':
         return (
-          <span className="w-5 h-5 sm:w-6 sm:h-6 rounded-md bg-[#ffedd5] text-[#9a3412] dark:bg-orange-950/70 dark:text-orange-300 font-black text-[10px] sm:text-[11px] flex items-center justify-center shadow-2xs">
+          <span className="w-5 h-5 sm:w-6 sm:h-6 rounded-md bg-[#ffedd5] text-[#9a3412] dark:bg-orange-950/70 dark:text-orange-300 font-extrabold text-[10px] sm:text-[11px] flex items-center justify-center shadow-2xs">
             U
           </span>
         );
       case 'A':
         return (
-          <span className="w-5 h-5 sm:w-6 sm:h-6 rounded-md bg-[#ffe4e6] text-[#9f1239] dark:bg-rose-950/70 dark:text-rose-300 font-black text-[10px] sm:text-[11px] flex items-center justify-center shadow-2xs">
+          <span className="w-5 h-5 sm:w-6 sm:h-6 rounded-md bg-[#ffe4e6] text-[#9f1239] dark:bg-rose-950/70 dark:text-rose-300 font-extrabold text-[10px] sm:text-[11px] flex items-center justify-center shadow-2xs">
             A
           </span>
         );
       case 'RD':
         return (
-          <span className="w-5 h-5 sm:w-6 sm:h-6 rounded-md bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300 font-black text-[10px] sm:text-[11px] flex items-center justify-center shadow-2xs">
+          <span className="w-5 h-5 sm:w-6 sm:h-6 rounded-md bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300 font-extrabold text-[9.5px] sm:text-[10px] flex items-center justify-center shadow-2xs">
             RD
           </span>
         );
       default:
         return (
-          <span className="w-5 h-5 text-slate-300 dark:text-slate-700 flex items-center justify-center text-xs">
+          <span className="w-5 h-5 sm:w-6 sm:h-6 text-slate-300 dark:text-slate-700 flex items-center justify-center text-xs">
             -
           </span>
         );
@@ -381,7 +437,7 @@ export default function AttendanceCalendarTab({
             <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
               
               <div>
-                <h3 className="text-base sm:text-lg lg:text-xl font-black text-slate-900 dark:text-slate-100 tracking-tight whitespace-nowrap">
+                <h3 className="text-sm sm:text-base font-bold text-slate-900 dark:text-slate-100 tracking-tight whitespace-nowrap font-sans">
                   Attendance Calendar (All Employees)
                 </h3>
                 <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
@@ -393,13 +449,13 @@ export default function AttendanceCalendarTab({
               <div className="flex items-center gap-2.5 flex-wrap justify-end">
                 
                 {/* View Format Toggle (Matrix vs Calendar) */}
-                <div className="flex items-center p-1 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold">
+                <div className="flex items-center p-1 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-semibold">
                   <button
                     type="button"
                     onClick={() => setViewFormat('matrix')}
                     className={`px-3 py-1.5 rounded-lg flex items-center gap-1.5 transition-all cursor-pointer ${
                       viewFormat === 'matrix'
-                        ? 'bg-[#2F6798] text-white shadow-xs font-black'
+                        ? 'bg-[#2F6798] text-white shadow-xs font-semibold'
                         : 'text-slate-600 dark:text-slate-400 hover:text-slate-900'
                     }`}
                   >
@@ -411,7 +467,7 @@ export default function AttendanceCalendarTab({
                     onClick={() => setViewFormat('google-calendar')}
                     className={`px-3 py-1.5 rounded-lg flex items-center gap-1.5 transition-all cursor-pointer ${
                       (viewFormat as string) === 'google-calendar'
-                        ? 'bg-[#2F6798] text-white shadow-xs font-black'
+                        ? 'bg-[#2F6798] text-white shadow-xs font-semibold'
                         : 'text-slate-600 dark:text-slate-400 hover:text-slate-900'
                     }`}
                   >
@@ -420,26 +476,28 @@ export default function AttendanceCalendarTab({
                   </button>
                 </div>
 
-                {/* Month Navigator with Blue Accents */}
-                <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs">
+                {/* Month Navigator with Arrow Buttons & Bold Date */}
+                <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-sans">
                   <button
                     type="button"
                     onClick={handlePrevMonth}
-                    className="px-2.5 py-1 rounded-lg bg-white dark:bg-slate-700 hover:bg-slate-100 text-slate-700 dark:text-slate-200 text-xs font-bold shadow-2xs transition-colors cursor-pointer"
+                    className="p-1.5 rounded-lg bg-white dark:bg-slate-700 hover:bg-slate-100 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 text-xs font-semibold shadow-2xs transition-colors cursor-pointer flex items-center justify-center"
+                    title="Previous Month"
                   >
-                    Prev
+                    <ChevronLeft className="w-3.5 h-3.5" />
                   </button>
 
-                  <span className="font-black text-slate-900 dark:text-slate-100 px-2 text-xs sm:text-sm">
+                  <span className="font-bold text-slate-900 dark:text-slate-100 px-2 text-xs">
                     {monthNames[currentMonthIndex]} {currentYear}
                   </span>
 
                   <button
                     type="button"
                     onClick={handleNextMonth}
-                    className="px-2.5 py-1 rounded-lg bg-white dark:bg-slate-700 hover:bg-slate-100 text-slate-700 dark:text-slate-200 text-xs font-bold shadow-2xs transition-colors cursor-pointer"
+                    className="p-1.5 rounded-lg bg-white dark:bg-slate-700 hover:bg-slate-100 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 text-xs font-semibold shadow-2xs transition-colors cursor-pointer flex items-center justify-center"
+                    title="Next Month"
                   >
-                    Next
+                    <ChevronRight className="w-3.5 h-3.5" />
                   </button>
                 </div>
 
@@ -452,16 +510,16 @@ export default function AttendanceCalendarTab({
               
               {/* Range Toggle Buttons */}
               <div className="flex items-center gap-1.5 overflow-x-auto">
-                <span className="text-[10px] font-black uppercase text-slate-400 dark:text-slate-500 mr-1 shrink-0">
+                <span className="text-[10px] font-bold uppercase text-slate-400 dark:text-slate-500 mr-1 shrink-0">
                   Date Range:
                 </span>
                 
                 <button
                   type="button"
                   onClick={() => setRangeView('all_30')}
-                  className={`px-3 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer shrink-0 ${
+                  className={`px-3 py-1 rounded-lg text-xs font-semibold transition-all cursor-pointer shrink-0 ${
                     rangeView === 'all_30'
-                      ? 'bg-[#2F6798] text-white shadow-xs font-black'
+                      ? 'bg-[#2F6798] text-white shadow-xs'
                       : 'bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-100 border border-slate-200 dark:border-slate-700'
                   }`}
                 >
@@ -471,9 +529,9 @@ export default function AttendanceCalendarTab({
                 <button
                   type="button"
                   onClick={() => setRangeView('period_1')}
-                  className={`px-3 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer shrink-0 ${
+                  className={`px-3 py-1 rounded-lg text-xs font-semibold transition-all cursor-pointer shrink-0 ${
                     rangeView === 'period_1'
-                      ? 'bg-[#2F6798] text-white shadow-xs font-black'
+                      ? 'bg-[#2F6798] text-white shadow-xs'
                       : 'bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-100 border border-slate-200 dark:border-slate-700'
                   }`}
                 >
@@ -483,9 +541,9 @@ export default function AttendanceCalendarTab({
                 <button
                   type="button"
                   onClick={() => setRangeView('period_2')}
-                  className={`px-3 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer shrink-0 ${
+                  className={`px-3 py-1 rounded-lg text-xs font-semibold transition-all cursor-pointer shrink-0 ${
                     rangeView === 'period_2'
-                      ? 'bg-[#2F6798] text-white shadow-xs font-black'
+                      ? 'bg-[#2F6798] text-white shadow-xs'
                       : 'bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-100 border border-slate-200 dark:border-slate-700'
                   }`}
                 >
@@ -495,9 +553,9 @@ export default function AttendanceCalendarTab({
                 <button
                   type="button"
                   onClick={() => setRangeView('current_week')}
-                  className={`px-3 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer shrink-0 ${
+                  className={`px-3 py-1 rounded-lg text-xs font-semibold transition-all cursor-pointer shrink-0 ${
                     rangeView === 'current_week'
-                      ? 'bg-[#2F6798] text-white shadow-xs font-black'
+                      ? 'bg-[#2F6798] text-white shadow-xs'
                       : 'bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-100 border border-slate-200 dark:border-slate-700'
                   }`}
                 >
@@ -509,7 +567,7 @@ export default function AttendanceCalendarTab({
               <button
                 type="button"
                 onClick={handleJumpToToday}
-                className="inline-flex items-center justify-center gap-1.5 px-3 py-1 rounded-lg bg-white dark:bg-slate-800 border border-[#2F6798]/30 hover:border-[#2F6798] text-[#2F6798] dark:text-blue-300 text-xs font-black shadow-2xs transition-all cursor-pointer shrink-0"
+                className="inline-flex items-center justify-center gap-1.5 px-3 py-1 rounded-lg bg-white dark:bg-slate-800 border border-[#2F6798]/30 hover:border-[#2F6798] text-[#2F6798] dark:text-blue-300 text-xs font-semibold shadow-2xs transition-all cursor-pointer shrink-0"
               >
                 <Sparkles className="w-3.5 h-3.5 text-[#2F6798]" />
                 <span>Jump to Today (Sep 16)</span>
@@ -517,45 +575,28 @@ export default function AttendanceCalendarTab({
 
             </div>
 
-            {/* Legend Row & Search Filter (No line divider above) */}
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-0.5">
-              
-              {/* Status Color Legend */}
-              <div className="flex items-center gap-4 text-xs font-bold flex-wrap">
-                <span className="flex items-center gap-1.5 text-emerald-700 dark:text-emerald-400">
-                  <span className="w-2.5 h-2.5 rounded-full bg-[#10b981]" />
-                  <span>P - Present</span>
-                </span>
-                <span className="flex items-center gap-1.5 text-amber-700 dark:text-amber-400">
-                  <span className="w-2.5 h-2.5 rounded-full bg-[#f59e0b]" />
-                  <span>L - Late</span>
-                </span>
-                <span className="flex items-center gap-1.5 text-orange-700 dark:text-orange-400">
-                  <span className="w-2.5 h-2.5 rounded-full bg-[#f97316]" />
-                  <span>U - Undertime</span>
-                </span>
-                <span className="flex items-center gap-1.5 text-rose-700 dark:text-rose-400">
-                  <span className="w-2.5 h-2.5 rounded-full bg-[#f43f5e]" />
-                  <span>A - Absent</span>
-                </span>
-                <span className="flex items-center gap-1.5 text-slate-600 dark:text-slate-400">
-                  <span className="w-2.5 h-2.5 rounded-full bg-slate-400" />
-                  <span>RD - Rest Day</span>
-                </span>
-              </div>
-
-              {/* Polished & Longer Search Bar */}
-              <div className="relative w-full sm:w-80 md:w-96">
-                <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-[#94a3b8] dark:text-slate-400" />
-                <input
-                  type="text"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  placeholder="Type name, code, or email..."
-                  className="w-full pl-10 pr-4 py-2 rounded-xl bg-white dark:bg-slate-900 border border-[#cbd5e1] dark:border-slate-700 text-xs text-slate-800 dark:text-slate-200 placeholder:text-[#94a3b8] dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-[#2F6798]/20 focus:border-[#2F6798] shadow-2xs transition-all"
-                />
-              </div>
-
+            {/* Legend Row (Redundant Search Bar Removed) */}
+            <div className="flex items-center gap-4 text-xs font-semibold flex-wrap pt-0.5">
+              <span className="flex items-center gap-1.5 text-emerald-700 dark:text-emerald-400">
+                <span className="w-2.5 h-2.5 rounded-full bg-[#10b981]" />
+                <span>P - Present</span>
+              </span>
+              <span className="flex items-center gap-1.5 text-amber-700 dark:text-amber-400">
+                <span className="w-2.5 h-2.5 rounded-full bg-[#f59e0b]" />
+                <span>L - Late</span>
+              </span>
+              <span className="flex items-center gap-1.5 text-orange-700 dark:text-orange-400">
+                <span className="w-2.5 h-2.5 rounded-full bg-[#f97316]" />
+                <span>U - Undertime</span>
+              </span>
+              <span className="flex items-center gap-1.5 text-rose-700 dark:text-rose-400">
+                <span className="w-2.5 h-2.5 rounded-full bg-[#f43f5e]" />
+                <span>A - Absent</span>
+              </span>
+              <span className="flex items-center gap-1.5 text-slate-600 dark:text-slate-400">
+                <span className="w-2.5 h-2.5 rounded-full bg-slate-400" />
+                <span>RD - Rest Day</span>
+              </span>
             </div>
 
           </div>
@@ -567,17 +608,17 @@ export default function AttendanceCalendarTab({
               {/* Vibrant Solid Blue Table Headers */}
               <thead>
                 {/* 1st Header Row: Days of the week in Primary Blue #2F6798 */}
-                <tr className="bg-[#2F6798] text-white select-none text-[10px] font-black">
+                <tr className="bg-[#2F6798] text-white select-none text-[10px] font-semibold">
                   
                   {/* Sticky Frozen Columns on Left in Primary Blue */}
-                  <th className="sticky left-0 z-30 bg-[#2F6798] py-2.5 px-3 border-r border-white/15 uppercase tracking-wider min-w-[85px]">
-                    start_date
+                  <th className="sticky left-0 z-30 bg-[#2F6798] py-2.5 px-3 border-r border-white/15 uppercase tracking-wider min-w-[90px]">
+                    START DATE
                   </th>
-                  <th className="sticky left-[85px] z-30 bg-[#2F6798] py-2.5 px-3 border-r border-white/15 uppercase tracking-wider min-w-[125px]">
-                    position
+                  <th className="sticky left-[90px] z-30 bg-[#2F6798] py-2.5 px-3 border-r border-white/15 uppercase tracking-wider min-w-[125px]">
+                    POSITION
                   </th>
-                  <th className="sticky left-[210px] z-30 bg-[#2F6798] py-2.5 px-4 border-r border-white/25 uppercase tracking-wider min-w-[195px] shadow-[4px_0_8px_rgba(0,0,0,0.18)]">
-                    name
+                  <th className="sticky left-[215px] z-30 bg-[#2F6798] py-2.5 px-4 border-r border-white/25 uppercase tracking-wider min-w-[210px] shadow-[4px_0_8px_rgba(0,0,0,0.18)]">
+                    EMPLOYEE NAME
                   </th>
 
                   {/* Day of Week Columns */}
@@ -592,8 +633,8 @@ export default function AttendanceCalendarTab({
                         onClick={() => handleOpenDayModal(dayNum)}
                         title={`Click to view team summary for Sep ${dayNum}`}
                         data-today-header={isToday ? 'true' : undefined}
-                        className={`py-2 px-1 text-center font-black min-w-[36px] sm:min-w-[40px] border-r border-white/15 cursor-pointer hover:bg-white/20 transition-colors ${
-                          isToday ? 'bg-[#059669] text-white font-extrabold ring-1 ring-white/40' : ''
+                        className={`py-2 px-1 text-center font-semibold min-w-[42px] sm:min-w-[46px] border-r border-white/15 cursor-pointer hover:bg-white/20 transition-colors ${
+                          isToday ? 'bg-[#059669] text-white font-bold ring-1 ring-white/40' : ''
                         }`}
                       >
                         {dayName}
@@ -602,16 +643,16 @@ export default function AttendanceCalendarTab({
                   })}
 
                   {/* Monthly Summary Header */}
-                  <th className="py-2.5 px-3 bg-[#24537C] text-white font-black text-center border-l border-white/20 uppercase tracking-wider min-w-[90px]">
+                  <th className="py-2.5 px-3 bg-[#24537C] text-white font-semibold text-center border-l border-white/20 uppercase tracking-wider min-w-[90px]">
                     Monthly Totals
                   </th>
                 </tr>
 
-                {/* 2nd Header Row: Date numbers (SEP 1, SEP 2, ...) in Slightly Deeper Blue #24537C */}
-                <tr className="bg-[#24537C] text-white/95 select-none text-[10px] font-black border-b border-white/20">
+                {/* 2nd Header Row: Date numbers (SEP 1, SEP 2, ...) with Number Always on Next Line */}
+                <tr className="bg-[#24537C] text-white/95 select-none border-b border-white/20">
                   <th className="sticky left-0 z-30 bg-[#24537C] py-1.5 px-3 border-r border-white/15"></th>
-                  <th className="sticky left-[85px] z-30 bg-[#24537C] py-1.5 px-3 border-r border-white/15"></th>
-                  <th className="sticky left-[210px] z-30 bg-[#24537C] py-1.5 px-4 border-r border-white/25 shadow-[4px_0_8px_rgba(0,0,0,0.18)]"></th>
+                  <th className="sticky left-[90px] z-30 bg-[#24537C] py-1.5 px-3 border-r border-white/15"></th>
+                  <th className="sticky left-[215px] z-30 bg-[#24537C] py-1.5 px-4 border-r border-white/25 shadow-[4px_0_8px_rgba(0,0,0,0.18)]"></th>
 
                   {displayedDays.map((dayNum) => {
                     const isToday = dayNum === activeDayNumber;
@@ -621,16 +662,19 @@ export default function AttendanceCalendarTab({
                         key={dayNum}
                         onClick={() => handleOpenDayModal(dayNum)}
                         title={`Click to view team summary for Sep ${dayNum}`}
-                        className={`py-1.5 px-1 text-center border-r border-white/15 cursor-pointer hover:bg-white/20 transition-colors ${
-                          isToday ? 'bg-[#047857] text-white font-extrabold' : ''
+                        className={`py-1 px-1 text-center border-r border-white/15 cursor-pointer hover:bg-white/20 transition-colors ${
+                          isToday ? 'bg-[#047857] text-white' : ''
                         }`}
                       >
-                        SEP {dayNum}
+                        <div className="flex flex-col items-center justify-center leading-tight">
+                          <span className="text-[9px] font-semibold opacity-90 tracking-wider">SEP</span>
+                          <span className="text-[11px] font-bold">{dayNum}</span>
+                        </div>
                       </th>
                     );
                   })}
 
-                  <th className="py-1.5 px-3 bg-[#1D4568] text-white/80 text-[9px] text-center uppercase tracking-wider">
+                  <th className="py-1.5 px-3 bg-[#1D4568] text-white/80 text-[9px] font-semibold text-center uppercase tracking-wider">
                     P / L / A
                   </th>
                 </tr>
@@ -644,6 +688,7 @@ export default function AttendanceCalendarTab({
                   const countP = allStatuses.filter((s) => s === 'P').length;
                   const countL = allStatuses.filter((s) => s === 'L').length;
                   const countA = allStatuses.filter((s) => s === 'A').length;
+                  const initials = emp.name.split(' ').filter(Boolean).slice(0, 2).map((n) => n[0]).join('');
 
                   return (
                     <tr 
@@ -651,25 +696,30 @@ export default function AttendanceCalendarTab({
                       className="hover:bg-blue-50/40 dark:hover:bg-slate-800/40 transition-colors group"
                     >
                       {/* Fixed Column 1: Start Date */}
-                      <td className="sticky left-0 z-20 bg-white dark:bg-[#0E1B38] group-hover:bg-blue-50/70 dark:group-hover:bg-slate-800/80 py-2.5 px-3 text-slate-500 dark:text-slate-400 font-mono text-[11px] border-r border-slate-100 dark:border-slate-800">
+                      <td className="sticky left-0 z-20 bg-white dark:bg-[#0E1B38] group-hover:bg-blue-50/70 dark:group-hover:bg-slate-800/80 py-2.5 px-3 text-slate-500 dark:text-slate-400 font-sans font-medium text-[11px] border-r border-slate-100 dark:border-slate-800">
                         {emp.startDate}
                       </td>
 
                       {/* Fixed Column 2: Position */}
-                      <td className="sticky left-[85px] z-20 bg-white dark:bg-[#0E1B38] group-hover:bg-blue-50/70 dark:group-hover:bg-slate-800/80 py-2.5 px-3 text-slate-500 dark:text-slate-400 font-medium text-xs border-r border-slate-100 dark:border-slate-800 truncate max-w-[125px]">
+                      <td className="sticky left-[90px] z-20 bg-white dark:bg-[#0E1B38] group-hover:bg-blue-50/70 dark:group-hover:bg-slate-800/80 py-2.5 px-3 text-slate-500 dark:text-slate-400 font-medium text-xs border-r border-slate-100 dark:border-slate-800 truncate max-w-[125px]">
                         {emp.position}
                       </td>
 
-                      {/* Fixed Column 3: Name */}
+                      {/* Fixed Column 3: Name with Circular Avatar Badge */}
                       <td 
                         onClick={() => {
                           setSelectedIndividualEmployee(emp.name);
                           setViewFormat('google-calendar');
                         }}
-                        className="sticky left-[210px] z-20 bg-white dark:bg-[#0E1B38] group-hover:bg-blue-50/70 dark:group-hover:bg-slate-800/80 py-2.5 px-4 font-bold text-slate-900 dark:text-slate-100 text-xs border-r border-slate-200 dark:border-slate-800 shadow-[4px_0_8px_rgba(0,0,0,0.08)] dark:shadow-[4px_0_8px_rgba(0,0,0,0.3)] cursor-pointer hover:text-[#2F6798] hover:underline"
+                        className="sticky left-[215px] z-20 bg-white dark:bg-[#0E1B38] group-hover:bg-blue-50/70 dark:group-hover:bg-slate-800/80 py-2.5 px-4 font-bold text-slate-900 dark:text-slate-100 text-xs border-r border-slate-200 dark:border-slate-800 shadow-[4px_0_8px_rgba(0,0,0,0.08)] dark:shadow-[4px_0_8px_rgba(0,0,0,0.3)] cursor-pointer hover:text-[#2F6798]"
                         title="Click to view detailed individual calendar"
                       >
-                        {emp.name}
+                        <div className="flex items-center gap-2">
+                          <div className="w-6 h-6 rounded-full bg-[#2F6798]/10 text-[#2F6798] dark:bg-blue-900/40 dark:text-blue-300 font-bold text-[10px] flex items-center justify-center shrink-0 border border-[#2F6798]/20">
+                            {initials}
+                          </div>
+                          <span className="whitespace-nowrap">{emp.name}</span>
+                        </div>
                       </td>
 
                       {/* Day Columns */}
@@ -710,10 +760,10 @@ export default function AttendanceCalendarTab({
             </table>
           </div>
 
-          {/* Footer Summary Bar with Range Info */}
+          {/* Footer Summary Bar with Light Gray Tip */}
           <div className="p-3.5 border-t border-slate-100 dark:border-slate-800 bg-slate-50/60 dark:bg-slate-900/30 flex items-center justify-between text-xs text-slate-500 dark:text-slate-400 flex-wrap gap-2">
             <span>Showing attendance for {filteredEmployees.length} workforce members ({displayedDays.length} days in view)</span>
-            <span className="font-semibold text-[#2F6798]">Tip: Click any cell or date header to view full team or individual breakdown</span>
+            <span className="text-slate-400 dark:text-slate-500 font-normal">Tip: Click any cell or date header to view full team or individual breakdown</span>
           </div>
 
         </div>
@@ -722,13 +772,13 @@ export default function AttendanceCalendarTab({
         <div className="space-y-3 animate-in fade-in">
           <div className="flex items-center justify-between bg-white dark:bg-[#0E1B38] p-3.5 rounded-2xl border border-slate-200 dark:border-slate-800">
             <div className="flex items-center gap-2">
-              <span className="text-xs font-bold text-slate-500">Selected Employee:</span>
-              <span className="text-xs font-black text-[#2F6798]">{selectedIndividualEmployee}</span>
+              <span className="text-xs font-semibold text-slate-500">Selected Employee:</span>
+              <span className="text-xs font-bold text-[#2F6798]">{selectedIndividualEmployee}</span>
             </div>
             <button
               type="button"
               onClick={() => setViewFormat('matrix')}
-              className="text-xs font-bold text-[#2F6798] hover:underline cursor-pointer"
+              className="text-xs font-semibold text-[#2F6798] hover:text-[#1d4b72] cursor-pointer"
             >
               ← Back to All Employees Matrix
             </button>

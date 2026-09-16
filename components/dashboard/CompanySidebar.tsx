@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { 
   LayoutDashboard, 
@@ -17,8 +17,10 @@ import {
   Users,
   Shield,
   Layers,
-  Sparkles
+  Sparkles,
+  LogIn
 } from 'lucide-react';
+import { PunchActionType } from '@/lib/punchLogs';
 
 interface CompanySidebarProps {
   currentTab: string;
@@ -43,8 +45,42 @@ export default function CompanySidebar({
   const [isCollapsed, setIsCollapsed] = useState(false);
 
   // Live Punch State
-  const [currentStatus, setCurrentStatus] = useState<'working' | 'lunch' | 'break' | 'offline'>('lunch');
-  const [statusSeconds, setStatusSeconds] = useState<number>(1 * 3600 + 5 * 60 + 23);
+  const [currentStatus, setCurrentStatus] = useState<'working' | 'lunch' | 'break_1' | 'break_2' | 'offline'>('lunch');
+  const [statusSeconds, setStatusSeconds] = useState<number>(0);
+  const [isPunching, setIsPunching] = useState<boolean>(false);
+
+  // Fetch live punch status from API
+  const fetchPunchStatus = useCallback(async () => {
+    try {
+      const res = await fetch(`/api/punch-logs?empId=${supervisor.id}`);
+      const data = await res.json();
+      if (data.currentStatus) {
+        setCurrentStatus(data.currentStatus.status);
+        setStatusSeconds(data.currentStatus.elapsedSeconds || 0);
+      }
+    } catch (err) {
+      console.error('Error fetching sidebar punch status:', err);
+    }
+  }, [supervisor.id]);
+
+  useEffect(() => {
+    fetchPunchStatus();
+  }, [fetchPunchStatus]);
+
+  // Listen to global punch events
+  useEffect(() => {
+    const handlePunchUpdate = () => {
+      fetchPunchStatus();
+    };
+    if (typeof window !== 'undefined') {
+      window.addEventListener('punch-updated', handlePunchUpdate);
+    }
+    return () => {
+      if (typeof window !== 'undefined') {
+        window.removeEventListener('punch-updated', handlePunchUpdate);
+      }
+    };
+  }, [fetchPunchStatus]);
 
   // Live timer tick
   useEffect(() => {
@@ -64,10 +100,35 @@ export default function CompanySidebar({
     return `${m}m ${s.toString().padStart(2, '0')}s`;
   };
 
-  const handleActionClick = (newStatus: 'working' | 'lunch' | 'break' | 'offline', label: string) => {
-    setCurrentStatus(newStatus);
-    setStatusSeconds(0);
-    if (onPunchAction) onPunchAction(label);
+  const handleActionClick = async (label: PunchActionType) => {
+    if (isPunching) return;
+    setIsPunching(true);
+    try {
+      const res = await fetch('/api/punch-logs', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          empId: supervisor.id,
+          type: label,
+          status: 'On Time',
+        }),
+      });
+      const resData = await res.json();
+      if (resData.currentStatus) {
+        setCurrentStatus(resData.currentStatus.status);
+        setStatusSeconds(0);
+      }
+
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('punch-updated', { detail: { empId: supervisor.id, punchType: label } }));
+      }
+
+      if (onPunchAction) onPunchAction(label);
+    } catch (err) {
+      console.error('Error in sidebar punch:', err);
+    } finally {
+      setIsPunching(false);
+    }
   };
 
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://zhdmsmwrskxowvytedgh.supabase.co';
@@ -186,38 +247,62 @@ export default function CompanySidebar({
             {currentStatus === 'lunch' ? (
               <button
                 type="button"
-                onClick={() => handleActionClick('working', 'End Lunch')}
-                className="w-full py-1.5 px-2.5 rounded-lg bg-[#E5CA80] hover:bg-[#d4b970] active:bg-[#c3a860] text-slate-950 font-extrabold text-xs shadow-xs transition-all flex items-center justify-center gap-1.5 cursor-pointer"
+                disabled={isPunching}
+                onClick={() => handleActionClick('End Lunch')}
+                className="w-full py-1.5 px-2.5 rounded-lg bg-[#E5CA80] hover:bg-[#d4b970] active:bg-[#c3a860] text-slate-950 font-extrabold text-xs shadow-xs transition-all flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-50"
               >
                 <Utensils className="w-3 h-3" />
-                <span>End Lunch</span>
+                <span>{isPunching ? 'Saving...' : 'End Lunch'}</span>
               </button>
-            ) : currentStatus === 'break' ? (
+            ) : currentStatus === 'break_1' ? (
               <button
                 type="button"
-                onClick={() => handleActionClick('working', 'End Break')}
-                className="w-full py-1.5 px-2.5 rounded-lg bg-[#E5CA80] hover:bg-[#d4b970] active:bg-[#c3a860] text-slate-950 font-extrabold text-xs shadow-xs transition-all flex items-center justify-center gap-1.5 cursor-pointer"
+                disabled={isPunching}
+                onClick={() => handleActionClick('Break 1 End')}
+                className="w-full py-1.5 px-2.5 rounded-lg bg-[#E5CA80] hover:bg-[#d4b970] active:bg-[#c3a860] text-slate-950 font-extrabold text-xs shadow-xs transition-all flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-50"
               >
                 <Coffee className="w-3 h-3" />
-                <span>End Break</span>
+                <span>{isPunching ? 'Saving...' : 'End Break 1'}</span>
+              </button>
+            ) : currentStatus === 'break_2' ? (
+              <button
+                type="button"
+                disabled={isPunching}
+                onClick={() => handleActionClick('Break 2 End')}
+                className="w-full py-1.5 px-2.5 rounded-lg bg-[#E5CA80] hover:bg-[#d4b970] active:bg-[#c3a860] text-slate-950 font-extrabold text-xs shadow-xs transition-all flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-50"
+              >
+                <Coffee className="w-3 h-3" />
+                <span>{isPunching ? 'Saving...' : 'End Break 2'}</span>
+              </button>
+            ) : currentStatus === 'offline' ? (
+              <button
+                type="button"
+                disabled={isPunching}
+                onClick={() => handleActionClick('Shift Start')}
+                className="w-full py-1.5 px-2.5 rounded-lg bg-emerald-500 hover:bg-emerald-600 text-white font-extrabold text-xs shadow-xs transition-all flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-50"
+              >
+                <LogIn className="w-3 h-3" />
+                <span>{isPunching ? 'Saving...' : 'Shift Start'}</span>
               </button>
             ) : (
               <div className="grid grid-cols-2 gap-1.5">
                 <button
                   type="button"
-                  onClick={() => handleActionClick('lunch', 'Start Lunch')}
-                  className="py-1.5 px-2 rounded-lg bg-black/20 hover:bg-black/30 text-white font-bold text-[11px] border border-white/15 transition-all flex items-center justify-center gap-1 cursor-pointer"
+                  disabled={isPunching}
+                  onClick={() => handleActionClick('Start Lunch')}
+                  className="py-1.5 px-2 rounded-lg bg-black/20 hover:bg-black/30 text-white font-bold text-[11px] border border-white/15 transition-all flex items-center justify-center gap-1 cursor-pointer disabled:opacity-50"
                 >
                   <Utensils className="w-3 h-3 text-[#E5CA80]" />
                   <span>Lunch</span>
                 </button>
                 <button
                   type="button"
-                  onClick={() => handleActionClick('break', 'Start Break')}
-                  className="py-1.5 px-2 rounded-lg bg-[#E5CA80] hover:bg-[#d4b970] text-slate-950 font-bold text-[11px] transition-all flex items-center justify-center gap-1 cursor-pointer"
+                  disabled={isPunching}
+                  onClick={() => handleActionClick('Break 1 Start')}
+                  className="py-1.5 px-2 rounded-lg bg-[#E5CA80] hover:bg-[#d4b970] text-slate-950 font-bold text-[11px] transition-all flex items-center justify-center gap-1 cursor-pointer disabled:opacity-50"
                 >
                   <Coffee className="w-3 h-3" />
-                  <span>Break</span>
+                  <span>Break 1</span>
                 </button>
               </div>
             )}
@@ -227,26 +312,39 @@ export default function CompanySidebar({
             {currentStatus === 'lunch' ? (
               <button
                 type="button"
-                onClick={() => handleActionClick('working', 'End Lunch')}
-                className="p-2.5 rounded-xl bg-[#E5CA80] text-slate-950 shadow-xs cursor-pointer"
+                disabled={isPunching}
+                onClick={() => handleActionClick('End Lunch')}
+                className="p-2.5 rounded-xl bg-[#E5CA80] text-slate-950 shadow-xs cursor-pointer disabled:opacity-50"
                 title="End Lunch"
               >
                 <Utensils className="w-4 h-4" />
               </button>
-            ) : currentStatus === 'break' ? (
+            ) : currentStatus === 'break_1' || currentStatus === 'break_2' ? (
               <button
                 type="button"
-                onClick={() => handleActionClick('working', 'End Break')}
-                className="p-2.5 rounded-xl bg-[#E5CA80] text-slate-950 shadow-xs cursor-pointer"
+                disabled={isPunching}
+                onClick={() => handleActionClick(currentStatus === 'break_1' ? 'Break 1 End' : 'Break 2 End')}
+                className="p-2.5 rounded-xl bg-[#E5CA80] text-slate-950 shadow-xs cursor-pointer disabled:opacity-50"
                 title="End Break"
               >
                 <Coffee className="w-4 h-4" />
               </button>
+            ) : currentStatus === 'offline' ? (
+              <button
+                type="button"
+                disabled={isPunching}
+                onClick={() => handleActionClick('Shift Start')}
+                className="p-2.5 rounded-xl bg-emerald-500 text-white shadow-xs cursor-pointer disabled:opacity-50"
+                title="Shift Start"
+              >
+                <LogIn className="w-4 h-4" />
+              </button>
             ) : (
               <button
                 type="button"
-                onClick={() => handleActionClick('lunch', 'Start Lunch')}
-                className="p-2.5 rounded-xl bg-white/10 text-white border border-white/20 cursor-pointer"
+                disabled={isPunching}
+                onClick={() => handleActionClick('Start Lunch')}
+                className="p-2.5 rounded-xl bg-white/10 text-white border border-white/20 cursor-pointer disabled:opacity-50"
                 title="Start Lunch"
               >
                 <Clock className="w-4 h-4 text-[#E5CA80]" />
@@ -322,4 +420,3 @@ export default function CompanySidebar({
     </aside>
   );
 }
-

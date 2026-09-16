@@ -1,9 +1,18 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
-import { Clock, Utensils, Coffee, Shield, CheckCircle2, User, Building2, Calendar, Award } from 'lucide-react';
+import React, { useState, useEffect, useCallback } from 'react';
+import { 
+  Clock, 
+  Utensils, 
+  Coffee, 
+  Building2, 
+  CheckCircle2, 
+  LogIn, 
+  LogOut,
+} from 'lucide-react';
+import { PunchActionType, ShiftPunchesState } from '@/lib/punchLogs';
 
-interface SupervisorShiftCardProps {
+export interface SupervisorShiftCardProps {
   supervisor?: {
     name: string;
     id: string;
@@ -16,6 +25,7 @@ interface SupervisorShiftCardProps {
     avatarUrl?: string;
   };
   onPunchAction?: (action: string) => void;
+  embedded?: boolean;
 }
 
 export default function SupervisorShiftCard({
@@ -30,12 +40,63 @@ export default function SupervisorShiftCard({
     directSupervisor: 'June Babe Caballes',
   },
   onPunchAction,
+  embedded = false,
 }: SupervisorShiftCardProps) {
-  const [currentStatus, setCurrentStatus] = useState<'working' | 'lunch' | 'break' | 'offline'>('lunch');
-  const [statusSeconds, setStatusSeconds] = useState<number>(1 * 3600 + 13 * 60 + 47);
+  const [currentStatus, setCurrentStatus] = useState<'working' | 'lunch' | 'break_1' | 'break_2' | 'offline'>('lunch');
+  const [statusSeconds, setStatusSeconds] = useState<number>(0);
   const [lastPunchTime, setLastPunchTime] = useState<string>('1:57:09 AM');
+  const [lastPunchType, setLastPunchType] = useState<string>('Start Lunch');
+  const [punchesState, setPunchesState] = useState<ShiftPunchesState>({
+    hasShiftStart: true,
+    hasBreak1Start: true,
+    hasBreak1End: true,
+    hasLunchStart: true,
+    hasLunchEnd: false,
+    hasBreak2Start: false,
+    hasBreak2End: false,
+    hasShiftEnd: false,
+  });
+  const [isPunching, setIsPunching] = useState<boolean>(false);
 
-  // Live timer tick
+  // Fetch live punch status from API
+  const fetchPunchStatus = useCallback(async () => {
+    try {
+      const res = await fetch(`/api/punch-logs?empId=${supervisor.id}`);
+      const data = await res.json();
+      if (data.currentStatus) {
+        setCurrentStatus(data.currentStatus.status);
+        setStatusSeconds(data.currentStatus.elapsedSeconds || 0);
+        setLastPunchTime(data.currentStatus.lastPunchTime || '--:--');
+        setLastPunchType(data.currentStatus.lastPunchType || '');
+        if (data.currentStatus.punchesState) {
+          setPunchesState(data.currentStatus.punchesState);
+        }
+      }
+    } catch (err) {
+      console.error('Error fetching punch status:', err);
+    }
+  }, [supervisor.id]);
+
+  useEffect(() => {
+    fetchPunchStatus();
+  }, [fetchPunchStatus]);
+
+  // Listen to external punch updates
+  useEffect(() => {
+    const handlePunchUpdate = () => {
+      fetchPunchStatus();
+    };
+    if (typeof window !== 'undefined') {
+      window.addEventListener('punch-updated', handlePunchUpdate);
+    }
+    return () => {
+      if (typeof window !== 'undefined') {
+        window.removeEventListener('punch-updated', handlePunchUpdate);
+      }
+    };
+  }, [fetchPunchStatus]);
+
+  // Live timer tick incrementing every second
   useEffect(() => {
     const interval = setInterval(() => {
       setStatusSeconds((prev) => prev + 1);
@@ -50,176 +111,370 @@ export default function SupervisorShiftCard({
     return `${h}h  ${m.toString().padStart(2, '0')}m  ${s.toString().padStart(2, '0')}s`;
   };
 
-  const handlePunch = (newStatus: 'working' | 'lunch' | 'break' | 'offline', label: string) => {
-    setCurrentStatus(newStatus);
-    setStatusSeconds(0);
-    const now = new Date();
-    setLastPunchTime(now.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit', second: '2-digit', hour12: true }));
-    if (onPunchAction) onPunchAction(label);
+  const getInitials = (name: string) => {
+    return name
+      .split(' ')
+      .map((n) => n[0])
+      .filter(Boolean)
+      .slice(0, 2)
+      .join('')
+      .toUpperCase() || 'NR';
   };
 
+  const handlePunch = async (actionType: PunchActionType) => {
+    if (isPunching) return;
+    setIsPunching(true);
+    try {
+      const res = await fetch('/api/punch-logs', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          empId: supervisor.id,
+          type: actionType,
+          status: 'On Time',
+        }),
+      });
+      const resData = await res.json();
+      if (resData.currentStatus) {
+        setCurrentStatus(resData.currentStatus.status);
+        setStatusSeconds(0);
+        setLastPunchTime(resData.currentStatus.lastPunchTime);
+        setLastPunchType(resData.currentStatus.lastPunchType);
+        if (resData.currentStatus.punchesState) {
+          setPunchesState(resData.currentStatus.punchesState);
+        }
+      }
+
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('punch-updated', { detail: { empId: supervisor.id, punchType: actionType } }));
+      }
+
+      if (onPunchAction) onPunchAction(actionType);
+    } catch (err) {
+      console.error('Error executing punch:', err);
+    } finally {
+      setIsPunching(false);
+    }
+  };
+
+  // Define the 8 Direct Punch Actions (Option 1: 4x2 Grid)
+  const punchActionsList: {
+    type: PunchActionType;
+    label: string;
+    icon: any;
+    isDone: boolean;
+    isCurrent: boolean;
+    colorTheme: string;
+  }[] = [
+    { 
+      type: 'Shift Start', 
+      label: 'Shift Start', 
+      icon: LogIn, 
+      isDone: punchesState.hasShiftStart, 
+      isCurrent: currentStatus === 'working' && lastPunchType === 'Shift Start',
+      colorTheme: 'emerald'
+    },
+    { 
+      type: 'Break 1 Start', 
+      label: 'Break 1 Start', 
+      icon: Coffee, 
+      isDone: punchesState.hasBreak1Start, 
+      isCurrent: currentStatus === 'break_1',
+      colorTheme: 'amber'
+    },
+    { 
+      type: 'Break 1 End', 
+      label: 'Break 1 End', 
+      icon: Coffee, 
+      isDone: punchesState.hasBreak1End, 
+      isCurrent: currentStatus === 'working' && lastPunchType === 'Break 1 End',
+      colorTheme: 'amber'
+    },
+    { 
+      type: 'Start Lunch', 
+      label: 'Start Lunch', 
+      icon: Utensils, 
+      isDone: punchesState.hasLunchStart, 
+      isCurrent: currentStatus === 'lunch',
+      colorTheme: 'blue'
+    },
+    { 
+      type: 'End Lunch', 
+      label: 'End Lunch', 
+      icon: Utensils, 
+      isDone: punchesState.hasLunchEnd, 
+      isCurrent: currentStatus === 'working' && lastPunchType === 'End Lunch',
+      colorTheme: 'blue'
+    },
+    { 
+      type: 'Break 2 Start', 
+      label: 'Break 2 Start', 
+      icon: Coffee, 
+      isDone: punchesState.hasBreak2Start, 
+      isCurrent: currentStatus === 'break_2',
+      colorTheme: 'amber'
+    },
+    { 
+      type: 'Break 2 End', 
+      label: 'Break 2 End', 
+      icon: Coffee, 
+      isDone: punchesState.hasBreak2End, 
+      isCurrent: currentStatus === 'working' && lastPunchType === 'Break 2 End',
+      colorTheme: 'amber'
+    },
+    { 
+      type: 'Shift End', 
+      label: 'Shift End', 
+      icon: LogOut, 
+      isDone: punchesState.hasShiftEnd, 
+      isCurrent: currentStatus === 'offline',
+      colorTheme: 'rose'
+    },
+  ];
+
   return (
-    <div className="w-full bg-[#153B5E] text-white p-5 sm:p-6 rounded-3xl border border-white/10 shadow-lg space-y-4">
+    <div className={`w-full text-slate-900 dark:text-slate-100 space-y-4 transition-all ${
+      embedded ? '' : 'bg-white dark:bg-[#0E1B38] p-5 sm:p-6 rounded-3xl border border-slate-200/90 dark:border-slate-800 shadow-2xs'
+    }`}>
       
       {/* 1. Header Profile Banner */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-white/10">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3.5 border-b border-slate-100 dark:border-slate-800">
         <div className="flex items-center gap-3.5">
-          <div className="w-12 h-12 rounded-2xl bg-[#0F2A44] border border-[#C8A54B]/40 flex items-center justify-center text-[#E5CA80] font-black text-base shadow-inner shrink-0">
-            NR
+          {/* Circular Initials Avatar */}
+          <div className="w-12 h-12 rounded-full bg-[#2F6798] text-white flex items-center justify-center font-bold text-base shadow-sm ring-2 ring-[#2F6798]/20 shrink-0 select-none">
+            {getInitials(supervisor.name)}
           </div>
           <div>
-            <div className="flex items-center gap-2.5">
-              <h3 className="font-extrabold text-base sm:text-lg text-white tracking-tight leading-tight">
+            <div className="flex items-center gap-2.5 flex-wrap">
+              <h3 className="font-extrabold text-base sm:text-lg text-slate-900 dark:text-slate-100 tracking-tight leading-tight">
                 {supervisor.name}
               </h3>
-              <span className="px-2.5 py-0.5 rounded-md bg-[#C8A54B]/20 text-[#E5CA80] border border-[#C8A54B]/40 text-[10px] font-black tracking-wider uppercase">
+              <span className="px-2.5 py-0.5 rounded-full bg-[#2F6798]/10 text-[#2F6798] dark:text-blue-300 border border-[#2F6798]/20 text-[10px] font-black tracking-wider uppercase">
                 {supervisor.role}
               </span>
             </div>
-            <p className="text-[11px] font-bold text-blue-200/80 mt-0.5">
-              Employee ID: <span className="text-white font-mono">{supervisor.id}</span> • {supervisor.position}
+            <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 mt-0.5">
+              Employee ID: <span className="text-slate-800 dark:text-slate-200 font-mono font-bold">{supervisor.id}</span>
             </p>
           </div>
         </div>
 
         {/* Live Status Badge */}
         <div className="flex items-center gap-2 self-start sm:self-auto">
-          <span className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#C8A54B]/20 border border-[#C8A54B]/40 text-xs font-black text-[#E5CA80]">
-            <span className="w-2 h-2 rounded-full bg-[#E5CA80] animate-pulse"></span>
-            {currentStatus === 'lunch' ? '● On Lunch' : currentStatus === 'break' ? '● On Break' : '● Working'}
-          </span>
+          {currentStatus === 'lunch' ? (
+            <span className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-50 dark:bg-amber-950/60 border border-amber-200 dark:border-amber-800 text-xs font-bold text-amber-700 dark:text-amber-300">
+              <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse" />
+              On Lunch
+            </span>
+          ) : currentStatus === 'break_1' ? (
+            <span className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-50 dark:bg-amber-950/60 border border-amber-200 dark:border-amber-800 text-xs font-bold text-amber-700 dark:text-amber-300">
+              <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse" />
+              On 1st Break
+            </span>
+          ) : currentStatus === 'break_2' ? (
+            <span className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-50 dark:bg-amber-950/60 border border-amber-200 dark:border-amber-800 text-xs font-bold text-amber-700 dark:text-amber-300">
+              <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse" />
+              On 2nd Break
+            </span>
+          ) : currentStatus === 'offline' ? (
+            <span className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-600 dark:text-slate-400">
+              <span className="w-2 h-2 rounded-full bg-slate-400" />
+              Shift Ended
+            </span>
+          ) : (
+            <span className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-200 dark:border-emerald-800 text-xs font-bold text-emerald-700 dark:text-emerald-300">
+              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+              Working
+            </span>
+          )}
         </div>
       </div>
 
-      {/* 2. Main Horizontal Grid: Time Clock & Punch + Position & Shift Assignment */}
+      {/* 2. Main Horizontal Grid: Left (TIME CLOCK & PUNCH with 8-Action Grid) + Right (POSITION & ASSIGNMENT) */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
         
-        {/* TIME CLOCK & PUNCH SECTION (Cols 5 on desktop) */}
-        <div className="lg:col-span-5 p-4 rounded-2xl bg-[#0F2A44] border border-white/10 space-y-3.5 flex flex-col justify-between shadow-inner">
+        {/* TIME CLOCK & PUNCH SECTION (Left Side - White Container with Option 1 8-Button Grid) */}
+        <div className="lg:col-span-6 p-4 sm:p-4.5 rounded-2xl bg-white dark:bg-[#0E1B38] border border-slate-200/90 dark:border-slate-800 space-y-3 flex flex-col justify-between shadow-2xs">
           
           <div className="flex items-center justify-between">
-            <span className="text-[10px] font-extrabold text-blue-200/80 uppercase tracking-wider flex items-center gap-1.5">
-              <Clock className="w-3.5 h-3.5 text-[#E5CA80]" />
-              <span>TIME CLOCK & PUNCH</span>
+            <span className="text-[10px] font-extrabold text-slate-700 dark:text-slate-300 uppercase tracking-wider flex items-center gap-1.5">
+              <Clock className="w-3.5 h-3.5 text-[#2F6798]" />
+              <span>TIME CLOCK &amp; PUNCH</span>
             </span>
-            <span className="text-[10px] font-bold text-blue-200/60">
+            <span className="text-[10px] font-bold text-[#2F6798] dark:text-blue-400">
               Live Shift Timer
             </span>
           </div>
 
-          {/* 2-Column Duration and Last Punch */}
-          <div className="grid grid-cols-2 gap-3 py-1">
-            <div className="p-2.5 rounded-xl bg-white/5 border border-white/5">
-              <span className="text-[9px] font-extrabold text-blue-200/60 uppercase tracking-wider block">
-                {currentStatus === 'lunch' ? 'LUNCH DURATION' : currentStatus === 'break' ? 'BREAK DURATION' : 'WORKING TIME'}
+          {/* 2-Column Duration and Last Punch in Light Gray */}
+          <div className="grid grid-cols-2 gap-2.5">
+            <div className="p-2.5 rounded-xl bg-slate-100 dark:bg-slate-800/90 border border-slate-200/80 dark:border-slate-700/80 shadow-2xs">
+              <span className="text-[9px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider block">
+                {currentStatus === 'lunch' 
+                  ? 'LUNCH DURATION' 
+                  : currentStatus === 'break_1' 
+                  ? '1ST BREAK DURATION' 
+                  : currentStatus === 'break_2' 
+                  ? '2ND BREAK DURATION' 
+                  : currentStatus === 'offline' 
+                  ? 'OFFLINE' 
+                  : 'WORKING TIME'}
               </span>
-              <span className="text-base sm:text-lg font-black text-white font-mono mt-0.5 block">
+              <span className="text-sm sm:text-base font-black text-slate-900 dark:text-slate-100 font-mono mt-0.5 block">
                 {formatTimer(statusSeconds)}
               </span>
             </div>
 
-            <div className="p-2.5 rounded-xl bg-white/5 border border-white/5">
-              <span className="text-[9px] font-extrabold text-blue-200/60 uppercase tracking-wider block">
+            <div className="p-2.5 rounded-xl bg-slate-100 dark:bg-slate-800/90 border border-slate-200/80 dark:border-slate-700/80 shadow-2xs">
+              <span className="text-[9px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider block">
                 LAST PUNCH
               </span>
-              <span className="text-base sm:text-lg font-black text-[#E5CA80] font-mono mt-0.5 block">
+              <span className="text-sm sm:text-base font-black text-[#2F6798] dark:text-blue-400 font-mono mt-0.5 block truncate" title={`${lastPunchType} at ${lastPunchTime}`}>
                 {lastPunchTime}
               </span>
             </div>
           </div>
 
-          {/* Large Action Button */}
-          {currentStatus === 'lunch' ? (
-            <button
-              type="button"
-              onClick={() => handlePunch('working', 'End Lunch')}
-              className="w-full py-2.5 px-4 rounded-xl bg-[#C8A54B] hover:bg-[#b8933a] active:bg-[#a6822f] text-slate-950 font-black text-xs shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer"
-            >
-              <Utensils className="w-4 h-4" />
-              <span>End Lunch</span>
-            </button>
-          ) : currentStatus === 'break' ? (
-            <button
-              type="button"
-              onClick={() => handlePunch('working', 'End Break')}
-              className="w-full py-2.5 px-4 rounded-xl bg-[#C8A54B] hover:bg-[#b8933a] active:bg-[#a6822f] text-slate-950 font-black text-xs shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer"
-            >
-              <Coffee className="w-4 h-4" />
-              <span>End Break</span>
-            </button>
-          ) : (
-            <div className="grid grid-cols-2 gap-2">
-              <button
-                type="button"
-                onClick={() => handlePunch('lunch', 'Start Lunch')}
-                className="py-2.5 px-3 rounded-xl bg-white/10 hover:bg-white/20 text-white font-extrabold text-xs border border-white/20 transition-all flex items-center justify-center gap-1.5 cursor-pointer"
-              >
-                <Utensils className="w-3.5 h-3.5 text-[#E5CA80]" />
-                <span>Start Lunch</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => handlePunch('break', 'Start Break')}
-                className="py-2.5 px-3 rounded-xl bg-[#C8A54B] hover:bg-[#b8933a] text-slate-950 font-black text-xs transition-all flex items-center justify-center gap-1.5 cursor-pointer"
-              >
-                <Coffee className="w-3.5 h-3.5" />
-                <span>Start Break</span>
-              </button>
+          {/* OPTION 1: Complete 8-Action Direct Punch Grid (Always Visible & Directly Clickable) */}
+          <div className="space-y-1.5 pt-1">
+            <div className="flex items-center justify-between px-0.5">
+              <span className="text-[9.5px] font-extrabold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+                Shift Punch Controls (8 Actions)
+              </span>
+              <span className="text-[9.5px] font-bold text-[#2F6798] dark:text-blue-300 font-mono">
+                {Object.values(punchesState).filter(Boolean).length}/8 Recorded
+              </span>
             </div>
-          )}
-        </div>
 
-        {/* POSITION & ASSIGNMENT SECTION (Cols 7 on desktop) */}
-        <div className="lg:col-span-7 p-4 rounded-2xl bg-[#0F2A44] border border-white/10 space-y-3 shadow-inner flex flex-col justify-between">
-          
-          <div className="flex items-center justify-between">
-            <span className="text-[10px] font-extrabold text-blue-200/80 uppercase tracking-wider flex items-center gap-1.5">
-              <Building2 className="w-3.5 h-3.5 text-[#2F6798]" />
-              <span>POSITION & ASSIGNMENT</span>
-            </span>
-            <span className="text-[10px] font-bold text-[#E5CA80] uppercase tracking-wider">
-              {supervisor.account} Department
-            </span>
+            {/* 4x2 Clean Action Grid */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5">
+              {punchActionsList.map((action) => {
+                const Icon = action.icon;
+                return (
+                  <button
+                    key={action.type}
+                    type="button"
+                    disabled={isPunching}
+                    onClick={() => handlePunch(action.type)}
+                    className={`p-2 rounded-xl border flex flex-col items-center justify-center gap-1 transition-all cursor-pointer text-center group disabled:opacity-50 select-none ${
+                      action.isCurrent
+                        ? 'bg-amber-500 text-white border-amber-600 ring-2 ring-amber-400/50 shadow-xs scale-[1.02]'
+                        : action.isDone
+                        ? 'bg-emerald-50/90 dark:bg-emerald-950/40 text-emerald-800 dark:text-emerald-300 border-emerald-300 dark:border-emerald-800/80 hover:bg-emerald-100'
+                        : action.type === 'Shift End'
+                        ? 'bg-rose-50/70 dark:bg-rose-950/30 text-rose-700 dark:text-rose-300 border-rose-200/80 dark:border-rose-900/60 hover:bg-rose-100'
+                        : 'bg-slate-50 dark:bg-slate-800/80 text-slate-800 dark:text-slate-200 border-slate-200/80 dark:border-slate-700/80 hover:border-[#2F6798] hover:bg-white dark:hover:bg-slate-700'
+                    }`}
+                  >
+                    <div className="flex items-center gap-1">
+                      <Icon className={`w-3.5 h-3.5 ${
+                        action.isCurrent 
+                          ? 'text-white' 
+                          : action.isDone 
+                          ? 'text-emerald-600 dark:text-emerald-400' 
+                          : action.type === 'Shift End'
+                          ? 'text-rose-600'
+                          : 'text-[#2F6798] dark:text-blue-400'
+                      }`} />
+                      {action.isDone && !action.isCurrent && (
+                        <CheckCircle2 className="w-3 h-3 text-emerald-600 dark:text-emerald-400 shrink-0" />
+                      )}
+                    </div>
+                    
+                    <span className="text-[10px] font-black leading-tight line-clamp-1">
+                      {action.label}
+                    </span>
+
+                    <span className={`text-[8px] font-black uppercase tracking-wider px-1.5 py-0.2 rounded-full ${
+                      action.isCurrent
+                        ? 'bg-white/25 text-white animate-pulse'
+                        : action.isDone
+                        ? 'bg-emerald-200/70 dark:bg-emerald-900/60 text-emerald-950 dark:text-emerald-200 font-bold'
+                        : 'text-slate-400 dark:text-slate-500'
+                    }`}>
+                      {action.isCurrent ? 'ACTIVE' : action.isDone ? 'DONE' : 'PUNCH'}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        </div>
+
+        {/* POSITION & ASSIGNMENT SECTION (Right Side - White Container) */}
+        <div className="lg:col-span-6 p-4 sm:p-4.5 rounded-2xl bg-white dark:bg-[#0E1B38] border border-slate-200/90 dark:border-slate-800 space-y-3 flex flex-col justify-between shadow-2xs">
+          
+          <div className="flex items-center justify-between flex-wrap gap-2">
+            <span className="text-[10px] font-extrabold text-slate-700 dark:text-slate-300 uppercase tracking-wider flex items-center gap-1.5">
+              <Building2 className="w-3.5 h-3.5 text-[#2F6798]" />
+              <span>POSITION &amp; ASSIGNMENT</span>
+            </span>
+
+            {/* Department Tag & Time Actions Pill */}
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="text-[10px] font-extrabold text-[#2F6798] dark:text-blue-200 uppercase tracking-wider bg-[#2F6798]/15 dark:bg-[#2F6798]/30 px-3 py-1 rounded-full border border-[#2F6798]/30 shadow-2xs">
+                {supervisor.account} Department
+              </span>
+              <div className="flex items-center gap-1.5">
+                <span className="text-[9.5px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">
+                  Time Actions:
+                </span>
+                <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9.5px] font-bold ${
+                  currentStatus === 'offline'
+                    ? 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-400 border border-slate-300 dark:border-slate-700'
+                    : currentStatus === 'lunch' || currentStatus === 'break_1' || currentStatus === 'break_2'
+                    ? 'bg-amber-100 text-amber-800 dark:bg-amber-950/80 dark:text-amber-300 border border-amber-300 dark:border-amber-700'
+                    : 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/80 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-700'
+                }`}>
+                  <span className={`w-1.5 h-1.5 rounded-full ${
+                    currentStatus === 'offline' ? 'bg-slate-400' : 'bg-emerald-500 animate-pulse'
+                  }`} />
+                  {currentStatus === 'offline' ? 'Shift Ended' : currentStatus === 'lunch' ? 'On Lunch' : currentStatus === 'break_1' ? 'On 1st Break' : currentStatus === 'break_2' ? 'On 2nd Break' : 'Active (Working)'}
+                </span>
+              </div>
+            </div>
+          </div>
+
+          {/* 4 Inner Metric Boxes in Light Gray */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
             
             {/* Position */}
-            <div className="p-2.5 rounded-xl bg-white/5 border border-white/5">
-              <span className="text-[9px] font-extrabold text-blue-200/60 uppercase tracking-wider block">
+            <div className="p-2.5 rounded-xl bg-slate-100 dark:bg-slate-800/90 border border-slate-200/80 dark:border-slate-700/80 shadow-2xs">
+              <span className="text-[9px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider block">
                 POSITION
               </span>
-              <span className="text-xs sm:text-sm font-bold text-white mt-0.5 block">
+              <span className="text-xs sm:text-sm font-bold text-slate-900 dark:text-slate-100 mt-0.5 block truncate">
                 {supervisor.position}
               </span>
             </div>
 
             {/* Shift Schedule */}
-            <div className="p-2.5 rounded-xl bg-white/5 border border-white/5">
-              <span className="text-[9px] font-extrabold text-blue-200/60 uppercase tracking-wider block">
+            <div className="p-2.5 rounded-xl bg-slate-100 dark:bg-slate-800/90 border border-slate-200/80 dark:border-slate-700/80 shadow-2xs">
+              <span className="text-[9px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider block">
                 SHIFT SCHEDULE
               </span>
-              <span className="text-xs sm:text-sm font-bold text-[#E5CA80] font-mono mt-0.5 block">
+              <span className="text-xs sm:text-sm font-bold text-[#2F6798] dark:text-blue-400 font-mono mt-0.5 block">
                 {supervisor.shift}
               </span>
             </div>
 
             {/* Account & Tenure */}
-            <div className="p-2.5 rounded-xl bg-white/5 border border-white/5">
-              <span className="text-[9px] font-extrabold text-blue-200/60 uppercase tracking-wider block">
-                ACCOUNT & TENURE
+            <div className="p-2.5 rounded-xl bg-slate-100 dark:bg-slate-800/90 border border-slate-200/80 dark:border-slate-700/80 shadow-2xs">
+              <span className="text-[9px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider block">
+                ACCOUNT &amp; TENURE
               </span>
-              <span className="text-xs sm:text-sm font-bold text-white mt-0.5 block">
-                {supervisor.account} <span className="text-blue-200/60">({supervisor.tenure})</span>
+              <span className="text-xs sm:text-sm font-bold text-slate-900 dark:text-slate-100 mt-0.5 block">
+                {supervisor.account} <span className="text-slate-500 font-normal">({supervisor.tenure})</span>
               </span>
             </div>
 
             {/* Direct Supervisor */}
-            <div className="p-2.5 rounded-xl bg-white/5 border border-white/5">
-              <span className="text-[9px] font-extrabold text-blue-200/60 uppercase tracking-wider block">
+            <div className="p-2.5 rounded-xl bg-slate-100 dark:bg-slate-800/90 border border-slate-200/80 dark:border-slate-700/80 shadow-2xs">
+              <span className="text-[9px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider block">
                 DIRECT SUPERVISOR
               </span>
-              <span className="text-xs sm:text-sm font-bold text-white mt-0.5 block">
+              <span className="text-xs sm:text-sm font-bold text-slate-900 dark:text-slate-100 mt-0.5 block truncate">
                 {supervisor.directSupervisor}
               </span>
             </div>

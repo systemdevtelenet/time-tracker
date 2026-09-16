@@ -21,6 +21,7 @@ import LiveShiftPunchTimeline from '@/components/dashboard/LiveShiftPunchTimelin
 import SettingsView from '@/components/dashboard/SettingsView';
 import SettingsModal from '@/components/dashboard/SettingsModal';
 import WeatherWidgetCard from '@/components/dashboard/WeatherWidgetCard';
+import FullScreenLoader from '@/components/dashboard/FullScreenLoader';
 import { AccountOption, EmployeeOption, PhoneTimeRecord, KpiSummaryStats } from '@/lib/types';
 import { parseDurationToSeconds, formatTotalDurationHuman } from '@/lib/utils';
 import { Plus, CheckCircle2, User, Sparkles } from 'lucide-react';
@@ -33,6 +34,7 @@ export default function HomePage() {
   const [accounts, setAccounts] = useState<AccountOption[]>([]);
   const [employees, setEmployees] = useState<EmployeeOption[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [isTabLoading, setIsTabLoading] = useState<boolean>(false);
   const [isManualModalOpen, setIsManualModalOpen] = useState<boolean>(false);
   const [isTimerRunning, setIsTimerRunning] = useState<boolean>(false);
   const [activeTimerSeconds, setActiveTimerSeconds] = useState<number>(0);
@@ -47,8 +49,8 @@ export default function HomePage() {
   const [filterAccount, setFilterAccount] = useState('all');
   const [filterSearch, setFilterSearch] = useState('');
 
-  // Supervisor Profile matching exact system content
-  const supervisor = {
+  // Supervisor Profile matching exact system content (Dynamic state linked to team_roster)
+  const [supervisor, setSupervisor] = useState({
     name: 'Nissi-Jeh Reguero',
     id: '1597',
     role: 'SUPERVISOR',
@@ -57,7 +59,7 @@ export default function HomePage() {
     account: 'Corporate',
     tenure: '32 mos',
     directSupervisor: 'June Babe Caballes',
-  };
+  });
 
   // Dark mode initialization
   useEffect(() => {
@@ -94,7 +96,22 @@ export default function HomePage() {
       const resMeta = await fetch('/api/meta');
       const dataMeta = await resMeta.json();
       if (dataMeta.accounts) setAccounts(dataMeta.accounts);
-      if (dataMeta.employees) setEmployees(dataMeta.employees);
+      if (dataMeta.employees) {
+        setEmployees(dataMeta.employees);
+        const activeEmp = dataMeta.employees.find((e: any) => String(e.id) === '1597');
+        if (activeEmp) {
+          setSupervisor((prev) => ({
+            ...prev,
+            name: activeEmp.name || prev.name,
+            role: (activeEmp.role || 'Supervisor').toUpperCase(),
+            position: activeEmp.role || prev.position,
+            shift: activeEmp.shift || prev.shift,
+            account: activeEmp.account || prev.account,
+            tenure: activeEmp.tenure ? `${activeEmp.tenure} mos` : prev.tenure,
+            directSupervisor: activeEmp.supervisor || prev.directSupervisor,
+          }));
+        }
+      }
     } catch (err) {
       console.error('Error fetching dashboard data:', err);
     } finally {
@@ -147,11 +164,11 @@ export default function HomePage() {
       totalDurationFormatted: formatTotalDurationHuman(totalSecs),
       totalSeconds: totalSecs,
       averageDurationFormatted: formatTotalDurationHuman(avgSecs),
-      uniqueAgentsCount: agentSet.size || 1,
+      uniqueAgentsCount: employees.length > 0 ? employees.length : (agentSet.size || 21),
       uniqueAccountsCount: accountSet.size || 1,
       topTag: topTag !== 'None' ? `${topTag} (${maxTagCount}x)` : 'None',
     };
-  }, [records]);
+  }, [records, employees]);
 
   // Handlers
   const handleRecordAdded = (newRecord: PhoneTimeRecord) => {
@@ -181,6 +198,16 @@ export default function HomePage() {
     setActiveTimerSeconds(currentSecs);
   }, []);
 
+  const handleSelectTab = (tab: string) => {
+    if (tab === activeTab) return;
+    setIsTabLoading(true);
+    setActiveTab(tab);
+    setActiveCalendarRecord(null);
+    setTimeout(() => {
+      setIsTabLoading(false);
+    }, 400);
+  };
+
   // Title for topnav
   const getNavTitle = () => {
     switch (activeTab) {
@@ -195,15 +222,17 @@ export default function HomePage() {
   };
 
   return (
-    <div className="h-screen overflow-hidden bg-[#F4F7FB] dark:bg-[#070D1E] text-slate-900 dark:text-slate-100 flex transition-colors duration-200">
+    <div className="h-screen overflow-hidden bg-[#F4F7FB] dark:bg-[#070D1E] text-slate-900 dark:text-slate-100 flex transition-colors duration-200 relative">
       
+      {/* Full Screen Loading Overlay on Refresh or Tab Change */}
+      {(isLoading || isTabLoading) && (
+        <FullScreenLoader activeTab={activeTab} />
+      )}
+
       {/* 1. Left Fixed Sidebar matching exact design structure */}
       <CompanySidebar
         currentTab={activeTab}
-        onSelectTab={(tab) => {
-          setActiveTab(tab);
-          setActiveCalendarRecord(null);
-        }}
+        onSelectTab={handleSelectTab}
         supervisor={supervisor}
         onPunchAction={(act) => {
           setToastMsg(`Action recorded: ${act}`);
@@ -218,10 +247,7 @@ export default function HomePage() {
         <CompanyTopNav
           title={getNavTitle()}
           supervisor={supervisor}
-          onSelectTab={(tab) => {
-            setActiveTab(tab);
-            setActiveCalendarRecord(null);
-          }}
+          onSelectTab={handleSelectTab}
         />
 
         {/* Dynamic Main Application Canvas (Reduced Margins by 2) */}
@@ -349,17 +375,25 @@ export default function HomePage() {
               {/* 4 KPI Summary Boxes */}
               <KpiSummary stats={kpiStats} />
 
-              {/* TIME CLOCK & PUNCH (Horizontal Full-Length Card below the 4 boxes) */}
-              <SupervisorShiftCard 
-                supervisor={supervisor}
-                onPunchAction={(act) => {
-                  setToastMsg(`Action recorded: ${act}`);
-                  setTimeout(() => setToastMsg(null), 2500);
-                }}
-              />
+              {/* Single External White Container for Nissi-Jeh Reguero container & Today's Shift Activity & Punch Audit Trail */}
+              <div className="w-full bg-white dark:bg-[#0E1B38] border border-slate-200/90 dark:border-slate-800 rounded-3xl p-5 sm:p-6 shadow-2xs space-y-6">
+                <SupervisorShiftCard 
+                  supervisor={supervisor}
+                  embedded={true}
+                  onPunchAction={(act) => {
+                    setToastMsg(`Action recorded: ${act}`);
+                    setTimeout(() => setToastMsg(null), 2500);
+                  }}
+                />
 
-              {/* Live Shift Punch Timeline & Handover Notes Audit Log */}
-              <LiveShiftPunchTimeline />
+                <div className="h-px bg-slate-100 dark:bg-slate-800" />
+
+                <LiveShiftPunchTimeline 
+                  embedded={true} 
+                  supervisorId={supervisor.id}
+                  shiftSchedule={supervisor.shift}
+                />
+              </div>
             </div>
           )}
 

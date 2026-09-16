@@ -53,7 +53,9 @@ import {
   Award,
   TrendingUp,
   BarChart3,
-  ChevronRight
+  ChevronRight,
+  ListTodo,
+  LayoutGrid
 } from 'lucide-react';
 
 import FlowHubNotesPlanner from './FlowHubNotesPlanner';
@@ -276,15 +278,34 @@ export default function FlowHubView({ onBackToPortal }: FlowHubViewProps) {
     return () => clearInterval(interval);
   }, []);
 
-  // Mind Dump LocalStorage load
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem('flow_hub_mind_dump');
-      if (saved) setMindDumpText(saved);
-      const savedTitle = localStorage.getItem('flow_hub_mind_dump_title');
-      if (savedTitle) setMindDumpTitle(savedTitle);
+  // Flow Hub Database / API Load
+  const fetchFlowHubData = React.useCallback(async () => {
+    try {
+      const res = await fetch('/api/flow-hub?empId=1597');
+      const json = await res.json();
+      if (json.data) {
+        if (json.data.tasks && Array.isArray(json.data.tasks) && json.data.tasks.length > 0) {
+          setTasks(json.data.tasks);
+        }
+        if (json.data.habits && Array.isArray(json.data.habits) && json.data.habits.length > 0) {
+          setHabits(json.data.habits);
+        }
+        if (json.data.sessions !== undefined) {
+          setSessionsCompleted(json.data.sessions);
+        }
+        if (json.data.mindDump) {
+          if (json.data.mindDump.text) setMindDumpText(json.data.mindDump.text);
+          if (json.data.mindDump.title) setMindDumpTitle(json.data.mindDump.title);
+        }
+      }
+    } catch (err) {
+      console.error('Error fetching Flow Hub data:', err);
     }
   }, []);
+
+  useEffect(() => {
+    fetchFlowHubData();
+  }, [fetchFlowHubData]);
 
   const handleMindDumpChange = (val: string) => {
     setMindDumpText(val);
@@ -293,12 +314,25 @@ export default function FlowHubView({ onBackToPortal }: FlowHubViewProps) {
     }
   };
 
-  const handleSaveMindDump = () => {
+  const handleSaveMindDump = async () => {
     if (typeof window !== 'undefined') {
       localStorage.setItem('flow_hub_mind_dump', mindDumpText);
       localStorage.setItem('flow_hub_mind_dump_title', mindDumpTitle);
-      setIsSaved(true);
-      setTimeout(() => setIsSaved(false), 2000);
+    }
+    setIsSaved(true);
+    setTimeout(() => setIsSaved(false), 2000);
+    try {
+      await fetch('/api/flow-hub', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          empId: '1597',
+          type: 'SAVE_MIND_DUMP',
+          payload: { title: mindDumpTitle, text: mindDumpText },
+        }),
+      });
+    } catch (err) {
+      console.error('Error saving mind dump:', err);
     }
   };
 
@@ -426,11 +460,11 @@ export default function FlowHubView({ onBackToPortal }: FlowHubViewProps) {
     } else if (timerSecondsLeft === 0 && isTimerActive) {
       setIsTimerActive(false);
       setSessionsCompleted((s) => s + 1);
-      if (timerMode === 'focus') {
-        alert('Focus session complete! Great job. Time for a breather.');
-      } else {
-        alert('Break finished! Ready for the next deep focus block?');
-      }
+      fetch('/api/flow-hub', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ empId: '1597', type: 'INCREMENT_SESSION' }),
+      }).catch(console.error);
     }
     return () => {
       if (interval) clearInterval(interval);
@@ -489,12 +523,12 @@ export default function FlowHubView({ onBackToPortal }: FlowHubViewProps) {
     }
   };
 
-  // Task Handlers matching Teamhood Kanban
-  const handleAddTask = (e: React.FormEvent) => {
+  // Task Handlers matching Teamhood Kanban with API persistence
+  const handleAddTask = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newTaskTitle.trim()) return;
     const newTask: TaskItem = {
-      id: Math.random().toString(16).substring(2, 9),
+      id: `t${Date.now()}`,
       title: newTaskTitle.trim(),
       ticketCode: `#${Math.floor(10000 + Math.random() * 90000)}`,
       priority: newTaskPriority,
@@ -512,12 +546,29 @@ export default function FlowHubView({ onBackToPortal }: FlowHubViewProps) {
     setTasks((prev) => [newTask, ...prev]);
     setNewTaskTitle('');
     setIsAddTaskOpen(false);
+    try {
+      await fetch('/api/flow-hub', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ empId: '1597', type: 'ADD_TASK', payload: newTask }),
+      });
+    } catch (err) {
+      console.error('Error adding task:', err);
+    }
   };
 
-  const handleMoveTask = (id: string, newStatus: 'todo' | 'inprogress' | 'done') => {
-    setTasks((prev) =>
-      prev.map((t) => (t.id === id ? { ...t, status: newStatus } : t))
-    );
+  const handleMoveTask = async (id: string, newStatus: 'todo' | 'inprogress' | 'done') => {
+    const updated = tasks.map((t) => (t.id === id ? { ...t, status: newStatus } : t));
+    setTasks(updated);
+    try {
+      await fetch('/api/flow-hub', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ empId: '1597', type: 'UPDATE_TASKS', payload: updated }),
+      });
+    } catch (err) {
+      console.error('Error moving task:', err);
+    }
   };
 
   const handleMoveTaskNext = (id: string, currentStatus: 'todo' | 'inprogress' | 'done') => {
@@ -536,13 +587,33 @@ export default function FlowHubView({ onBackToPortal }: FlowHubViewProps) {
     }
   };
 
-  const handleDeleteTask = (id: string) => {
-    setTasks((prev) => prev.filter((t) => t.id !== id));
+  const handleDeleteTask = async (id: string) => {
+    const remaining = tasks.filter((t) => t.id !== id);
+    setTasks(remaining);
+    try {
+      await fetch('/api/flow-hub', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ empId: '1597', type: 'DELETE_TASK', payload: { id } }),
+      });
+    } catch (err) {
+      console.error('Error deleting task:', err);
+    }
   };
 
-  const handleUpdateTask = (updated: TaskItem) => {
-    setTasks((prev) => prev.map((t) => (t.id === updated.id ? updated : t)));
+  const handleUpdateTask = async (updated: TaskItem) => {
+    const updatedTasks = tasks.map((t) => (t.id === updated.id ? updated : t));
+    setTasks(updatedTasks);
     setSelectedTaskForEdit(null);
+    try {
+      await fetch('/api/flow-hub', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ empId: '1597', type: 'UPDATE_TASK', payload: updated }),
+      });
+    } catch (err) {
+      console.error('Error updating task:', err);
+    }
   };
 
   // Drag and drop handlers
@@ -573,8 +644,8 @@ export default function FlowHubView({ onBackToPortal }: FlowHubViewProps) {
     setDragOverColumn(null);
   };
 
-  // Habit Handlers
-  const handleAddHabit = (e: React.FormEvent) => {
+  // Habit Handlers with API persistence
+  const handleAddHabit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newHabitName.trim()) return;
     const categoryLabels: Record<string, string> = {
@@ -587,7 +658,7 @@ export default function FlowHubView({ onBackToPortal }: FlowHubViewProps) {
       general: 'Daily Routine',
     };
     const newHabit: HabitItem = {
-      id: Math.random().toString(16).substring(2, 9),
+      id: `h${Date.now()}`,
       name: newHabitName.trim(),
       category: newHabitCategory,
       categoryLabel: categoryLabels[newHabitCategory] || 'Routine',
@@ -599,24 +670,50 @@ export default function FlowHubView({ onBackToPortal }: FlowHubViewProps) {
     setHabits((prev) => [newHabit, ...prev]);
     setNewHabitName('');
     setIsAddHabitOpen(false);
+    try {
+      await fetch('/api/flow-hub', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ empId: '1597', type: 'ADD_HABIT', payload: newHabit }),
+      });
+    } catch (err) {
+      console.error('Error adding habit:', err);
+    }
   };
 
-  const handleToggleHabit = (id: string) => {
-    setHabits((prev) =>
-      prev.map((h) =>
-        h.id === id
-          ? {
-              ...h,
-              completedToday: !h.completedToday,
-              streak: !h.completedToday ? h.streak + 1 : Math.max(0, h.streak - 1),
-            }
-          : h
-      )
+  const handleToggleHabit = async (id: string) => {
+    const updatedHabits = habits.map((h) =>
+      h.id === id
+        ? {
+            ...h,
+            completedToday: !h.completedToday,
+            streak: !h.completedToday ? h.streak + 1 : Math.max(0, h.streak - 1),
+          }
+        : h
     );
+    setHabits(updatedHabits);
+    try {
+      await fetch('/api/flow-hub', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ empId: '1597', type: 'TOGGLE_HABIT', payload: { id } }),
+      });
+    } catch (err) {
+      console.error('Error toggling habit:', err);
+    }
   };
 
-  const handleDeleteHabit = (id: string) => {
+  const handleDeleteHabit = async (id: string) => {
     setHabits((prev) => prev.filter((h) => h.id !== id));
+    try {
+      await fetch('/api/flow-hub', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ empId: '1597', type: 'DELETE_HABIT', payload: { id } }),
+      });
+    } catch (err) {
+      console.error('Error deleting habit:', err);
+    }
   };
 
   const getHabitCategoryIcon = (category: string) => {
@@ -719,19 +816,22 @@ export default function FlowHubView({ onBackToPortal }: FlowHubViewProps) {
     }
   };
 
-  const getPriorityBorder = (priority: 'HIGH' | 'MEDIUM' | 'LOW') => {
+  const getPriorityCardBg = (priority: 'HIGH' | 'MEDIUM' | 'LOW', isDone: boolean) => {
+    if (isDone) {
+      return 'bg-emerald-50/50 dark:bg-emerald-950/20 border-emerald-200/80 dark:border-emerald-900/40';
+    }
     switch (priority) {
       case 'HIGH':
-        return 'border-l-[#EB5A56]';
+        return 'bg-rose-50/60 dark:bg-rose-950/25 border-rose-200/80 dark:border-rose-900/50';
       case 'MEDIUM':
-        return 'border-l-[#EE933E]';
+        return 'bg-amber-50/60 dark:bg-amber-950/25 border-amber-200/80 dark:border-amber-900/50';
       case 'LOW':
-        return 'border-l-[#27AE60]';
       default:
-        return 'border-l-[#EB5A56]';
+        return 'bg-blue-50/50 dark:bg-blue-950/20 border-blue-200/70 dark:border-blue-900/40';
     }
   };
 
+  // Render individual Teamhood style Kanban card
   // Render individual Teamhood style Kanban card
   const renderKanbanCard = (t: TaskItem, columnStatus: 'todo' | 'inprogress' | 'done') => {
     const isHigh = t.priority === 'HIGH';
@@ -743,65 +843,68 @@ export default function FlowHubView({ onBackToPortal }: FlowHubViewProps) {
         draggable
         onDragStart={(e) => handleDragStart(e, t.id)}
         onClick={() => setSelectedTaskForEdit(t)}
-        className={`group relative p-3.5 rounded-2xl bg-white dark:bg-[#132347] border border-slate-200/90 dark:border-slate-700/80 shadow-2xs hover:shadow-md transition-all duration-200 space-y-2.5 cursor-pointer active:cursor-grabbing border-l-[3.5px] ${getPriorityBorder(
-          t.priority
-        )} ${draggingTaskId === t.id ? 'opacity-40 scale-95' : 'opacity-100'}`}
+        className={`group relative p-3 rounded-2xl ${getPriorityCardBg(
+          t.priority,
+          columnStatus === 'done'
+        )} border shadow-2xs hover:shadow-md transition-all duration-200 space-y-2 cursor-pointer active:cursor-grabbing ${draggingTaskId === t.id ? 'opacity-40 scale-95' : 'opacity-100'}`}
       >
-        {/* Top: Estimate capsule & Ticket ID */}
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-1.5">
+        {/* Top: Estimate capsule & Ticket ID + Blue Edit & Red Delete Icons (No box) */}
+        <div className="flex items-center justify-between gap-1">
+          <div className="flex items-center gap-1.5 min-w-0">
             {t.estimate && (
-              <span className="px-2 py-0.5 rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-[11px] font-bold text-slate-600 dark:text-slate-300">
+              <span className="px-1.5 py-0.5 rounded-md border border-slate-200/80 dark:border-slate-700 bg-white/90 dark:bg-slate-800 text-[10px] font-bold text-slate-600 dark:text-slate-300">
                 {t.estimate}
               </span>
             )}
-            <span className="text-[11px] font-medium text-slate-400 dark:text-slate-500">
+            <span className="text-[10px] font-medium text-slate-400 dark:text-slate-500 font-mono truncate">
               {t.ticketCode}
             </span>
           </div>
 
-          <div className="flex items-center gap-1.5">
+          <div className="flex items-center gap-1.5 shrink-0">
             {/* Priority Tag matching user screenshot */}
             <span
-              className={`px-2 py-0.5 rounded-full text-[10px] font-extrabold uppercase tracking-wide ${
+              className={`px-1.5 py-0.5 rounded-full text-[9px] font-extrabold uppercase tracking-wide ${
                 isHigh
-                  ? 'bg-rose-100 text-rose-600 dark:bg-rose-950/60 dark:text-rose-300'
+                  ? 'bg-rose-100 text-rose-600 dark:bg-rose-950/60 dark:text-rose-300 border border-rose-200/60'
                   : isMed
-                  ? 'bg-amber-100 text-amber-700 dark:bg-amber-950/60 dark:text-amber-300'
-                  : 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300'
+                  ? 'bg-amber-100 text-amber-700 dark:bg-amber-950/60 dark:text-amber-300 border border-amber-200/60'
+                  : 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300 border border-emerald-200/60'
               }`}
             >
               {t.priority}
             </span>
 
-            {/* Quick Action Trigger on hover */}
-            <div className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1">
+            {/* Blue Edit & Red Delete Icons (No Box Container) */}
+            <div className="flex items-center gap-1">
               <button
+                type="button"
                 onClick={(e) => {
                   e.stopPropagation();
                   setSelectedTaskForEdit(t);
                 }}
-                title="Edit card"
-                className="p-1 rounded hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200"
+                title="Edit task"
+                className="p-0.5 text-[#2F6798] hover:text-[#1c486e] transition-colors cursor-pointer"
               >
-                <Edit3 className="w-3 h-3" />
+                <Edit3 className="w-3 h-3 stroke-[2.2]" />
               </button>
               <button
+                type="button"
                 onClick={(e) => {
                   e.stopPropagation();
                   handleDeleteTask(t.id);
                 }}
-                title="Delete card"
-                className="p-1 rounded hover:bg-rose-50 text-slate-400 hover:text-rose-600"
+                title="Delete task"
+                className="p-0.5 text-rose-500 hover:text-rose-700 transition-colors cursor-pointer"
               >
-                <X className="w-3 h-3" />
+                <Trash2 className="w-3 h-3 stroke-[2.2]" />
               </button>
             </div>
           </div>
         </div>
 
         {/* Title */}
-        <p className={`font-bold text-[13px] leading-snug tracking-tight ${
+        <p className={`font-bold text-xs leading-snug tracking-tight ${
           columnStatus === 'done' 
             ? 'text-slate-800 dark:text-slate-200' 
             : 'text-slate-900 dark:text-slate-100'
@@ -809,71 +912,41 @@ export default function FlowHubView({ onBackToPortal }: FlowHubViewProps) {
           {t.title}
         </p>
 
-        {/* Bottom Tag & Row */}
-        <div className="pt-1 flex items-center justify-between gap-1 flex-wrap">
-          {/* Category Pill Tag */}
+        {/* Bottom Row: Avatar BEFORE Category Pill (No back button) */}
+        <div className="pt-0.5 flex items-center justify-between gap-1.5 flex-wrap">
+          {/* Avatar Icon BEFORE the Category Pill */}
           <div className="flex items-center gap-1.5">
+            {/* Assignee Avatar Circle with Initials */}
+            <div 
+              title={`Assignee: ${t.assignee}`}
+              className={`w-5 h-5 rounded-full font-bold text-[9px] flex items-center justify-center shadow-2xs ${getAssigneeColor(t.assignee)}`}
+            >
+              {t.assignee}
+            </div>
+
+            {/* Category Pill */}
             {t.category && (
-              <span className={`px-2.5 py-0.5 rounded-md text-[11px] font-bold ${getCategoryBadgeClass(t.category)}`}>
+              <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold ${getCategoryBadgeClass(t.category)}`}>
                 {t.category}
               </span>
             )}
           </div>
 
-          {/* Bottom Right: Quick "↺ back" + Subtask icon + Quick Shift Buttons + Assignee Avatar */}
-          <div className="flex items-center gap-1.5">
-            {/* Quick back action button */}
-            {columnStatus !== 'todo' && (
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  handleMoveTaskPrev(t.id, columnStatus);
-                }}
-                className="px-1.5 py-0.5 rounded text-[10px] font-semibold text-slate-400 hover:text-[#24537D] hover:bg-blue-50 dark:hover:bg-slate-800 flex items-center gap-0.5 transition-colors"
-                title="Move task to previous stage"
-              >
-                <RotateCcw className="w-2.5 h-2.5" />
-                <span>back</span>
-              </button>
-            )}
-
-            {/* Quick forward button if not done */}
-            {columnStatus !== 'done' && (
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  handleMoveTaskNext(t.id, columnStatus);
-                }}
-                className="px-1.5 py-0.5 rounded text-[10px] font-semibold text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 dark:hover:bg-slate-800 flex items-center gap-0.5 transition-colors"
-                title="Move task forward"
-              >
-                <span>next</span>
-                <ArrowRight className="w-2.5 h-2.5" />
-              </button>
-            )}
-
+          {/* Quick Forward Button if not done */}
+          {columnStatus !== 'done' && (
             <button
+              type="button"
               onClick={(e) => {
                 e.stopPropagation();
-                handleDeleteTask(t.id);
+                handleMoveTaskNext(t.id, columnStatus);
               }}
-              title="Delete card"
-              className="p-1 rounded text-slate-300 hover:text-rose-500 transition-colors"
+              className="px-1.5 py-0.5 rounded text-[9.5px] font-bold text-slate-600 dark:text-slate-300 hover:text-emerald-700 hover:bg-emerald-100 dark:hover:bg-slate-800 flex items-center gap-0.5 transition-colors border border-slate-200/80 dark:border-slate-700 bg-white/90 dark:bg-slate-800 cursor-pointer shadow-2xs"
+              title="Move task forward"
             >
-              <X className="w-3 h-3" />
+              <span>next</span>
+              <ArrowRight className="w-2.5 h-2.5" />
             </button>
-
-            {/* Teamhood subtask / detail icon */}
-            <AlignLeft className="w-3.5 h-3.5 text-slate-300 dark:text-slate-600 stroke-[2.5]" />
-
-            {/* Assignee Avatar Circle with Initials */}
-            <div 
-              title={`Assignee: ${t.assignee}`}
-              className={`w-6 h-6 rounded-full font-bold text-[10px] flex items-center justify-center shadow-2xs ${getAssigneeColor(t.assignee)}`}
-            >
-              {t.assignee}
-            </div>
-          </div>
+          )}
         </div>
       </div>
     );
@@ -881,30 +954,31 @@ export default function FlowHubView({ onBackToPortal }: FlowHubViewProps) {
 
   // Main Task Board Content (Reused in normal view and Fullscreen Modal)
   const renderVisualTaskBoard = (isExpanded: boolean) => (
-    <div className="space-y-4">
-      {/* Top Header Controls Bar */}
+    <div className="space-y-3.5">
+      {/* Top Header Controls Bar (No search box here - search is in external container) */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 pb-3 border-b border-slate-100 dark:border-slate-800">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-2xl bg-slate-100 dark:bg-slate-800/90 flex items-center justify-center shadow-2xs">
-            <div className="flex items-center gap-[3px]">
-              <div className="w-[3px] h-4 bg-slate-400 dark:bg-slate-500 rounded-full" />
-              <div className="w-[3px] h-2 bg-slate-400 dark:bg-slate-500 rounded-full self-start" />
-              <div className="w-[3px] h-4 bg-slate-400 dark:bg-slate-500 rounded-full" />
-            </div>
+          <div className="w-9 h-9 rounded-xl bg-[#2F6798] text-white flex items-center justify-center shadow-xs shrink-0">
+            <LayoutGrid className="w-4.5 h-4.5 stroke-[2.2]" />
           </div>
           <div>
-            <h3 className="text-lg font-bold text-slate-900 dark:text-slate-100 tracking-tight leading-tight">
+            <h3 className="text-base sm:text-lg font-extrabold text-slate-900 dark:text-slate-100 tracking-tight leading-tight">
               Task Board
             </h3>
-            <span className="text-xs text-slate-400 dark:text-slate-500 font-semibold">
-              Visual Task Boards 3 • Live Workflow
-            </span>
+            <div className="flex items-center gap-2 mt-0.5">
+              <span className="text-xs text-slate-400 dark:text-slate-500 font-semibold whitespace-nowrap">
+                Visual Task Boards 3
+              </span>
+              <span className="px-2.5 py-0.5 rounded-full text-[10px] font-extrabold bg-[#2F6798]/15 text-[#2F6798] dark:bg-blue-900/30 dark:text-blue-300 border border-[#2F6798]/30 shrink-0">
+                Live Workflow
+              </span>
+            </div>
           </div>
         </div>
 
-        <div className="flex items-center gap-2 w-full sm:w-auto flex-wrap">
+        <div className="flex items-center gap-2 w-full sm:w-auto justify-between sm:justify-end shrink-0">
           {/* Quick Filter Pills */}
-          <div className="flex items-center p-0.5 rounded-full bg-slate-100/90 dark:bg-slate-800 gap-1">
+          <div className="flex items-center p-0.5 rounded-full bg-slate-100/90 dark:bg-slate-800 gap-1 shrink-0">
             {(['ALL', 'HIGH', 'MINE'] as const).map((flt) => (
               <button
                 key={flt}
@@ -912,7 +986,7 @@ export default function FlowHubView({ onBackToPortal }: FlowHubViewProps) {
                 onClick={() => setTaskFilter(flt)}
                 className={`px-3 py-1 rounded-full text-xs font-semibold transition-all cursor-pointer ${
                   taskFilter === flt
-                    ? 'bg-[#24537D] text-white shadow-2xs'
+                    ? 'bg-[#2F6798] text-white shadow-2xs font-bold'
                     : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white'
                 }`}
               >
@@ -921,51 +995,41 @@ export default function FlowHubView({ onBackToPortal }: FlowHubViewProps) {
             ))}
           </div>
 
-          {/* Search Box */}
-          <div className="relative w-32 sm:w-40">
-            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
-            <input
-              type="text"
-              value={taskSearch}
-              onChange={(e) => setTaskSearch(e.target.value)}
-              placeholder="Search..."
-              className="w-full pl-8 pr-3 py-1.5 rounded-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs text-slate-800 dark:text-slate-200 outline-none focus:ring-1 focus:ring-[#24537D] placeholder:text-slate-400"
-            />
+          <div className="flex items-center gap-1.5 shrink-0">
+            {/* Add Task Button */}
+            <button
+              onClick={() => setIsAddTaskOpen(!isAddTaskOpen)}
+              className="w-8 h-8 rounded-full bg-[#2F6798] hover:bg-[#235179] text-white flex items-center justify-center transition-transform active:scale-95 cursor-pointer shadow-2xs shrink-0"
+              title="Add new kanban task"
+            >
+              <Plus className="w-4 h-4 stroke-[2.5]" />
+            </button>
+
+            {/* Fullscreen Expand Toggle */}
+            <button
+              onClick={() => setIsFullscreenBoard(!isFullscreenBoard)}
+              className="w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 flex items-center justify-center transition-transform active:scale-95 cursor-pointer shadow-2xs shrink-0"
+              title={isExpanded ? "Collapse View" : "Maximize Board View"}
+            >
+              {isExpanded ? <Minimize2 className="w-3.5 h-3.5" /> : <Maximize2 className="w-3.5 h-3.5" />}
+            </button>
           </div>
-
-          {/* Add Task Button */}
-          <button
-            onClick={() => setIsAddTaskOpen(!isAddTaskOpen)}
-            className="w-8 h-8 rounded-full bg-[#24537D] hover:bg-[#1B4266] text-white flex items-center justify-center transition-transform active:scale-95 cursor-pointer shadow-2xs"
-            title="Add new kanban task"
-          >
-            <Plus className="w-4 h-4 stroke-[2.5]" />
-          </button>
-
-          {/* Fullscreen Expand Toggle */}
-          <button
-            onClick={() => setIsFullscreenBoard(!isFullscreenBoard)}
-            className="w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 text-slate-600 dark:text-slate-300 flex items-center justify-center transition-transform active:scale-95 cursor-pointer shadow-2xs"
-            title={isExpanded ? "Collapse View" : "Maximize Board View"}
-          >
-            {isExpanded ? <Minimize2 className="w-3.5 h-3.5" /> : <Maximize2 className="w-3.5 h-3.5" />}
-          </button>
         </div>
       </div>
 
       {/* Visual Task Board: 3-Column Grid (TO DO | IN PROGRESS | COMPLETED) */}
       <div className="overflow-x-auto pb-2">
-        <div className="min-w-[650px] space-y-2">
+        <div className="min-w-[650px] space-y-2.5">
           
-          {/* Top Stage Groups Bar matching screenshot (Input | Work in Progress | Output) */}
-          <div className="grid grid-cols-3 gap-3.5 text-xs font-bold text-slate-600 dark:text-slate-300 tracking-wide px-0.5">
-            <div className="bg-[#EEF2F6] dark:bg-slate-800/90 px-3.5 py-1.5 rounded-lg font-black text-slate-700 dark:text-slate-200">
+          {/* Top Stage Groups Bar: Styled in Light Blue with Semi-bold text */}
+          <div className="grid grid-cols-3 gap-3.5 text-xs text-center px-0.5">
+            <div className="bg-blue-50/80 dark:bg-blue-950/40 text-[#2F6798] dark:text-blue-300 border border-blue-200/60 dark:border-blue-900/40 px-3.5 py-1.5 rounded-xl font-semibold">
               Input
             </div>
-            <div className="bg-[#EEF2F6] dark:bg-slate-800/90 px-3.5 py-1.5 rounded-lg font-black text-slate-700 dark:text-slate-200">
+            <div className="bg-blue-50/80 dark:bg-blue-950/40 text-[#2F6798] dark:text-blue-300 border border-blue-200/60 dark:border-blue-900/40 px-3.5 py-1.5 rounded-xl font-semibold">
               Work in Progress
             </div>
-            <div className="bg-[#EEF2F6] dark:bg-slate-800/90 px-3.5 py-1.5 rounded-lg font-black text-slate-700 dark:text-slate-200">
+            <div className="bg-blue-50/80 dark:bg-blue-950/40 text-[#2F6798] dark:text-blue-300 border border-blue-200/60 dark:border-blue-900/40 px-3.5 py-1.5 rounded-xl font-semibold">
               Output
             </div>
           </div>
@@ -973,7 +1037,7 @@ export default function FlowHubView({ onBackToPortal }: FlowHubViewProps) {
           {/* 3 Columns Grid */}
           <div className="grid grid-cols-3 gap-3.5 items-start">
             
-            {/* 1. TO DO Column (Red/Coral solid Header #E55755) */}
+            {/* 1. TO DO Column */}
             <div 
               onDragOver={(e) => handleDragOver(e, 'todo')}
               onDragLeave={handleDragLeave}
@@ -983,23 +1047,26 @@ export default function FlowHubView({ onBackToPortal }: FlowHubViewProps) {
               }`}
             >
               <div className="flex items-center justify-between px-4 py-2.5 rounded-2xl bg-[#E55755] text-white font-black text-xs shadow-2xs">
-                <span>TO DO</span>
+                <div className="flex items-center gap-1.5">
+                  <ListTodo className="w-3.5 h-3.5 text-white" />
+                  <span>TO DO</span>
+                </div>
                 <span className="px-2.5 py-0.5 rounded-full bg-white/30 text-white text-[11px] font-bold">
                   {todoTasks.length}
                 </span>
               </div>
 
-              <div className="min-h-[420px] p-2.5 rounded-2xl bg-slate-50/50 dark:bg-slate-900/30 border border-slate-100 dark:border-slate-800/60 space-y-3">
+              <div className="min-h-[300px] p-2.5 rounded-2xl bg-slate-50/50 dark:bg-slate-900/30 border border-slate-100 dark:border-slate-800/60 space-y-2.5">
                 {todoTasks.map((t) => renderKanbanCard(t, 'todo'))}
                 {todoTasks.length === 0 && (
-                  <div className="py-16 text-center text-slate-400 text-xs italic">
+                  <div className="py-12 text-center text-slate-400 text-xs italic">
                     No items in To Do
                   </div>
                 )}
               </div>
             </div>
 
-            {/* 2. IN PROGRESS Column (Orange/Amber solid Header #E68A38) */}
+            {/* 2. IN PROGRESS Column (White Text & Clock Icon) */}
             <div 
               onDragOver={(e) => handleDragOver(e, 'inprogress')}
               onDragLeave={handleDragLeave}
@@ -1008,24 +1075,27 @@ export default function FlowHubView({ onBackToPortal }: FlowHubViewProps) {
                 dragOverColumn === 'inprogress' ? 'ring-2 ring-[#E68A38] bg-amber-50/20' : ''
               }`}
             >
-              <div className="flex items-center justify-between px-4 py-2.5 rounded-2xl bg-[#E68A38] text-slate-950 font-black text-xs shadow-2xs">
-                <span>IN PROGRESS</span>
-                <span className="px-2.5 py-0.5 rounded-full bg-white/40 text-slate-950 text-[11px] font-bold">
+              <div className="flex items-center justify-between px-4 py-2.5 rounded-2xl bg-[#E68A38] text-white font-black text-xs shadow-2xs">
+                <div className="flex items-center gap-1.5">
+                  <Clock className="w-3.5 h-3.5 text-white" />
+                  <span className="text-white">IN PROGRESS</span>
+                </div>
+                <span className="px-2.5 py-0.5 rounded-full bg-white/30 text-white text-[11px] font-bold">
                   {inprogressTasks.length}
                 </span>
               </div>
 
-              <div className="min-h-[420px] p-2.5 rounded-2xl bg-slate-50/50 dark:bg-slate-900/30 border border-slate-100 dark:border-slate-800/60 space-y-3">
+              <div className="min-h-[300px] p-2.5 rounded-2xl bg-slate-50/50 dark:bg-slate-900/30 border border-slate-100 dark:border-slate-800/60 space-y-2.5">
                 {inprogressTasks.map((t) => renderKanbanCard(t, 'inprogress'))}
                 {inprogressTasks.length === 0 && (
-                  <div className="py-16 text-center text-slate-400 text-xs italic">
+                  <div className="py-12 text-center text-slate-400 text-xs italic">
                     No tasks in progress
                   </div>
                 )}
               </div>
             </div>
 
-            {/* 3. COMPLETED Column (Emerald Green solid Header #27AE60) */}
+            {/* 3. COMPLETED Column */}
             <div 
               onDragOver={(e) => handleDragOver(e, 'done')}
               onDragLeave={handleDragLeave}
@@ -1044,10 +1114,10 @@ export default function FlowHubView({ onBackToPortal }: FlowHubViewProps) {
                 </span>
               </div>
 
-              <div className="min-h-[420px] p-2.5 rounded-2xl bg-slate-50/50 dark:bg-slate-900/30 border border-slate-100 dark:border-slate-800/60 space-y-3">
+              <div className="min-h-[300px] p-2.5 rounded-2xl bg-slate-50/50 dark:bg-slate-900/30 border border-slate-100 dark:border-slate-800/60 space-y-2.5">
                 {doneTasks.map((t) => renderKanbanCard(t, 'done'))}
                 {doneTasks.length === 0 && (
-                  <div className="py-16 text-center text-slate-400 text-xs italic">
+                  <div className="py-12 text-center text-slate-400 text-xs italic">
                     No completed tasks
                   </div>
                 )}
@@ -1062,153 +1132,210 @@ export default function FlowHubView({ onBackToPortal }: FlowHubViewProps) {
   );
 
   return (
-    <div className="space-y-6 animate-in fade-in duration-300">
+    <div className="space-y-4 animate-in fade-in duration-300">
       
-      {/* 1. Top Banner Card with Date/Time & Functional Live Open-Meteo Weather */}
-      <div className="p-6 sm:p-7 rounded-2xl bg-white dark:bg-[#101D3D] border border-slate-200/90 dark:border-slate-800 shadow-sm flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
+      {/* 1. Top Banner Card with Streamlined Header, Icon Metric Pills & Daily Focus Target */}
+      <div className="p-4 sm:p-5 rounded-2xl bg-white dark:bg-[#101D3D] border border-slate-200/90 dark:border-slate-800 shadow-sm flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
         
-        <div className="space-y-1.5">
-          <div className="flex items-center gap-2">
-            <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-[#2F6798]/10 text-[#2F6798] dark:text-blue-300">
-              Live Focus Studio • Cebu Tele-Net
+        <div className="space-y-2">
+          <div>
+            <h2 className="text-lg sm:text-xl font-extrabold text-slate-900 dark:text-slate-50 tracking-tight">
+              Flow Hub Focus Studio
+            </h2>
+            <p className="text-xs text-slate-500 dark:text-slate-400 font-medium">
+              Deep work pomodoro, visual task boards &amp; shift planning
+            </p>
+          </div>
+
+          {/* Metric Icon Pills (Replaced raw bullets with pills & icons) */}
+          <div className="flex items-center gap-2 flex-wrap pt-0.5">
+            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-blue-50/90 dark:bg-blue-950/60 text-[#2F6798] dark:text-blue-300 border border-blue-200/80 dark:border-blue-900/60 shadow-2xs">
+              <Timer className="w-3.5 h-3.5 text-[#2F6798] dark:text-blue-400" />
+              <span>Sessions today:</span>
+              <b className="font-bold text-slate-900 dark:text-slate-100">{sessionsCompleted}</b>
             </span>
-          </div>
-          <h2 className="text-2xl sm:text-3xl font-black text-slate-900 dark:text-slate-50 tracking-tight">
-            {currentDateTime.dateStr}
-          </h2>
-          <div className="text-3xl sm:text-4xl font-mono font-black text-[#2F6798] dark:text-blue-400 tracking-tight">
-            {currentDateTime.timeStr}
-          </div>
-          <div className="pt-1 text-xs font-semibold text-slate-500 dark:text-slate-400 flex items-center gap-2 flex-wrap">
-            <span>Sessions today: <b className="text-slate-800 dark:text-slate-200">{sessionsCompleted}</b></span>
-            <span>•</span>
-            <span>Tasks done: <b className="text-emerald-600 font-bold">{totalTasksDone}</b></span>
-            <span>•</span>
-            <span>Habits: <b className="text-[#C8A54B] font-bold">{habitsDoneCount}/{habits.length}</b></span>
+
+            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-emerald-50/90 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border border-emerald-200/80 dark:border-emerald-900/60 shadow-2xs">
+              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+              <span>Tasks done:</span>
+              <b className="font-bold text-emerald-800 dark:text-emerald-200">{totalTasksDone}</b>
+            </span>
+
+            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-amber-50/90 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300 border border-amber-200/80 dark:border-amber-900/60 shadow-2xs">
+              <Flame className="w-3.5 h-3.5 text-amber-500" />
+              <span>Habits:</span>
+              <b className="font-bold text-amber-800 dark:text-amber-200">{habitsDoneCount}/{habits.length}</b>
+            </span>
           </div>
         </div>
 
-        {/* Right: Daily Deep Work Session & Focus Goal Pill */}
-        <div className="flex items-center gap-4 bg-slate-50 dark:bg-slate-800/60 p-4 rounded-2xl border border-slate-200/80 dark:border-slate-700/60 shadow-2xs">
-          <div className="w-12 h-12 rounded-2xl bg-[#24537D] text-white flex items-center justify-center shadow-xs">
-            <Timer className="w-6 h-6 stroke-[2.2]" />
+        {/* Right: Daily Focus Target Widget (Inline on single line, no next line) */}
+        <div className="flex items-center gap-3.5 bg-slate-50 dark:bg-slate-800/60 px-4 py-2.5 rounded-2xl border border-slate-200/80 dark:border-slate-700/60 shadow-2xs shrink-0 whitespace-nowrap">
+          <div className="w-10 h-10 rounded-xl bg-[#2F6798] text-white flex items-center justify-center shadow-xs">
+            <Timer className="w-5 h-5 stroke-[2.2]" />
           </div>
           <div className="space-y-1">
             <div className="flex items-center gap-2">
-              <span className="text-xs font-bold uppercase tracking-wider text-slate-400">Daily Focus Target</span>
+              <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Daily Focus Target</span>
               <span className="px-2 py-0.5 rounded-full text-[9px] font-black bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300">
                 {sessionsCompleted >= 4 ? 'Goal Met' : `${sessionsCompleted}/4 Sessions`}
               </span>
             </div>
-            <div className="w-36 h-2 rounded-full bg-slate-200 dark:bg-slate-700 overflow-hidden">
-              <div 
-                className="h-full bg-[#24537D] rounded-full transition-all duration-500" 
-                style={{ width: `${Math.min(100, (sessionsCompleted / 4) * 100)}%` }}
-              />
+            <div className="flex items-center gap-2.5">
+              <div className="w-32 h-2 rounded-full bg-slate-200 dark:bg-slate-700 overflow-hidden">
+                <div 
+                  className="h-full bg-[#2F6798] rounded-full transition-all duration-500" 
+                  style={{ width: `${Math.min(100, (sessionsCompleted / 4) * 100)}%` }}
+                />
+              </div>
+              <span className="text-[10px] font-semibold text-slate-500 dark:text-slate-400">
+                {sessionsCompleted * 25}m recorded
+              </span>
             </div>
-            <p className="text-[10.5px] font-semibold text-slate-500 dark:text-slate-400">
-              {sessionsCompleted * 25}m deep work recorded today
-            </p>
           </div>
         </div>
 
       </div>
 
       {/* 2. Unified External Container For All Features (Timer, Task Board, Notes & Habits) */}
-      <div className="p-6 rounded-2xl bg-white dark:bg-[#101D3D] border border-slate-200/90 dark:border-slate-800 shadow-sm space-y-6">
+      <div className="p-5 sm:p-6 rounded-2xl bg-white dark:bg-[#101D3D] border border-slate-200/90 dark:border-slate-800 shadow-sm space-y-5">
         
+        {/* External Container Header & Global Search Bar */}
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-3.5 pb-4 border-b border-slate-100 dark:border-slate-800">
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-xl bg-[#2F6798]/15 text-[#2F6798] dark:text-blue-300 flex items-center justify-center shadow-2xs">
+              <Zap className="w-4 h-4" />
+            </div>
+            <div>
+              <h3 className="text-sm sm:text-base font-extrabold text-slate-900 dark:text-slate-100 leading-tight">
+                Workforce Studio &amp; Task Command
+              </h3>
+              <p className="text-[11px] text-slate-500 dark:text-slate-400 font-medium">
+                Integrated Pomodoro timer, Kanban columns and live sprint tracking
+              </p>
+            </div>
+          </div>
+
+          {/* Long Search Bar in External Container */}
+          <div className="relative w-full sm:w-80 lg:w-96">
+            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+            <input
+              type="text"
+              value={taskSearch}
+              onChange={(e) => setTaskSearch(e.target.value)}
+              placeholder="Search tasks, codes, tickets, or categories..."
+              className="w-full pl-9.5 pr-4 py-2 rounded-xl bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 text-xs text-slate-800 dark:text-slate-200 outline-none focus:ring-2 focus:ring-[#2F6798]/30 placeholder:text-slate-400 shadow-2xs"
+            />
+          </div>
+        </div>
+
         {/* Main Grid: Focus Timer (Left) & Task Board (Right) */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
           
-          {/* Left: Focus Timer Widget */}
-          <div className="lg:col-span-5 p-5 sm:p-6 rounded-xl bg-slate-50/60 dark:bg-slate-900/40 border border-slate-200/80 dark:border-slate-800 flex flex-col justify-between space-y-5">
+          {/* Left: Focus Timer Widget (Tightened padding & gaps) */}
+          <div className="lg:col-span-4 p-4 rounded-xl bg-slate-50/60 dark:bg-slate-900/40 border border-slate-200/80 dark:border-slate-800 flex flex-col justify-between space-y-3">
           
           {/* Header Bar */}
-          <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
-            <div className="flex items-center gap-2.5">
-              <div className="w-9 h-9 rounded-2xl bg-[#24537D] text-white flex items-center justify-center shadow-xs">
+          <div className="flex items-center justify-between pb-2 border-b border-slate-100 dark:border-slate-800">
+            <div className="flex items-center gap-2">
+              <div className="w-8 h-8 rounded-xl bg-[#2F6798] text-white flex items-center justify-center shadow-xs">
                 <Timer className="w-4 h-4 stroke-[2.5]" />
               </div>
               <div>
-                <h3 className="text-base font-extrabold text-slate-900 dark:text-slate-100 leading-tight">
+                <h3 className="text-sm sm:text-base font-extrabold text-slate-900 dark:text-slate-100 leading-tight">
                   Focus Timer
                 </h3>
-                <span className="text-[11px] font-semibold text-slate-400">
-                  Deep Work & Pomodoro Studio
+                <span className="text-[10px] sm:text-[11px] font-semibold text-slate-400">
+                  Deep Work &amp; Pomodoro Studio
                 </span>
               </div>
             </div>
 
             <div className="flex items-center gap-1.5">
-              <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-extrabold uppercase border ${
+              <span className={`px-2.5 py-0.5 rounded-full text-[9.5px] font-extrabold uppercase border flex items-center gap-1 ${
                 timerMode === 'focus'
-                  ? 'bg-blue-50 dark:bg-blue-950/60 text-[#24537D] dark:text-blue-300 border-blue-200 dark:border-blue-800'
+                  ? 'bg-blue-50 dark:bg-blue-950/60 text-[#2F6798] dark:text-blue-300 border-blue-200 dark:border-blue-800'
                   : timerMode === 'short_break'
                   ? 'bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800'
                   : 'bg-amber-50 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300 border-amber-200 dark:border-amber-800'
               }`}>
-                {timerMode === 'focus' ? '🎯 Focus' : timerMode === 'short_break' ? '☕ Rest' : '🌴 Long Rest'}
+                {timerMode === 'focus' ? (
+                  <>
+                    <Zap className="w-3 h-3 text-[#2F6798]" />
+                    <span>Focus</span>
+                  </>
+                ) : timerMode === 'short_break' ? (
+                  <>
+                    <Coffee className="w-3 h-3 text-emerald-600" />
+                    <span>Short Rest</span>
+                  </>
+                ) : (
+                  <>
+                    <Sparkles className="w-3 h-3 text-amber-600" />
+                    <span>Long Rest</span>
+                  </>
+                )}
               </span>
             </div>
           </div>
 
-          {/* Mode Switcher Tabs: Focus | Short Break | Long Break */}
-          <div className="flex items-center p-1 rounded-2xl bg-slate-100/90 dark:bg-slate-800/90 gap-1">
+          {/* Mode Switcher Tabs: Focus | Short Break | Long Break (Strictly 1-Line, No Line-Break) */}
+          <div className="flex items-center p-1 rounded-xl bg-slate-100/90 dark:bg-slate-800/90 gap-1 overflow-hidden">
             <button
               type="button"
               onClick={() => handleSelectMode('focus', 25)}
-              className={`flex-1 py-1.5 px-2 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
+              className={`flex-1 py-1.5 px-1 rounded-lg text-[10px] sm:text-[10.5px] font-bold transition-all cursor-pointer flex items-center justify-center gap-1 whitespace-nowrap min-w-0 ${
                 timerMode === 'focus'
-                  ? 'bg-[#24537D] text-white shadow-xs font-extrabold'
+                  ? 'bg-[#2F6798] text-white shadow-xs font-extrabold'
                   : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
               }`}
             >
-              <Zap className="w-3.5 h-3.5" />
-              <span>Focus (25m)</span>
+              <Zap className="w-3 h-3 shrink-0" />
+              <span className="whitespace-nowrap">Focus (25m)</span>
             </button>
 
             <button
               type="button"
               onClick={() => handleSelectMode('short_break', 5)}
-              className={`flex-1 py-1.5 px-2 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
+              className={`flex-1 py-1.5 px-1 rounded-lg text-[10px] sm:text-[10.5px] font-bold transition-all cursor-pointer flex items-center justify-center gap-1 whitespace-nowrap min-w-0 ${
                 timerMode === 'short_break'
                   ? 'bg-emerald-600 text-white shadow-xs font-extrabold'
                   : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
               }`}
             >
-              <Coffee className="w-3.5 h-3.5" />
-              <span>Short (5m)</span>
+              <Coffee className="w-3 h-3 shrink-0" />
+              <span className="whitespace-nowrap">Short (5m)</span>
             </button>
 
             <button
               type="button"
               onClick={() => handleSelectMode('long_break', 15)}
-              className={`flex-1 py-1.5 px-2 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
+              className={`flex-1 py-1.5 px-1 rounded-lg text-[10px] sm:text-[10.5px] font-bold transition-all cursor-pointer flex items-center justify-center gap-1 whitespace-nowrap min-w-0 ${
                 timerMode === 'long_break'
                   ? 'bg-amber-600 text-white shadow-xs font-extrabold'
                   : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
               }`}
             >
-              <Sparkles className="w-3.5 h-3.5" />
-              <span>Long (15m)</span>
+              <Sparkles className="w-3 h-3 shrink-0" />
+              <span className="whitespace-nowrap">Long (15m)</span>
             </button>
           </div>
 
           {/* Quick Duration Preset Pills */}
-          <div className="space-y-1.5">
+          <div className="space-y-1">
             <div className="flex items-center justify-between text-[10px] font-extrabold text-slate-400 uppercase tracking-wider">
               <span>DURATION PRESET</span>
               <span>{selectedDuration} Minutes</span>
             </div>
-            <div className="grid grid-cols-4 gap-2">
+            <div className="grid grid-cols-4 gap-1.5">
               {[15, 25, 45, 60].map((mins) => (
                 <button
                   key={mins}
                   type="button"
                   onClick={() => handleSelectDuration(mins)}
-                  className={`py-2 px-1 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                  className={`py-1.5 px-1 rounded-lg text-[11px] font-bold transition-all cursor-pointer ${
                     selectedDuration === mins
-                      ? 'bg-[#24537D] text-white shadow-xs font-extrabold ring-1 ring-[#24537D]'
+                      ? 'bg-[#2F6798] text-white shadow-xs font-extrabold ring-1 ring-[#2F6798]'
                       : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700'
                   }`}
                 >
@@ -1218,21 +1345,16 @@ export default function FlowHubView({ onBackToPortal }: FlowHubViewProps) {
             </div>
           </div>
 
-          {/* Elevated Circular Countdown Display */}
-          <div className="relative p-4 rounded-3xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200/60 dark:border-slate-800/80 flex flex-col items-center justify-center">
+          {/* Countdown Display Box: Styled in Solid Brand Blue */}
+          <div className="relative p-3 rounded-2xl bg-[#2F6798] dark:bg-[#1A4268] text-white border border-[#235179] dark:border-[#163654] flex flex-col items-center justify-center shadow-xs">
             
             {/* SVG Progress Gauge */}
-            <div className="relative w-48 h-48 sm:w-52 sm:h-52 flex items-center justify-center">
+            <div className="relative w-32 h-32 sm:w-36 sm:h-36 flex items-center justify-center">
               <svg className="w-full h-full transform -rotate-90" viewBox="0 0 100 100">
-                {/* Outer Drop Glow Filter */}
                 <defs>
-                  <filter id="timerGlow" x="-20%" y="-20%" width="140%" height="140%">
-                    <feGaussianBlur stdDeviation="3" result="blur" />
-                    <feComposite in="SourceGraphic" in2="blur" operator="over" />
-                  </filter>
                   <linearGradient id="focusTimerGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-                    <stop offset="0%" stopColor={timerMode === 'focus' ? '#24537D' : timerMode === 'short_break' ? '#059669' : '#D97706'} />
-                    <stop offset="100%" stopColor={timerMode === 'focus' ? '#24537D' : timerMode === 'short_break' ? '#10B981' : '#F59E0B'} />
+                    <stop offset="0%" stopColor="#ffffff" />
+                    <stop offset="100%" stopColor="#E0EDF8" />
                   </linearGradient>
                 </defs>
 
@@ -1241,8 +1363,8 @@ export default function FlowHubView({ onBackToPortal }: FlowHubViewProps) {
                   cx="50"
                   cy="50"
                   r="42"
-                  className="stroke-slate-200/80 dark:stroke-slate-700/60"
-                  strokeWidth="6"
+                  className="stroke-white/20"
+                  strokeWidth="5"
                   fill="transparent"
                 />
 
@@ -1258,7 +1380,7 @@ export default function FlowHubView({ onBackToPortal }: FlowHubViewProps) {
                       cy="50"
                       r="42"
                       stroke="url(#focusTimerGrad)"
-                      strokeWidth="7"
+                      strokeWidth="6"
                       strokeDasharray={circ}
                       strokeDashoffset={offset}
                       strokeLinecap="round"
@@ -1271,48 +1393,48 @@ export default function FlowHubView({ onBackToPortal }: FlowHubViewProps) {
 
               {/* Digital Time Centerpiece */}
               <div className="absolute inset-0 flex flex-col items-center justify-center text-center">
-                <span className="text-4xl sm:text-5xl font-mono font-black text-slate-900 dark:text-white tracking-tight drop-shadow-2xs">
+                <span className="text-3xl sm:text-4xl font-mono font-black text-white tracking-tight drop-shadow-sm">
                   {formatTimerMinutes(timerSecondsLeft)}
                 </span>
                 
                 {/* Live Completion % tag */}
-                <span className="text-[11px] font-extrabold text-[#24537D] dark:text-blue-300 mt-1">
+                <span className="text-[10px] font-extrabold text-blue-100 mt-0.5">
                   {Math.round(Math.min(100, Math.max(0, ((selectedDuration * 60 - timerSecondsLeft) / Math.max(1, selectedDuration * 60)) * 100)))}% Elapsed
                 </span>
               </div>
             </div>
 
             {/* Quick Time Adjusters (+5m / -5m) */}
-            <div className="flex items-center gap-2 mt-2">
+            <div className="flex items-center gap-1.5 mt-1.5">
               <button
                 type="button"
                 onClick={() => handleAdjustMinutes(-5)}
-                className="px-2.5 py-1 rounded-lg bg-white dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700 text-[11px] font-bold text-slate-600 dark:text-slate-300 transition-all cursor-pointer shadow-2xs"
+                className="px-2 py-0.5 rounded-lg bg-white/15 hover:bg-white/25 border border-white/25 text-[10.5px] font-bold text-white transition-all cursor-pointer shadow-2xs"
                 title="Subtract 5 minutes"
               >
                 -5 min
               </button>
               
               {/* Session Capsule Indicators (0/4) */}
-              <div className="flex items-center gap-1.5 px-3 py-1 rounded-xl bg-white dark:bg-slate-800 border border-slate-200/80 dark:border-slate-700 shadow-2xs">
+              <div className="flex items-center gap-1 px-2.5 py-0.5 rounded-lg bg-white/15 border border-white/25 shadow-2xs">
                 {[0, 1, 2, 3].map((idx) => {
                   const isDone = (sessionsCompleted % 4) > idx || (sessionsCompleted > 0 && sessionsCompleted % 4 === 0);
                   const isCurrent = (sessionsCompleted % 4) === idx;
                   return (
                     <div
                       key={idx}
-                      className={`w-2.5 h-2.5 rounded-full transition-all ${
+                      className={`w-2 h-2 rounded-full transition-all ${
                         isDone
-                          ? 'bg-[#C8A54B] shadow-xs scale-110'
+                          ? 'bg-amber-300 shadow-xs scale-110'
                           : isCurrent
-                          ? 'bg-[#24537D] dark:bg-blue-400 ring-2 ring-[#24537D]/30 animate-pulse'
-                          : 'bg-slate-200 dark:bg-slate-700'
+                          ? 'bg-white ring-2 ring-white/50 animate-pulse'
+                          : 'bg-white/30'
                       }`}
                       title={`Session ${idx + 1}`}
                     />
                   );
                 })}
-                <span className="text-[10px] font-extrabold text-slate-600 dark:text-slate-300 ml-1">
+                <span className="text-[9.5px] font-extrabold text-white ml-1 font-mono">
                   {sessionsCompleted % 4}/4
                 </span>
               </div>
@@ -1320,7 +1442,7 @@ export default function FlowHubView({ onBackToPortal }: FlowHubViewProps) {
               <button
                 type="button"
                 onClick={() => handleAdjustMinutes(5)}
-                className="px-2.5 py-1 rounded-lg bg-white dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700 text-[11px] font-bold text-slate-600 dark:text-slate-300 transition-all cursor-pointer shadow-2xs"
+                className="px-2 py-0.5 rounded-lg bg-white/15 hover:bg-white/25 border border-white/25 text-[10.5px] font-bold text-white transition-all cursor-pointer shadow-2xs"
                 title="Add 5 minutes"
               >
                 +5 min
@@ -1330,10 +1452,10 @@ export default function FlowHubView({ onBackToPortal }: FlowHubViewProps) {
           </div>
 
           {/* Ambient Sound Studio Bar */}
-          <div className="space-y-2">
+          <div className="space-y-1">
             <div className="flex items-center justify-between">
               <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
-                <Volume2 className="w-3.5 h-3.5 text-[#24537D] dark:text-blue-400" />
+                <Volume2 className="w-3.5 h-3.5 text-[#2F6798] dark:text-blue-400" />
                 <span>AMBIENT FOCUS AUDIO</span>
               </span>
 
@@ -1348,11 +1470,11 @@ export default function FlowHubView({ onBackToPortal }: FlowHubViewProps) {
               )}
             </div>
 
-            <div className="grid grid-cols-3 gap-2">
+            <div className="grid grid-cols-3 gap-1.5">
               {[
-                { name: 'Rain', icon: <CloudRain className="w-3.5 h-3.5 text-sky-500" />, label: 'Soft Rain' },
-                { name: 'White Noise', icon: <Radio className="w-3.5 h-3.5 text-purple-500" />, label: 'White Noise' },
-                { name: 'Coffee Shop', icon: <Coffee className="w-3.5 h-3.5 text-amber-500" />, label: 'Coffee Cafe' },
+                { name: 'Rain', icon: <CloudRain className="w-3 h-3 text-sky-500" />, label: 'Soft Rain' },
+                { name: 'White Noise', icon: <Radio className="w-3 h-3 text-purple-500" />, label: 'White Noise' },
+                { name: 'Coffee Shop', icon: <Coffee className="w-3 h-3 text-amber-500" />, label: 'Coffee Cafe' },
               ].map((sound) => {
                 const isPlaying = activeAmbient === sound.name;
                 return (
@@ -1360,9 +1482,9 @@ export default function FlowHubView({ onBackToPortal }: FlowHubViewProps) {
                     key={sound.name}
                     type="button"
                     onClick={() => toggleAmbient(sound.name)}
-                    className={`py-2 px-2 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer border ${
+                    className={`py-1.5 px-1.5 rounded-lg text-[11px] font-bold transition-all flex items-center justify-center gap-1 cursor-pointer border ${
                       isPlaying
-                        ? 'bg-[#24537D] text-white border-[#24537D] shadow-xs ring-1 ring-[#24537D]'
+                        ? 'bg-[#2F6798] text-white border-[#2F6798] shadow-xs ring-1 ring-[#2F6798]'
                         : 'bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-700'
                     }`}
                   >
@@ -1375,9 +1497,9 @@ export default function FlowHubView({ onBackToPortal }: FlowHubViewProps) {
 
             {/* Ambient Volume Slider if Active */}
             {activeAmbient && (
-              <div className="p-2 rounded-xl bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 flex items-center justify-between gap-3 animate-in fade-in">
-                <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400">
-                  Volume: {Math.round(ambientVolume * 100)}%
+              <div className="p-1.5 rounded-lg bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 flex items-center justify-between gap-2 animate-in fade-in">
+                <span className="text-[9.5px] font-bold text-slate-500 dark:text-slate-400">
+                  Vol: {Math.round(ambientVolume * 100)}%
                 </span>
                 <input
                   type="range"
@@ -1386,56 +1508,56 @@ export default function FlowHubView({ onBackToPortal }: FlowHubViewProps) {
                   step="0.05"
                   value={ambientVolume}
                   onChange={(e) => handleVolumeChange(parseFloat(e.target.value))}
-                  className="w-32 h-1.5 bg-slate-200 dark:bg-slate-700 rounded-lg appearance-none cursor-pointer accent-[#24537D]"
+                  className="w-28 h-1.5 bg-slate-200 dark:bg-slate-700 rounded-lg appearance-none cursor-pointer accent-[#2F6798]"
                 />
               </div>
             )}
           </div>
 
           {/* Action Hero Controls: Start/Pause, Reset, Skip */}
-          <div className="flex items-center gap-2 pt-1">
+          <div className="flex items-center gap-1.5 pt-0.5">
             <button
               onClick={() => setIsTimerActive(!isTimerActive)}
-              className={`flex-1 py-3 px-4 rounded-2xl font-black text-xs tracking-wide transition-all shadow-md flex items-center justify-center gap-2 cursor-pointer active:scale-98 ${
+              className={`flex-1 py-2.5 px-3 rounded-xl font-black text-xs tracking-wide transition-all shadow-md flex items-center justify-center gap-1.5 cursor-pointer active:scale-98 ${
                 isTimerActive
                   ? 'bg-[#C8A54B] hover:bg-[#b5923c] text-slate-900 shadow-amber-500/25'
-                  : 'bg-[#24537D] hover:bg-[#1E476C] text-white shadow-[#24537D]/30'
+                  : 'bg-[#2F6798] hover:bg-[#235179] text-white shadow-[#2F6798]/30'
               }`}
             >
               {isTimerActive ? (
                 <>
-                  <Pause className="w-4 h-4 fill-slate-900" />
-                  <span>Pause Timer</span>
+                  <Pause className="w-3.5 h-3.5 fill-slate-900" />
+                  <span>Pause</span>
                 </>
               ) : (
                 <>
-                  <Play className="w-4 h-4 fill-white" />
-                  <span>Start Focus Session</span>
+                  <Play className="w-3.5 h-3.5 fill-white" />
+                  <span>Start Session</span>
                 </>
               )}
             </button>
 
             <button
               onClick={handleResetTimer}
-              className="p-3 rounded-2xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-bold text-xs transition-colors cursor-pointer"
+              className="p-2.5 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-bold text-xs transition-colors cursor-pointer"
               title="Reset Timer"
             >
-              <RotateCcw className="w-4 h-4" />
+              <RotateCcw className="w-3.5 h-3.5" />
             </button>
 
             <button
               onClick={handleSkipSession}
-              className="p-3 rounded-2xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-bold text-xs transition-colors cursor-pointer"
+              className="p-2.5 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-bold text-xs transition-colors cursor-pointer"
               title="Skip to next session / break"
             >
-              <ArrowRight className="w-4 h-4" />
+              <ArrowRight className="w-3.5 h-3.5" />
             </button>
           </div>
 
         </div>
 
         {/* Right: Task Board (Visual Teamhood Kanban Board matching screenshot) */}
-        <div className="lg:col-span-7 p-5 sm:p-6 rounded-xl bg-slate-50/60 dark:bg-slate-900/40 border border-slate-200/80 dark:border-slate-800 flex flex-col justify-between space-y-4">
+        <div className="lg:col-span-8 p-4 sm:p-5 rounded-xl bg-slate-50/60 dark:bg-slate-900/40 border border-slate-200/80 dark:border-slate-800 flex flex-col justify-between space-y-4">
           {renderVisualTaskBoard(false)}
         </div>
 

@@ -10,7 +10,7 @@ export async function GET(request: NextRequest) {
     const searchParams = request.nextUrl.searchParams;
     const account = searchParams.get('account');
     const agent = searchParams.get('agent');
-    const limit = parseInt(searchParams.get('limit') || '100', 10);
+    const limit = parseInt(searchParams.get('limit') || '1000', 10);
 
     let query = supabase
       .from('phone_time_tracker')

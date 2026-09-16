@@ -157,12 +157,12 @@ export default function WeatherWidgetCard() {
           <button
             type="button"
             onClick={() => setIsCityPickerOpen(!isCityPickerOpen)}
-            className="group flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-white dark:bg-[#1E293B] hover:bg-slate-50 text-[#153B5E] dark:text-blue-200 text-xs font-bold shadow-xs border border-blue-100 dark:border-slate-700 transition-all cursor-pointer active:scale-95 font-poppins"
+            className="group flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-white dark:bg-[#1E293B] hover:bg-slate-50 text-[#2F6798] dark:text-blue-200 text-xs font-bold shadow-xs border border-blue-100 dark:border-slate-700 transition-all cursor-pointer active:scale-95 font-poppins"
             title="Click to switch location"
           >
-            <MapPin className="w-3.5 h-3.5 text-[#24537D] dark:text-blue-400 stroke-[2.5]" />
+            <MapPin className="w-3.5 h-3.5 text-[#2F6798] dark:text-blue-400 stroke-[2.5]" />
             <span className="tracking-tight">{selectedCity.name}</span>
-            <ChevronDown className="w-3 h-3 text-slate-400 group-hover:text-[#153B5E] dark:group-hover:text-white transition-transform" />
+            <ChevronDown className="w-3 h-3 text-slate-400 group-hover:text-[#2F6798] dark:group-hover:text-white transition-transform" />
           </button>
 
           {/* City Selector Dropdown Modal */}
@@ -245,7 +245,7 @@ export default function WeatherWidgetCard() {
         
         {/* Left Column: Weather Title, Now, Big Temp & Feels like */}
         <div className="space-y-0.5 font-poppins">
-          <h4 className="text-sm font-bold text-[#153B5E] dark:text-blue-200 tracking-wide">
+          <h4 className="text-sm font-bold text-[#2F6798] dark:text-blue-200 tracking-wide">
             Weather
           </h4>
           <span className="text-[11px] font-semibold text-[#2F6798] dark:text-blue-400 tracking-wide block">
@@ -276,7 +276,7 @@ export default function WeatherWidgetCard() {
       </div>
 
       {/* 3. Bottom Row: High: 29° & Low: 25° in Poppins */}
-      <div className="relative z-10 flex items-center justify-end gap-3.5 pt-2 text-xs font-semibold text-[#153B5E] dark:text-blue-200 tracking-tight font-poppins">
+      <div className="relative z-10 flex items-center justify-end gap-3.5 pt-2 text-xs font-semibold text-[#2F6798] dark:text-blue-200 tracking-tight font-poppins">
         <span>
           High: <b className="font-bold text-slate-900 dark:text-white">{toDisplayTemp(weather.tempHigh)}°</b>
         </span>

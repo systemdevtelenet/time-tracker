@@ -194,8 +194,8 @@ export default function DatePickerPopover({
           </span>
         </div>
         <span className="text-slate-300 dark:text-slate-600 font-normal">|</span>
-        <div className="flex items-center gap-1 text-[#2F6798] dark:text-blue-300 font-mono text-[11px] font-extrabold">
-          <Clock className="w-3 h-3 text-[#2F6798] dark:text-blue-300" />
+        <div className="flex items-center gap-1 text-[#2F6798] dark:text-blue-300 font-sans text-xs font-bold">
+          <Clock className="w-3.5 h-3.5 text-[#2F6798] dark:text-blue-300" />
           <span>{currentTime || '--:--:--'}</span>
         </div>
         <ChevronDown className={`w-3.5 h-3.5 text-slate-400 group-hover:text-slate-600 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
@@ -401,7 +401,7 @@ export default function DatePickerPopover({
               <Clock className="w-3.5 h-3.5 text-[#2F6798]" />
               <span>Time Today</span>
             </div>
-            <span className="font-mono font-extrabold text-xs text-[#2F6798] dark:text-blue-300">
+            <span className="font-sans font-bold text-xs text-[#2F6798] dark:text-blue-300">
               {currentTime || '--:--:--'}
             </span>
           </div>

@@ -27,7 +27,7 @@ export default function HeroKpiCards({
   activeFilter,
   onSelectFilter,
 }: HeroKpiCardsProps) {
-  const heroImageUrl = 'https://zhdmsmwrskxowvytedgh.supabase.co/storage/v1/object/public/Images/ligh_mode_hero.png';
+  const heroImageUrl = 'https://zhdmsmwrskxowvytedgh.supabase.co/storage/v1/object/public/Images/design%20(1).png';
 
   // Calculate live dynamic metrics from call logs or kpiStats
   const totalCallLogs = records.length > 0 ? records.length : (kpiStats?.totalRecords ?? 31);
@@ -94,15 +94,16 @@ export default function HeroKpiCards({
           <div
             key={card.id}
             onClick={() => onSelectFilter && onSelectFilter(card.id)}
-            className={`relative overflow-hidden p-4 sm:p-5 rounded-3xl bg-white dark:bg-[#0E1B38] border border-slate-200/90 dark:border-slate-800 shadow-xs hover:shadow-md transition-all duration-200 cursor-pointer group flex items-center justify-between min-h-[106px] ${
+            className={`relative overflow-hidden p-4 sm:p-5 rounded-xl bg-white dark:bg-[#0E1B38] border border-slate-200/90 dark:border-slate-800 shadow-xs hover:shadow-md transition-all duration-200 cursor-pointer group flex items-center justify-between min-h-[106px] ${
               isSelected ? 'ring-2 ring-[#2F6798]' : ''
             }`}
           >
-            {/* Box Background Watermark from Supabase on Right */}
+            {/* Box Background Watermark from Supabase - Same as Attendance and Roster */}
             <div 
-              className="absolute right-0 top-0 bottom-0 w-3/5 bg-no-repeat bg-right bg-contain opacity-25 dark:opacity-10 pointer-events-none transform transition-transform group-hover:scale-105 duration-500"
+              className="absolute inset-0 w-full h-full bg-no-repeat bg-cover bg-center opacity-28 dark:opacity-18 pointer-events-none transform transition-transform group-hover:scale-105 duration-500"
               style={{
                 backgroundImage: `url("${heroImageUrl}")`,
+                filter: 'invert(33%) sepia(85%) saturate(550%) hue-rotate(170deg) brightness(92%) contrast(110%)'
               }}
             />
 
@@ -120,8 +121,8 @@ export default function HeroKpiCards({
             </div>
 
             {/* Right Pastel Rounded Icon Badge */}
-            <div className={`relative z-10 w-11 h-11 rounded-2xl flex items-center justify-center shrink-0 shadow-xs ${card.iconBg}`}>
-              <Icon className="w-5 h-5 stroke-[2]" />
+            <div className={`relative z-10 w-11 h-11 rounded-xl flex items-center justify-center shrink-0 shadow-xs ${card.iconBg}`}>
+              <Icon className="w-[22px] h-[22px] stroke-[2]" />
             </div>
 
           </div>
