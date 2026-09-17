@@ -215,6 +215,9 @@ export default function AttendanceCalendarTab({
   const [selectedStatusFilter, setSelectedStatusFilter] = useState<string>('all');
   const [selectedIndividualEmployee, setSelectedIndividualEmployee] = useState<string>('Nissi-Jeh Reguero');
 
+  // Dynamic Database Team Roster List
+  const [attendanceDataList, setAttendanceDataList] = useState<EmployeeAttendanceRow[]>(TEAM_ATTENDANCE_DATA);
+
   // Detail Modal States
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
   const [modalDayNumber, setModalDayNumber] = useState(16);
@@ -241,7 +244,7 @@ export default function AttendanceCalendarTab({
 
   // Team members status list for the active modal day
   const teamMembersForModalDay = useMemo<TeamMemberDayStatus[]>(() => {
-    return TEAM_ATTENDANCE_DATA.map((emp) => {
+    return attendanceDataList.map((emp, empIdx) => {
       const status = emp.attendanceByDay[modalDayNumber] || null;
       let hoursWorked = 8.0;
       if (status === 'L') hoursWorked = 7.25;
@@ -249,7 +252,7 @@ export default function AttendanceCalendarTab({
       else if (status === 'A' || status === 'RD') hoursWorked = 0.0;
 
       return {
-        id: emp.id,
+        id: emp.id ? `${emp.id}-${empIdx}` : `modal-emp-${empIdx}`,
         name: emp.name,
         position: emp.position,
         startDate: emp.startDate,
@@ -260,7 +263,7 @@ export default function AttendanceCalendarTab({
         notes: status === 'L' ? 'Tardy 15 mins' : status === 'U' ? 'Undertime departure' : status === 'A' ? 'Unexcused absence' : 'Regular Shift',
       };
     });
-  }, [modalDayNumber]);
+  }, [attendanceDataList, modalDayNumber]);
 
   // Jump to active day column (Sep 16)
   const handleJumpToToday = () => {
@@ -314,9 +317,6 @@ export default function AttendanceCalendarTab({
     return days;
   }, [rangeView]);
 
-  // Dynamic Database Team Roster List
-  const [attendanceDataList, setAttendanceDataList] = useState<EmployeeAttendanceRow[]>(TEAM_ATTENDANCE_DATA);
-
   // Fetch actual live roster from Supabase database
   useEffect(() => {
     async function loadDbTeam() {
@@ -326,9 +326,11 @@ export default function AttendanceCalendarTab({
         if (json.success && Array.isArray(json.data) && json.data.length > 0) {
           const mapped: EmployeeAttendanceRow[] = json.data.map((r: any, idx: number) => {
             const existing = TEAM_ATTENDANCE_DATA.find((e) => e.name.toLowerCase() === r.name.toLowerCase());
+            const uniqueId = String(r.employee_id || (r.id ? `roster-${r.id}` : `emp-${idx}`));
             if (existing) {
               return {
                 ...existing,
+                id: uniqueId,
                 startDate: r.hire_date || existing.startDate,
                 position: r.position || existing.position,
               };
@@ -345,7 +347,7 @@ export default function AttendanceCalendarTab({
             }
 
             return {
-              id: String(r.id || r.employee_id),
+              id: uniqueId,
               startDate: r.hire_date || '1/3/2024',
               position: r.position || 'Trainer',
               name: r.name,
@@ -682,7 +684,7 @@ export default function AttendanceCalendarTab({
 
               {/* Table Body with Fixed Left Columns & Clean Matrix Cells */}
               <tbody className="divide-y divide-slate-100 dark:divide-slate-800 text-slate-700 dark:text-slate-300 font-medium">
-                {filteredEmployees.map((emp) => {
+                {filteredEmployees.map((emp, empIdx) => {
                   // Calculate monthly summary counts
                   const allStatuses = Object.values(emp.attendanceByDay);
                   const countP = allStatuses.filter((s) => s === 'P').length;
@@ -692,7 +694,7 @@ export default function AttendanceCalendarTab({
 
                   return (
                     <tr 
-                      key={emp.id}
+                      key={emp.id ? `${emp.id}-${empIdx}` : `emp-${empIdx}`}
                       className="hover:bg-blue-50/40 dark:hover:bg-slate-800/40 transition-colors group"
                     >
                       {/* Fixed Column 1: Start Date */}

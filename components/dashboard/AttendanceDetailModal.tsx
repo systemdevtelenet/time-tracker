@@ -267,13 +267,13 @@ export default function AttendanceDetailModal({
 
               {/* Scrollable Employee List with Avatar Circle */}
               <div className="divide-y divide-slate-100 dark:divide-slate-800/80 rounded-2xl border border-slate-200/90 dark:border-slate-800 overflow-hidden bg-white dark:bg-[#0E1B38]">
-                {teamMembers.map((emp) => {
+                {teamMembers.map((emp, idx) => {
                   const statusInfo = getStatusLabelAndColor(emp.status);
                   const initials = emp.name.split(' ').map((n) => n[0]).slice(0, 2).join('');
 
                   return (
                     <div
-                      key={emp.id}
+                      key={emp.id ? `${emp.id}-${idx}` : `emp-${idx}`}
                       onClick={() => {
                         setActiveEmployeeName(emp.name);
                         setActiveTab('individual');

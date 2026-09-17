@@ -1022,11 +1022,15 @@ export default function FlowHubView({ onBackToPortal }: FlowHubViewProps) {
           <div className="flex items-center gap-1.5 shrink-0">
             {/* Add Task Button */}
             <button
-              onClick={() => setIsAddTaskOpen(!isAddTaskOpen)}
-              className="w-8 h-8 rounded-full bg-[#2F6798] hover:bg-[#235179] text-white flex items-center justify-center transition-transform active:scale-95 cursor-pointer shadow-2xs shrink-0"
+              onClick={() => {
+                setNewTaskColumn('todo');
+                setIsAddTaskOpen(true);
+              }}
+              className="px-3 py-1.5 rounded-full bg-[#2F6798] hover:bg-[#235179] text-white text-xs font-bold transition-all active:scale-95 cursor-pointer shadow-xs flex items-center gap-1.5 shrink-0"
               title="Add new kanban task"
             >
-              <Plus className="w-4 h-4 stroke-[2.5]" />
+              <Plus className="w-3.5 h-3.5 stroke-[2.5]" />
+              <span>Create Task</span>
             </button>
 
             {/* Fullscreen Expand Toggle */}
@@ -1080,13 +1084,27 @@ export default function FlowHubView({ onBackToPortal }: FlowHubViewProps) {
                 </span>
               </div>
 
-              <div className="min-h-[300px] p-2.5 rounded-2xl bg-[#FADBD8]/25 dark:bg-[#E55755]/10 border border-[#E55755]/20 dark:border-[#E55755]/30 space-y-2.5">
-                {todoTasks.map((t) => renderKanbanCard(t, 'todo'))}
-                {todoTasks.length === 0 && (
-                  <div className="py-12 text-center text-slate-400 text-xs italic">
-                    No items in To Do
-                  </div>
-                )}
+              <div className="min-h-[300px] p-2.5 rounded-2xl bg-[#FADBD8]/25 dark:bg-[#E55755]/10 border border-[#E55755]/20 dark:border-[#E55755]/30 space-y-2.5 flex flex-col">
+                <div className="space-y-2.5 flex-1">
+                  {todoTasks.map((t) => renderKanbanCard(t, 'todo'))}
+                  {todoTasks.length === 0 && (
+                    <div className="py-8 text-center text-slate-400 text-xs italic">
+                      No items in To Do
+                    </div>
+                  )}
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setNewTaskColumn('todo');
+                    setIsAddTaskOpen(true);
+                  }}
+                  className="w-full py-2 px-3 rounded-xl border border-dashed border-[#E55755]/40 hover:border-[#E55755] text-[#E55755] dark:text-rose-400 hover:bg-[#E55755]/10 text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer mt-2"
+                >
+                  <Plus className="w-3.5 h-3.5 stroke-[2.5]" />
+                  <span>Add Task</span>
+                </button>
               </div>
             </div>
 
@@ -1109,13 +1127,27 @@ export default function FlowHubView({ onBackToPortal }: FlowHubViewProps) {
                 </span>
               </div>
 
-              <div className="min-h-[300px] p-2.5 rounded-2xl bg-[#FDEBD0]/25 dark:bg-[#E68A38]/10 border border-[#E68A38]/20 dark:border-[#E68A38]/30 space-y-2.5">
-                {inprogressTasks.map((t) => renderKanbanCard(t, 'inprogress'))}
-                {inprogressTasks.length === 0 && (
-                  <div className="py-12 text-center text-slate-400 text-xs italic">
-                    No tasks in progress
-                  </div>
-                )}
+              <div className="min-h-[300px] p-2.5 rounded-2xl bg-[#FDEBD0]/25 dark:bg-[#E68A38]/10 border border-[#E68A38]/20 dark:border-[#E68A38]/30 space-y-2.5 flex flex-col">
+                <div className="space-y-2.5 flex-1">
+                  {inprogressTasks.map((t) => renderKanbanCard(t, 'inprogress'))}
+                  {inprogressTasks.length === 0 && (
+                    <div className="py-8 text-center text-slate-400 text-xs italic">
+                      No tasks in progress
+                    </div>
+                  )}
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setNewTaskColumn('inprogress');
+                    setIsAddTaskOpen(true);
+                  }}
+                  className="w-full py-2 px-3 rounded-xl border border-dashed border-[#E68A38]/40 hover:border-[#E68A38] text-[#E68A38] dark:text-amber-400 hover:bg-[#E68A38]/10 text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer mt-2"
+                >
+                  <Plus className="w-3.5 h-3.5 stroke-[2.5]" />
+                  <span>Add Task</span>
+                </button>
               </div>
             </div>
 
@@ -1138,13 +1170,27 @@ export default function FlowHubView({ onBackToPortal }: FlowHubViewProps) {
                 </span>
               </div>
 
-              <div className="min-h-[300px] p-2.5 rounded-2xl bg-[#D4EFDF]/25 dark:bg-[#27AE60]/10 border border-[#27AE60]/20 dark:border-[#27AE60]/30 space-y-2.5">
-                {doneTasks.map((t) => renderKanbanCard(t, 'done'))}
-                {doneTasks.length === 0 && (
-                  <div className="py-12 text-center text-slate-400 text-xs italic">
-                    No completed tasks
-                  </div>
-                )}
+              <div className="min-h-[300px] p-2.5 rounded-2xl bg-[#D4EFDF]/25 dark:bg-[#27AE60]/10 border border-[#27AE60]/20 dark:border-[#27AE60]/30 space-y-2.5 flex flex-col">
+                <div className="space-y-2.5 flex-1">
+                  {doneTasks.map((t) => renderKanbanCard(t, 'done'))}
+                  {doneTasks.length === 0 && (
+                    <div className="py-8 text-center text-slate-400 text-xs italic">
+                      No completed tasks
+                    </div>
+                  )}
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setNewTaskColumn('done');
+                    setIsAddTaskOpen(true);
+                  }}
+                  className="w-full py-2 px-3 rounded-xl border border-dashed border-[#27AE60]/40 hover:border-[#27AE60] text-[#27AE60] dark:text-emerald-400 hover:bg-[#27AE60]/10 text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer mt-2"
+                >
+                  <Plus className="w-3.5 h-3.5 stroke-[2.5]" />
+                  <span>Add Task</span>
+                </button>
               </div>
             </div>
 
@@ -1675,14 +1721,14 @@ export default function FlowHubView({ onBackToPortal }: FlowHubViewProps) {
                   onClick={() => setSelectedDayIndex(idx)}
                   className={`flex-1 min-w-[46px] py-2.5 px-1 rounded-2xl flex flex-col items-center justify-center transition-all cursor-pointer ${
                     isSelected
-                      ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-900 shadow-md shadow-slate-900/15 scale-105 font-black'
-                      : 'bg-white/80 dark:bg-slate-800/80 text-slate-600 dark:text-slate-300 border border-slate-200/60 dark:border-slate-700 hover:bg-white font-medium'
+                      ? 'bg-[#1D4568] dark:bg-[#24537D] text-white shadow-md shadow-[#1D4568]/30 scale-105 font-black ring-2 ring-[#24537D]/50'
+                      : 'bg-white/80 dark:bg-slate-800/80 text-slate-600 dark:text-slate-300 border border-slate-200/60 dark:border-slate-700 hover:bg-white hover:border-[#1D4568]/40 font-medium'
                   }`}
                 >
-                  <span className={`text-[13px] ${isSelected ? 'font-extrabold' : 'font-bold'}`}>
+                  <span className={`text-[13px] ${isSelected ? 'font-extrabold text-white' : 'font-bold'}`}>
                     {item.date}
                   </span>
-                  <span className={`text-[10px] ${isSelected ? 'text-slate-300 dark:text-slate-600 font-semibold' : 'text-slate-400'}`}>
+                  <span className={`text-[10px] ${isSelected ? 'text-blue-100 font-semibold' : 'text-slate-400'}`}>
                     {item.day}
                   </span>
                 </button>
@@ -1846,12 +1892,20 @@ export default function FlowHubView({ onBackToPortal }: FlowHubViewProps) {
                 <h4 className="text-sm font-extrabold text-slate-900 dark:text-slate-100">
                   Good Habit List
                 </h4>
-                <span className="text-xs text-slate-400">Shift Wellness</span>
+                <button
+                  type="button"
+                  onClick={() => setIsAddHabitOpen(true)}
+                  className="px-3 py-1 rounded-full bg-[#1D4568] hover:bg-[#14324D] text-white text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer shadow-xs"
+                >
+                  <Plus className="w-3.5 h-3.5 stroke-[2.5]" />
+                  <span>Add Habit</span>
+                </button>
               </div>
 
               <div className="grid grid-cols-2 gap-3">
                 {[
                   {
+                    category: 'hydration',
                     title: 'Hydration Reset',
                     subtitle: 'Drink pure water',
                     bg: 'bg-sky-50 dark:bg-sky-950/40',
@@ -1860,6 +1914,7 @@ export default function FlowHubView({ onBackToPortal }: FlowHubViewProps) {
                     badge: 'Daily 2.5L',
                   },
                   {
+                    category: 'mindfulness',
                     title: 'Mindful Focus',
                     subtitle: 'Breath & queue pause',
                     bg: 'bg-emerald-50 dark:bg-emerald-950/40',
@@ -1868,6 +1923,7 @@ export default function FlowHubView({ onBackToPortal }: FlowHubViewProps) {
                     badge: '15 Min Calibrate',
                   },
                   {
+                    category: 'stretch',
                     title: 'Ergonomic Stretch',
                     subtitle: 'Neck, wrist & spine',
                     bg: 'bg-purple-50 dark:bg-purple-950/40',
@@ -1876,6 +1932,7 @@ export default function FlowHubView({ onBackToPortal }: FlowHubViewProps) {
                     badge: '10 Min Desk',
                   },
                   {
+                    category: 'nutrition',
                     title: 'Shift Fuel Meal',
                     subtitle: 'Nutritious lunch meal',
                     bg: 'bg-amber-50 dark:bg-amber-950/40',
@@ -1886,13 +1943,18 @@ export default function FlowHubView({ onBackToPortal }: FlowHubViewProps) {
                 ].map((card, i) => (
                   <div
                     key={i}
-                    className={`p-4 rounded-2xl ${card.bg} border ${card.border} space-y-3 transition-all hover:scale-[1.02] shadow-2xs`}
+                    onClick={() => {
+                      setNewHabitCategory(card.category as any);
+                      setNewHabitName(card.title);
+                      setIsAddHabitOpen(true);
+                    }}
+                    className={`p-4 rounded-2xl ${card.bg} border ${card.border} space-y-3 transition-all hover:scale-[1.02] shadow-2xs cursor-pointer group`}
                   >
-                    <div className="w-10 h-10 rounded-2xl bg-white/90 dark:bg-slate-800/90 shadow-xs flex items-center justify-center">
+                    <div className="w-10 h-10 rounded-2xl bg-white/90 dark:bg-slate-800/90 shadow-xs flex items-center justify-center group-hover:scale-110 transition-transform">
                       {card.icon}
                     </div>
                     <div>
-                      <h5 className="text-xs font-black text-slate-800 dark:text-slate-100 leading-snug">
+                      <h5 className="text-xs font-black text-slate-800 dark:text-slate-100 leading-snug group-hover:text-[#1D4568] dark:group-hover:text-blue-300 transition-colors">
                         {card.title}
                       </h5>
                       <p className="text-[10px] font-medium text-slate-500 dark:text-slate-400">
