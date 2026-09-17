@@ -1,6 +1,7 @@
 'use client';
 
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, Suspense } from 'react';
+import { useSearchParams, useRouter } from 'next/navigation';
 import CompanySidebar from '@/components/dashboard/CompanySidebar';
 import CompanyTopNav from '@/components/dashboard/CompanyTopNav';
 import HeroKpiCards from '@/components/dashboard/HeroKpiCards';
@@ -26,9 +27,17 @@ import { AccountOption, EmployeeOption, PhoneTimeRecord, KpiSummaryStats } from 
 import { parseDurationToSeconds, formatTotalDurationHuman } from '@/lib/utils';
 import { Plus, CheckCircle2, User, Sparkles } from 'lucide-react';
 
-export default function HomePage() {
-  // Navigation & View State
-  const [activeTab, setActiveTab] = useState<string>('dashboard');
+const VALID_TABS = ['dashboard', 'tracker', 'flowhub', 'attendance', 'analytics', 'settings'] as const;
+
+function HomePageContent() {
+  const searchParams = useSearchParams();
+  const router = useRouter();
+
+  const tabParam = searchParams.get('tab')?.toLowerCase();
+  const initialTab = tabParam && VALID_TABS.includes(tabParam as any) ? tabParam : 'dashboard';
+
+  // Navigation & View State (SSR and Hydration identical via useSearchParams)
+  const [activeTab, setActiveTab] = useState<string>(initialTab);
   const [currentAgent, setCurrentAgent] = useState<string>('Matt Riner Balaba');
   const [records, setRecords] = useState<PhoneTimeRecord[]>([]);
   const [accounts, setAccounts] = useState<AccountOption[]>([]);
@@ -61,15 +70,30 @@ export default function HomePage() {
     directSupervisor: 'June Babe Caballes',
   });
 
-  // Dark mode initialization
+  // Dark mode initialization & localStorage fallback when no URL query is present
   useEffect(() => {
     if (typeof window !== 'undefined') {
       const isDarkMode = document.documentElement.classList.contains('dark') ||
         window.matchMedia('(prefers-color-scheme: dark)').matches;
       setIsDark(isDarkMode);
       if (isDarkMode) document.documentElement.classList.add('dark');
+
+      if (!tabParam) {
+        const savedTab = localStorage.getItem('tele_active_tab')?.toLowerCase();
+        if (savedTab && VALID_TABS.includes(savedTab as any) && savedTab !== 'dashboard') {
+          setActiveTab(savedTab);
+          router.replace(`/?tab=${savedTab}`, { scroll: false });
+        }
+      }
     }
-  }, []);
+  }, [tabParam, router]);
+
+  // Sync state if searchParams change (e.g. browser back/forward buttons)
+  useEffect(() => {
+    if (tabParam && VALID_TABS.includes(tabParam as any) && tabParam !== activeTab) {
+      setActiveTab(tabParam);
+    }
+  }, [tabParam, activeTab]);
 
   const toggleTheme = () => {
     const nextDark = !isDark;
@@ -203,9 +227,15 @@ export default function HomePage() {
     setIsTabLoading(true);
     setActiveTab(tab);
     setActiveCalendarRecord(null);
+
+    router.replace(`/?tab=${tab}`, { scroll: false });
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('tele_active_tab', tab);
+    }
+
     setTimeout(() => {
       setIsTabLoading(false);
-    }, 400);
+    }, 350);
   };
 
   // Title for topnav
@@ -224,7 +254,7 @@ export default function HomePage() {
   return (
     <div className="h-screen overflow-hidden bg-[#F4F7FB] dark:bg-[#070D1E] text-slate-900 dark:text-slate-100 flex transition-colors duration-200 relative">
       
-      {/* Full Screen Loading Overlay on Refresh or Tab Change */}
+      {/* Full Screen Loading Overlay on Refresh or Tab Change with Contextual Page Details */}
       {(isLoading || isTabLoading) && (
         <FullScreenLoader activeTab={activeTab} />
       )}
@@ -347,7 +377,7 @@ export default function HomePage() {
                     </span>
                   </h3>
                   <button
-                    onClick={() => setActiveTab('tracker')}
+                    onClick={() => handleSelectTab('tracker')}
                     className="text-xs font-bold text-[#2F6798] hover:underline cursor-pointer"
                   >
                     Open Workforce Portal →
@@ -360,7 +390,7 @@ export default function HomePage() {
                   onDeleteRecord={handleDeleteRecord}
                   onOpenCalendar={(rec) => {
                     setActiveCalendarRecord(rec);
-                    setActiveTab('attendance');
+                    handleSelectTab('attendance');
                   }}
                   accounts={accounts}
                 />
@@ -400,7 +430,7 @@ export default function HomePage() {
           {/* TAB 3: FLOW HUB */}
           {activeTab === 'flowhub' && (
             <div className="animate-in fade-in">
-              <FlowHubView onBackToPortal={() => setActiveTab('dashboard')} />
+              <FlowHubView onBackToPortal={() => handleSelectTab('dashboard')} />
             </div>
           )}
 
@@ -442,7 +472,7 @@ export default function HomePage() {
           {activeTab === 'settings' && (
             <div className="animate-in fade-in">
               <SettingsView
-                onBackToDashboard={() => setActiveTab('dashboard')}
+                onBackToDashboard={() => handleSelectTab('dashboard')}
                 supervisor={supervisor}
                 isDark={isDark}
                 onToggleTheme={toggleTheme}
@@ -471,6 +501,21 @@ export default function HomePage() {
       />
 
     </div>
+  );
+}
+
+export default function HomePage() {
+  return (
+    <Suspense
+      fallback={
+        <FullScreenLoader
+          customTitle="Loading Cebu Tele-Net Workspace..."
+          customSubtitle="Retrieving operational metrics and executive KPIs"
+        />
+      }
+    >
+      <HomePageContent />
+    </Suspense>
   );
 }
 

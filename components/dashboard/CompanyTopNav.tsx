@@ -20,6 +20,7 @@ import {
 } from 'lucide-react';
 
 import DatePickerPopover from './DatePickerPopover';
+import ConfirmActionModal from './ConfirmActionModal';
 
 interface CompanyTopNavProps {
   title?: string;
@@ -87,6 +88,9 @@ export default function CompanyTopNav({
   // Notifications State
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
   const notifRef = useRef<HTMLDivElement>(null);
+
+  // Logout Modal State
+  const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false);
 
   // Keyboard shortcut listener for ⌘K / Ctrl+K
   useEffect(() => {
@@ -341,7 +345,10 @@ export default function CompanyTopNav({
                   {/* 3. Logout (Red text) */}
                   <button
                     type="button"
-                    onClick={handleLogout}
+                    onClick={() => {
+                      setIsAvatarDropdownOpen(false);
+                      setIsLogoutModalOpen(true);
+                    }}
                     className="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-xl text-[11px] font-bold text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors cursor-pointer"
                   >
                     <LogOut className="w-3.5 h-3.5 stroke-[2.2]" />
@@ -356,6 +363,19 @@ export default function CompanyTopNav({
         </div>
 
       </div>
+
+      {/* Logout Confirmation Modal matching user screenshot */}
+      <ConfirmActionModal
+        isOpen={isLogoutModalOpen}
+        onClose={() => setIsLogoutModalOpen(false)}
+        onConfirm={() => router.push('/login')}
+        title="Logout"
+        description="Are you sure you want to logout?"
+        subDescription="You will need to sign in again to access the dashboard."
+        confirmLabel="Yes"
+        cancelLabel="Cancel"
+        iconType="logout"
+      />
     </header>
   );
 }

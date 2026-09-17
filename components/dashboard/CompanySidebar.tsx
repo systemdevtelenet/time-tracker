@@ -21,6 +21,7 @@ import {
   LogIn
 } from 'lucide-react';
 import { PunchActionType } from '@/lib/punchLogs';
+import ConfirmActionModal from './ConfirmActionModal';
 
 interface CompanySidebarProps {
   currentTab: string;
@@ -43,6 +44,7 @@ export default function CompanySidebar({
 }: CompanySidebarProps) {
   const router = useRouter();
   const [isCollapsed, setIsCollapsed] = useState(false);
+  const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false);
 
   // Live Punch State
   const [currentStatus, setCurrentStatus] = useState<'working' | 'lunch' | 'break_1' | 'break_2' | 'offline'>('lunch');
@@ -378,7 +380,7 @@ export default function CompanySidebar({
               />
             </div>
             <button
-              onClick={handleLogout}
+              onClick={() => setIsLogoutModalOpen(true)}
               title="Log Out"
               className="p-1 rounded-lg hover:bg-white/20 text-white/80 hover:text-white transition-colors cursor-pointer shrink-0"
             >
@@ -406,7 +408,7 @@ export default function CompanySidebar({
             </div>
 
             <button
-              onClick={handleLogout}
+              onClick={() => setIsLogoutModalOpen(true)}
               title="Log Out"
               className="p-1.5 rounded-lg hover:bg-white/20 text-white/80 hover:text-white transition-colors cursor-pointer shrink-0"
             >
@@ -416,6 +418,19 @@ export default function CompanySidebar({
         )}
 
       </div>
+
+      {/* Logout Confirmation Modal matching user screenshot */}
+      <ConfirmActionModal
+        isOpen={isLogoutModalOpen}
+        onClose={() => setIsLogoutModalOpen(false)}
+        onConfirm={() => router.push('/login')}
+        title="Logout"
+        description="Are you sure you want to logout?"
+        subDescription="You will need to sign in again to access the dashboard."
+        confirmLabel="Yes"
+        cancelLabel="Cancel"
+        iconType="logout"
+      />
 
     </aside>
   );

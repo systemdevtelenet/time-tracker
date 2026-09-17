@@ -55,10 +55,13 @@ import {
   BarChart3,
   ChevronRight,
   ListTodo,
-  LayoutGrid
+  LayoutGrid,
+  Waves,
+  Trees
 } from 'lucide-react';
 
 import FlowHubNotesPlanner from './FlowHubNotesPlanner';
+import ConfirmActionModal from './ConfirmActionModal';
 
 interface FlowHubViewProps {
   onBackToPortal: () => void;
@@ -116,6 +119,7 @@ export default function FlowHubView({ onBackToPortal }: FlowHubViewProps) {
   const [draggingTaskId, setDraggingTaskId] = useState<string | null>(null);
   const [dragOverColumn, setDragOverColumn] = useState<string | null>(null);
   const [selectedTaskForEdit, setSelectedTaskForEdit] = useState<TaskItem | null>(null);
+  const [taskToDelete, setTaskToDelete] = useState<TaskItem | null>(null);
 
   // New task form state
   const [newTaskTitle, setNewTaskTitle] = useState('');
@@ -382,13 +386,15 @@ export default function FlowHubView({ onBackToPortal }: FlowHubViewProps) {
         ctx.resume();
       }
 
-      const bufferSize = ctx.sampleRate * 2;
+      const bufferSize = ctx.sampleRate * 4;
       const noiseBuffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
       const output = noiseBuffer.getChannelData(0);
 
       let b0 = 0, b1 = 0, b2 = 0, b3 = 0, b4 = 0, b5 = 0, b6 = 0;
       for (let i = 0; i < bufferSize; i++) {
         const white = Math.random() * 2 - 1;
+        const time = i / ctx.sampleRate;
+
         if (type === 'Rain') {
           // Soft pink rain noise
           b0 = 0.99886 * b0 + white * 0.0555179;
@@ -399,17 +405,41 @@ export default function FlowHubView({ onBackToPortal }: FlowHubViewProps) {
           b5 = -0.7616 * b5 - white * 0.0168980;
           output[i] = (b0 + b1 + b2 + b3 + b4 + b5 + b6 + white * 0.5362) * 0.035;
           b6 = white * 0.115926;
+        } else if (type === 'Brown Noise') {
+          // Deep, rich brown noise (ADHD/Deep Focus)
+          b0 = (b0 + (0.02 * white)) / 1.02;
+          output[i] = b0 * 0.65;
+        } else if (type === 'Ocean') {
+          // Ocean waves: brown base modulated with a 0.2 Hz tide swell
+          b0 = (b0 + (0.02 * white)) / 1.02;
+          const swell = 0.4 + 0.6 * Math.pow((Math.sin(2 * Math.PI * 0.18 * time) + 1) / 2, 1.5);
+          output[i] = b0 * 0.6 * swell + white * 0.006 * (1 - swell);
+        } else if (type === 'Campfire') {
+          // Warm brown rumble + gentle crackles
+          b0 = (b0 + (0.018 * white)) / 1.02;
+          let crackle = 0;
+          if (Math.random() < 0.0006) {
+            crackle = (Math.random() * 2 - 1) * 0.28;
+          }
+          output[i] = b0 * 0.45 + crackle;
         } else if (type === 'Coffee Shop') {
           // Warm brown rumble ambient
           b0 = (b0 + (0.02 * white)) / 1.02;
-          output[i] = b0 * 0.8;
-        } else if (type === 'Forest Breeze') {
-          // Modulated gentle breeze
+          output[i] = b0 * 0.55;
+        } else if (type === 'Forest') {
+          // Modulated gentle forest breeze
           b0 = (b0 + (0.015 * white)) / 1.01;
-          output[i] = b0 * 0.5;
+          const breeze = 0.55 + 0.45 * Math.sin(2 * Math.PI * 0.12 * time);
+          output[i] = b0 * 0.4 * breeze + (white * 0.005);
+        } else if (type === 'Night Train') {
+          // Rhythmic click-clack track cadence over steady low drone
+          b0 = (b0 + (0.018 * white)) / 1.02;
+          const cadence = Math.sin(2 * Math.PI * 2.2 * time);
+          const click = (cadence > 0.94 || (time % 0.45 < 0.015)) ? (Math.random() * 0.05) : 0;
+          output[i] = b0 * 0.45 + click;
         } else {
           // Gentle white noise
-          output[i] = white * 0.025;
+          output[i] = white * 0.022;
         }
       }
 
@@ -784,7 +814,7 @@ export default function FlowHubView({ onBackToPortal }: FlowHubViewProps) {
   const getCategoryBadgeClass = (category: string) => {
     switch (category?.toLowerCase()) {
       case 'instructions':
-        return 'border border-emerald-400 text-emerald-600 bg-emerald-50/50 dark:border-emerald-700 dark:text-emerald-400 dark:bg-emerald-950/40';
+        return 'border border-[#27AE60]/60 text-[#27AE60] bg-[#27AE60]/10 dark:border-[#27AE60]/70 dark:text-emerald-400 dark:bg-[#27AE60]/20';
       case 'high importance':
         return 'border border-rose-400 text-rose-600 bg-rose-50/50 dark:border-rose-700 dark:text-rose-400 dark:bg-rose-950/40';
       case 'website':
@@ -795,7 +825,7 @@ export default function FlowHubView({ onBackToPortal }: FlowHubViewProps) {
       case 'design':
         return 'border border-amber-400 text-amber-600 bg-amber-50/50 dark:border-amber-700 dark:text-amber-400 dark:bg-amber-950/40';
       case 'completed':
-        return 'border border-emerald-400 text-emerald-600 bg-emerald-50/50 dark:border-emerald-700 dark:text-emerald-400 dark:bg-emerald-950/40';
+        return 'border border-[#27AE60]/60 text-[#27AE60] bg-[#27AE60]/10 dark:border-[#27AE60]/70 dark:text-emerald-400 dark:bg-[#27AE60]/20';
       default:
         return 'border border-slate-300 text-slate-600 bg-slate-50/50 dark:border-slate-700 dark:text-slate-300 dark:bg-slate-800/40';
     }
@@ -816,22 +846,17 @@ export default function FlowHubView({ onBackToPortal }: FlowHubViewProps) {
     }
   };
 
-  const getPriorityCardBg = (priority: 'HIGH' | 'MEDIUM' | 'LOW', isDone: boolean) => {
-    if (isDone) {
-      return 'bg-emerald-50/50 dark:bg-emerald-950/20 border-emerald-200/80 dark:border-emerald-900/40';
-    }
-    switch (priority) {
-      case 'HIGH':
-        return 'bg-rose-50/60 dark:bg-rose-950/25 border-rose-200/80 dark:border-rose-900/50';
-      case 'MEDIUM':
-        return 'bg-amber-50/60 dark:bg-amber-950/25 border-amber-200/80 dark:border-amber-900/50';
-      case 'LOW':
-      default:
-        return 'bg-blue-50/50 dark:bg-blue-950/20 border-blue-200/70 dark:border-blue-900/40';
+  const getKanbanCardStyle = (columnStatus: 'todo' | 'inprogress' | 'done') => {
+    switch (columnStatus) {
+      case 'todo':
+        return 'bg-[#FADBD8] dark:bg-[#E55755]/25 border-[#E55755]/60 dark:border-[#E55755]/70 hover:border-[#E55755] hover:bg-[#F5B7B1]';
+      case 'inprogress':
+        return 'bg-[#FDEBD0] dark:bg-[#E68A38]/25 border-[#E68A38]/60 dark:border-[#E68A38]/70 hover:border-[#E68A38] hover:bg-[#FAD7A0]';
+      case 'done':
+        return 'bg-[#D4EFDF] dark:bg-[#27AE60]/25 border-[#27AE60]/60 dark:border-[#27AE60]/70 hover:border-[#27AE60] hover:bg-[#A9DFBF]';
     }
   };
 
-  // Render individual Teamhood style Kanban card
   // Render individual Teamhood style Kanban card
   const renderKanbanCard = (t: TaskItem, columnStatus: 'todo' | 'inprogress' | 'done') => {
     const isHigh = t.priority === 'HIGH';
@@ -843,9 +868,8 @@ export default function FlowHubView({ onBackToPortal }: FlowHubViewProps) {
         draggable
         onDragStart={(e) => handleDragStart(e, t.id)}
         onClick={() => setSelectedTaskForEdit(t)}
-        className={`group relative p-3 rounded-2xl ${getPriorityCardBg(
-          t.priority,
-          columnStatus === 'done'
+        className={`group relative p-3 rounded-2xl ${getKanbanCardStyle(
+          columnStatus
         )} border shadow-2xs hover:shadow-md transition-all duration-200 space-y-2 cursor-pointer active:cursor-grabbing ${draggingTaskId === t.id ? 'opacity-40 scale-95' : 'opacity-100'}`}
       >
         {/* Top: Estimate capsule & Ticket ID + Blue Edit & Red Delete Icons (No box) */}
@@ -892,7 +916,7 @@ export default function FlowHubView({ onBackToPortal }: FlowHubViewProps) {
                 type="button"
                 onClick={(e) => {
                   e.stopPropagation();
-                  handleDeleteTask(t.id);
+                  setTaskToDelete(t);
                 }}
                 title="Delete task"
                 className="p-0.5 text-rose-500 hover:text-rose-700 transition-colors cursor-pointer"
@@ -1056,7 +1080,7 @@ export default function FlowHubView({ onBackToPortal }: FlowHubViewProps) {
                 </span>
               </div>
 
-              <div className="min-h-[300px] p-2.5 rounded-2xl bg-slate-50/50 dark:bg-slate-900/30 border border-slate-100 dark:border-slate-800/60 space-y-2.5">
+              <div className="min-h-[300px] p-2.5 rounded-2xl bg-[#FADBD8]/25 dark:bg-[#E55755]/10 border border-[#E55755]/20 dark:border-[#E55755]/30 space-y-2.5">
                 {todoTasks.map((t) => renderKanbanCard(t, 'todo'))}
                 {todoTasks.length === 0 && (
                   <div className="py-12 text-center text-slate-400 text-xs italic">
@@ -1085,7 +1109,7 @@ export default function FlowHubView({ onBackToPortal }: FlowHubViewProps) {
                 </span>
               </div>
 
-              <div className="min-h-[300px] p-2.5 rounded-2xl bg-slate-50/50 dark:bg-slate-900/30 border border-slate-100 dark:border-slate-800/60 space-y-2.5">
+              <div className="min-h-[300px] p-2.5 rounded-2xl bg-[#FDEBD0]/25 dark:bg-[#E68A38]/10 border border-[#E68A38]/20 dark:border-[#E68A38]/30 space-y-2.5">
                 {inprogressTasks.map((t) => renderKanbanCard(t, 'inprogress'))}
                 {inprogressTasks.length === 0 && (
                   <div className="py-12 text-center text-slate-400 text-xs italic">
@@ -1101,7 +1125,7 @@ export default function FlowHubView({ onBackToPortal }: FlowHubViewProps) {
               onDragLeave={handleDragLeave}
               onDrop={(e) => handleDrop(e, 'done')}
               className={`space-y-2 rounded-2xl transition-all ${
-                dragOverColumn === 'done' ? 'ring-2 ring-[#27AE60] bg-emerald-50/20' : ''
+                dragOverColumn === 'done' ? 'ring-2 ring-[#27AE60] bg-[#27AE60]/20' : ''
               }`}
             >
               <div className="flex items-center justify-between px-4 py-2.5 rounded-2xl bg-[#27AE60] text-white font-black text-xs shadow-2xs">
@@ -1114,7 +1138,7 @@ export default function FlowHubView({ onBackToPortal }: FlowHubViewProps) {
                 </span>
               </div>
 
-              <div className="min-h-[300px] p-2.5 rounded-2xl bg-slate-50/50 dark:bg-slate-900/30 border border-slate-100 dark:border-slate-800/60 space-y-2.5">
+              <div className="min-h-[300px] p-2.5 rounded-2xl bg-[#D4EFDF]/25 dark:bg-[#27AE60]/10 border border-[#27AE60]/20 dark:border-[#27AE60]/30 space-y-2.5">
                 {doneTasks.map((t) => renderKanbanCard(t, 'done'))}
                 {doneTasks.length === 0 && (
                   <div className="py-12 text-center text-slate-400 text-xs italic">
@@ -1470,11 +1494,16 @@ export default function FlowHubView({ onBackToPortal }: FlowHubViewProps) {
               )}
             </div>
 
-            <div className="grid grid-cols-3 gap-1.5">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5">
               {[
                 { name: 'Rain', icon: <CloudRain className="w-3 h-3 text-sky-500" />, label: 'Soft Rain' },
-                { name: 'White Noise', icon: <Radio className="w-3 h-3 text-purple-500" />, label: 'White Noise' },
+                { name: 'Brown Noise', icon: <Radio className="w-3 h-3 text-amber-700 dark:text-amber-400" />, label: 'Brown Noise' },
+                { name: 'Ocean', icon: <Waves className="w-3 h-3 text-teal-500" />, label: 'Ocean Waves' },
+                { name: 'Campfire', icon: <Flame className="w-3 h-3 text-rose-500" />, label: 'Campfire' },
                 { name: 'Coffee Shop', icon: <Coffee className="w-3 h-3 text-amber-500" />, label: 'Coffee Cafe' },
+                { name: 'Forest', icon: <Trees className="w-3 h-3 text-emerald-500" />, label: 'Forest Breeze' },
+                { name: 'Night Train', icon: <Activity className="w-3 h-3 text-indigo-500" />, label: 'Night Train' },
+                { name: 'White Noise', icon: <Sparkles className="w-3 h-3 text-purple-500" />, label: 'White Noise' },
               ].map((sound) => {
                 const isPlaying = activeAmbient === sound.name;
                 return (
@@ -1482,7 +1511,7 @@ export default function FlowHubView({ onBackToPortal }: FlowHubViewProps) {
                     key={sound.name}
                     type="button"
                     onClick={() => toggleAmbient(sound.name)}
-                    className={`py-1.5 px-1.5 rounded-lg text-[11px] font-bold transition-all flex items-center justify-center gap-1 cursor-pointer border ${
+                    className={`py-1.5 px-1.5 rounded-lg text-[10.5px] font-bold transition-all flex items-center justify-center gap-1 cursor-pointer border ${
                       isPlaying
                         ? 'bg-[#2F6798] text-white border-[#2F6798] shadow-xs ring-1 ring-[#2F6798]'
                         : 'bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-700'
@@ -1986,139 +2015,237 @@ export default function FlowHubView({ onBackToPortal }: FlowHubViewProps) {
         </div>
       )}
 
-      {/* Edit Card Modal */}
+      {/* Edit Task Details Slide-over Drawer matching Attendance Details design */}
       {selectedTaskForEdit && (
-        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in">
-          <div className="w-full max-w-md rounded-3xl bg-white dark:bg-[#101D3D] border border-slate-200 dark:border-slate-800 shadow-2xl p-6 space-y-4">
-            <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
+        <div 
+          className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-xs flex justify-end animate-in fade-in duration-200 select-none"
+          onClick={() => setSelectedTaskForEdit(null)}
+        >
+          <div 
+            className="w-full max-w-md sm:max-w-lg h-full bg-white dark:bg-[#0E1B38] shadow-2xl flex flex-col animate-in slide-in-from-right duration-300 relative border-l border-slate-200 dark:border-slate-800"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* 1. Solid Primary Blue Header Bar */}
+            <div className="bg-[#2F6798] px-5 py-3.5 flex items-center justify-between text-white shrink-0 shadow-xs">
               <div className="flex items-center gap-2">
-                <Edit3 className="w-4 h-4 text-[#2F6798]" />
-                <h3 className="font-extrabold text-sm text-slate-900 dark:text-slate-100">
-                  Edit Task Details
+                <Edit3 className="w-4 h-4 text-white" />
+                <h3 className="text-xs sm:text-sm font-bold tracking-wider uppercase">
+                  TASK DETAILS
                 </h3>
               </div>
               <button
+                type="button"
                 onClick={() => setSelectedTaskForEdit(null)}
-                className="text-slate-400 hover:text-slate-600"
+                className="p-1 rounded-lg text-white/80 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
+                title="Close"
               >
-                <X className="w-4 h-4" />
+                <X className="w-4.5 h-4.5" />
               </button>
             </div>
 
-            <div className="space-y-3 text-xs">
-              <div>
-                <label className="block text-[10px] font-bold text-slate-400 mb-1">TASK TITLE</label>
+            {/* 2. Drawer Body (Scrollable) */}
+            <div className="p-5 sm:p-6 space-y-4 overflow-y-auto flex-1">
+              
+              {/* Header Info Block */}
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <h2 className="text-lg sm:text-xl font-bold text-slate-900 dark:text-slate-100 tracking-tight">
+                    {selectedTaskForEdit.ticketCode ? `Ticket #${selectedTaskForEdit.ticketCode}` : 'Flow Hub Task Card'}
+                  </h2>
+                  <p className="text-xs text-[#2F6798] dark:text-blue-400 font-semibold mt-0.5">
+                    {currentDateTime.dateStr}
+                  </p>
+                </div>
+
+                <span className="px-3 py-1 rounded-full text-xs font-bold bg-blue-50 dark:bg-blue-950/60 text-[#2F6798] dark:text-blue-300 border border-blue-200/80 dark:border-blue-800 shrink-0">
+                  {selectedTaskForEdit.estimate || '2h target'}
+                </span>
+              </div>
+
+              {/* Segmented Stage Tabs (TO DO | IN PROGRESS | COMPLETED) */}
+              <div className="p-1 rounded-xl bg-slate-100 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 grid grid-cols-3 gap-1 text-xs font-bold">
+                {[
+                  { id: 'todo', label: 'TO DO', activeClass: 'bg-[#E55755] text-white shadow-xs' },
+                  { id: 'inprogress', label: 'IN PROGRESS', activeClass: 'bg-[#E68A38] text-white shadow-xs' },
+                  { id: 'done', label: 'COMPLETED', activeClass: 'bg-[#27AE60] text-white shadow-xs' },
+                ].map((st) => (
+                  <button
+                    key={st.id}
+                    type="button"
+                    onClick={() => setSelectedTaskForEdit({ ...selectedTaskForEdit, status: st.id as any })}
+                    className={`py-2 px-2 rounded-lg text-center font-extrabold transition-all cursor-pointer ${
+                      selectedTaskForEdit.status === st.id
+                        ? st.activeClass
+                        : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                    }`}
+                  >
+                    {st.label}
+                  </button>
+                ))}
+              </div>
+
+              {/* Task Title Card */}
+              <div className="p-4 rounded-2xl bg-slate-50/70 dark:bg-slate-900/50 border border-slate-200/80 dark:border-slate-800 space-y-2">
+                <label className="block text-[10px] font-extrabold text-slate-400 uppercase tracking-wider">
+                  TASK TITLE
+                </label>
                 <textarea
                   rows={2}
                   value={selectedTaskForEdit.title}
                   onChange={(e) => setSelectedTaskForEdit({ ...selectedTaskForEdit, title: e.target.value })}
-                  className="w-full p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-slate-100 font-bold outline-none"
+                  placeholder="Enter task summary..."
+                  className="w-full p-2.5 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-900 dark:text-slate-100 outline-none focus:ring-2 focus:ring-[#2F6798] resize-none"
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-2">
-                <div>
-                  <label className="block text-[10px] font-bold text-slate-400 mb-1">STAGE COLUMN</label>
-                  <select
-                    value={selectedTaskForEdit.status}
-                    onChange={(e) => setSelectedTaskForEdit({ ...selectedTaskForEdit, status: e.target.value as any })}
-                    className="w-full p-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 font-bold"
-                  >
-                    <option value="todo">TO DO</option>
-                    <option value="inprogress">IN PROGRESS</option>
-                    <option value="done">COMPLETED</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-[10px] font-bold text-slate-400 mb-1">PRIORITY</label>
-                  <select
-                    value={selectedTaskForEdit.priority}
-                    onChange={(e) => setSelectedTaskForEdit({ ...selectedTaskForEdit, priority: e.target.value as any })}
-                    className="w-full p-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 font-bold"
-                  >
-                    <option value="HIGH">HIGH (Red Stripe)</option>
-                    <option value="MEDIUM">MEDIUM (Amber Stripe)</option>
-                    <option value="LOW">LOW (Green Stripe)</option>
-                  </select>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-2">
-                <div>
-                  <label className="block text-[10px] font-bold text-slate-400 mb-1">ESTIMATE (HOURS)</label>
+              {/* 2x2 Info Grid matching Attendance Details Card Layout */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {/* 1. Hours Estimate */}
+                <div className="p-3.5 rounded-2xl bg-slate-50/70 dark:bg-slate-900/50 border border-slate-200/80 dark:border-slate-800 space-y-1">
+                  <div className="flex items-center gap-1.5 text-slate-400 text-[10px] font-extrabold uppercase tracking-wider">
+                    <Clock className="w-3.5 h-3.5 text-[#2F6798]" />
+                    <span>HOURS ESTIMATE</span>
+                  </div>
                   <input
                     type="text"
                     value={selectedTaskForEdit.estimate}
                     onChange={(e) => setSelectedTaskForEdit({ ...selectedTaskForEdit, estimate: e.target.value })}
-                    className="w-full p-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 font-bold"
+                    placeholder="e.g. 2h, 4h"
+                    className="w-full text-xs font-bold text-slate-900 dark:text-slate-100 bg-white dark:bg-slate-800 px-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 outline-none"
                   />
                 </div>
 
-                <div>
-                  <label className="block text-[10px] font-bold text-slate-400 mb-1">CATEGORY TAG</label>
+                {/* 2. Priority Level */}
+                <div className="p-3.5 rounded-2xl bg-slate-50/70 dark:bg-slate-900/50 border border-slate-200/80 dark:border-slate-800 space-y-1">
+                  <div className="flex items-center gap-1.5 text-slate-400 text-[10px] font-extrabold uppercase tracking-wider">
+                    <Flame className="w-3.5 h-3.5 text-amber-500" />
+                    <span>PRIORITY LEVEL</span>
+                  </div>
+                  <select
+                    value={selectedTaskForEdit.priority}
+                    onChange={(e) => setSelectedTaskForEdit({ ...selectedTaskForEdit, priority: e.target.value as any })}
+                    className="w-full text-xs font-bold text-slate-900 dark:text-slate-100 bg-white dark:bg-slate-800 px-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 outline-none"
+                  >
+                    <option value="HIGH">HIGH Priority</option>
+                    <option value="MEDIUM">MEDIUM Priority</option>
+                    <option value="LOW">LOW Priority</option>
+                  </select>
+                </div>
+
+                {/* 3. Category Tag */}
+                <div className="p-3.5 rounded-2xl bg-slate-50/70 dark:bg-slate-900/50 border border-slate-200/80 dark:border-slate-800 space-y-1">
+                  <div className="flex items-center gap-1.5 text-slate-400 text-[10px] font-extrabold uppercase tracking-wider">
+                    <CheckSquare className="w-3.5 h-3.5 text-[#2F6798]" />
+                    <span>CATEGORY TAG</span>
+                  </div>
                   <input
                     type="text"
                     value={selectedTaskForEdit.category}
                     onChange={(e) => setSelectedTaskForEdit({ ...selectedTaskForEdit, category: e.target.value })}
-                    className="w-full p-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 font-bold"
+                    placeholder="e.g. Escalation, QA FRIA"
+                    className="w-full text-xs font-bold text-slate-900 dark:text-slate-100 bg-white dark:bg-slate-800 px-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 outline-none"
                   />
                 </div>
-              </div>
 
-              <div>
-                <label className="block text-[10px] font-bold text-slate-400 mb-1">ASSIGNEE INITIALS</label>
-                <div className="flex gap-2">
-                  {['NR', 'EP', 'JC', 'MB'].map((initials) => (
-                    <button
-                      key={initials}
-                      type="button"
-                      onClick={() => {
-                        const color = initials === 'NR' ? 'bg-[#2F6798]' : initials === 'EP' ? 'bg-rose-500' : initials === 'MB' ? 'bg-[#C8A54B]' : 'bg-emerald-600';
-                        setSelectedTaskForEdit({ ...selectedTaskForEdit, assignee: initials, assigneeColor: color });
-                      }}
-                      className={`w-9 h-9 rounded-xl font-black text-xs transition-all flex items-center justify-center ${
-                        selectedTaskForEdit.assignee === initials
-                          ? 'ring-2 ring-offset-2 ring-[#2F6798] scale-105 text-white ' + (initials === 'NR' ? 'bg-[#2F6798]' : initials === 'EP' ? 'bg-rose-500' : initials === 'MB' ? 'bg-[#C8A54B]' : 'bg-emerald-600')
-                          : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300'
-                      }`}
-                    >
-                      {initials}
-                    </button>
-                  ))}
+                {/* 4. Verification / Status */}
+                <div className="p-3.5 rounded-2xl bg-slate-50/70 dark:bg-slate-900/50 border border-slate-200/80 dark:border-slate-800 space-y-1">
+                  <div className="flex items-center gap-1.5 text-slate-400 text-[10px] font-extrabold uppercase tracking-wider">
+                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />
+                    <span>WORKFLOW STAGE</span>
+                  </div>
+                  <div className="pt-1">
+                    <span className={`inline-block px-2.5 py-1 rounded-md text-[11px] font-extrabold uppercase ${
+                      selectedTaskForEdit.status === 'done' 
+                        ? 'bg-[#27AE60] text-white' 
+                        : selectedTaskForEdit.status === 'inprogress' 
+                        ? 'bg-[#E68A38] text-white' 
+                        : 'bg-[#E55755] text-white'
+                    }`}>
+                      {selectedTaskForEdit.status === 'done' ? 'Completed' : selectedTaskForEdit.status === 'inprogress' ? 'In Progress' : 'To Do'}
+                    </span>
+                  </div>
                 </div>
               </div>
+
+              {/* Assignee Card */}
+              <div className="p-4 rounded-2xl bg-slate-50/70 dark:bg-slate-900/50 border border-slate-200/80 dark:border-slate-800 space-y-2.5">
+                <div className="flex items-center justify-between">
+                  <label className="block text-[10px] font-extrabold text-slate-400 uppercase tracking-wider">
+                    ASSIGNED TEAM MEMBER
+                  </label>
+                  <span className="text-[10px] font-bold text-[#2F6798]">
+                    Selected: {selectedTaskForEdit.assignee}
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-4 gap-2">
+                  {[
+                    { id: 'NR', name: 'Nissi-Jeh', role: 'Supervisor', color: 'bg-[#24537D]' },
+                    { id: 'EP', name: 'Lead QA', role: 'QA Lead', color: 'bg-[#E82159]' },
+                    { id: 'JC', name: 'Trainer', role: 'Trainer', color: 'bg-[#0E8A5E]' },
+                    { id: 'MB', name: 'Matt Riner', role: 'Operations', color: 'bg-[#C29B38]' },
+                  ].map((user) => {
+                    const isSelected = selectedTaskForEdit.assignee === user.id;
+                    return (
+                      <button
+                        key={user.id}
+                        type="button"
+                        onClick={() => {
+                          setSelectedTaskForEdit({
+                            ...selectedTaskForEdit,
+                            assignee: user.id,
+                            assigneeColor: user.color,
+                          });
+                        }}
+                        className={`p-2 rounded-xl transition-all flex flex-col items-center justify-center gap-1 cursor-pointer border ${
+                          isSelected
+                            ? 'border-[#2F6798] bg-blue-50 dark:bg-blue-950/60 shadow-xs ring-1 ring-[#2F6798]'
+                            : 'border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-slate-50'
+                        }`}
+                      >
+                        <div className={`w-7 h-7 rounded-full text-white font-black text-xs flex items-center justify-center shadow-xs ${user.color}`}>
+                          {user.id}
+                        </div>
+                        <span className="text-[10px] font-bold text-slate-700 dark:text-slate-200 truncate max-w-full">
+                          {user.name}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
             </div>
 
-            <div className="flex items-center justify-between pt-3 border-t border-slate-100 dark:border-slate-800">
-              <button
-                type="button"
-                onClick={() => {
-                  handleDeleteTask(selectedTaskForEdit.id);
-                  setSelectedTaskForEdit(null);
-                }}
-                className="px-3 py-2 rounded-xl bg-rose-50 text-rose-600 hover:bg-rose-100 text-xs font-bold transition-colors cursor-pointer"
-              >
-                Delete
-              </button>
+            {/* 3. Footer Bar matching Attendance Details reference */}
+            <div className="p-4 sm:p-5 border-t border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/30 flex items-center justify-between gap-3 shrink-0">
+              <span className="text-[11px] font-semibold text-slate-400 dark:text-slate-500 font-mono">
+                Date Reference: September 2, 2026
+              </span>
 
-              <div className="flex gap-2">
+              <div className="flex items-center gap-2">
                 <button
                   type="button"
-                  onClick={() => setSelectedTaskForEdit(null)}
-                  className="px-4 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 text-xs font-bold cursor-pointer"
+                  onClick={() => setTaskToDelete(selectedTaskForEdit)}
+                  className="px-3.5 py-2 rounded-xl bg-rose-50 dark:bg-rose-950/40 text-rose-600 dark:text-rose-300 hover:bg-rose-100 text-xs font-bold transition-colors cursor-pointer flex items-center gap-1.5"
                 >
-                  Cancel
+                  <Trash2 className="w-3.5 h-3.5" />
+                  <span>Delete</span>
                 </button>
+
                 <button
                   type="button"
-                  onClick={() => handleUpdateTask(selectedTaskForEdit)}
-                  className="px-5 py-2 rounded-xl bg-[#24537D] hover:bg-[#1B4266] text-white text-xs font-bold shadow-md shadow-[#24537D]/20 cursor-pointer"
+                  onClick={() => {
+                    handleUpdateTask(selectedTaskForEdit);
+                    setSelectedTaskForEdit(null);
+                  }}
+                  className="px-6 py-2 rounded-xl bg-[#2F6798] hover:bg-[#235179] text-white text-xs font-bold shadow-sm transition-all cursor-pointer"
                 >
-                  Save Changes
+                  Done
                 </button>
               </div>
             </div>
+
           </div>
         </div>
       )}
@@ -2463,6 +2590,27 @@ export default function FlowHubView({ onBackToPortal }: FlowHubViewProps) {
           </div>
         </div>
       )}
+
+      {/* Task Delete Confirmation Modal matching user screenshot */}
+      <ConfirmActionModal
+        isOpen={!!taskToDelete}
+        onClose={() => setTaskToDelete(null)}
+        onConfirm={() => {
+          if (taskToDelete) {
+            handleDeleteTask(taskToDelete.id);
+            if (selectedTaskForEdit?.id === taskToDelete.id) {
+              setSelectedTaskForEdit(null);
+            }
+            setTaskToDelete(null);
+          }
+        }}
+        title="Delete Task"
+        description="Are you sure you want to delete this task?"
+        subDescription="This action cannot be undone and will remove the task card."
+        confirmLabel="Yes"
+        cancelLabel="Cancel"
+        iconType="delete"
+      />
 
     </div>
   );

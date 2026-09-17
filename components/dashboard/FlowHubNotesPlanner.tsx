@@ -26,6 +26,7 @@ import {
   Bold,
   Underline
 } from 'lucide-react';
+import ConfirmActionModal from './ConfirmActionModal';
 
 interface StickyNote {
   id: string;
@@ -123,6 +124,7 @@ export default function FlowHubNotesPlanner() {
   const [newNoteColor, setNewNoteColor] = useState<'blue' | 'yellow' | 'green' | 'rose'>('blue');
   const [newNoteTag, setNewNoteTag] = useState('General');
   const [isAddingSticky, setIsAddingSticky] = useState(false);
+  const [stickyToDelete, setStickyToDelete] = useState<string | null>(null);
 
   // 3. Shift Time-Block Schedule State
   const [shiftTimeBlocks, setShiftTimeBlocks] = useState<ShiftTimeBlock[]>([
@@ -241,14 +243,14 @@ export default function FlowHubNotesPlanner() {
   const getStickyColorClasses = (color: StickyNote['color']) => {
     switch (color) {
       case 'rose':
-        return 'bg-rose-50/90 dark:bg-rose-950/40 border-rose-200 dark:border-rose-800 text-rose-950 dark:text-rose-100';
+        return 'bg-[#FADBD8] dark:bg-rose-950/60 border-rose-300 dark:border-rose-700 text-rose-950 dark:text-rose-100';
       case 'green':
-        return 'bg-emerald-50/90 dark:bg-emerald-950/40 border-emerald-200 dark:border-emerald-800 text-emerald-950 dark:text-emerald-100';
+        return 'bg-[#D4EFDF] dark:bg-emerald-950/60 border-emerald-400 dark:border-emerald-700 text-emerald-950 dark:text-emerald-100';
       case 'yellow':
-        return 'bg-amber-50/90 dark:bg-amber-950/40 border-amber-200 dark:border-amber-800 text-amber-950 dark:text-amber-100';
+        return 'bg-[#FDEBD0] dark:bg-amber-950/60 border-amber-300 dark:border-amber-700 text-amber-950 dark:text-amber-100';
       case 'blue':
       default:
-        return 'bg-blue-50/90 dark:bg-blue-950/40 border-blue-200 dark:border-blue-800 text-blue-950 dark:text-blue-100';
+        return 'bg-[#D6EAF8] dark:bg-blue-950/60 border-blue-300 dark:border-blue-700 text-blue-950 dark:text-blue-100';
     }
   };
 
@@ -365,14 +367,14 @@ export default function FlowHubNotesPlanner() {
                   onClick={() => handleTogglePriority(item.id)}
                   className={`p-2.5 rounded-lg border transition-all flex items-center justify-between gap-3 cursor-pointer ${
                     item.completed
-                      ? 'bg-emerald-50/60 dark:bg-emerald-950/30 border-emerald-200 dark:border-emerald-800/60 text-slate-500 line-through'
+                      ? 'bg-[#27AE60]/10 dark:bg-[#27AE60]/20 border-[#27AE60]/40 dark:border-[#27AE60]/60 text-slate-500 line-through'
                       : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 hover:border-[#2F6798]'
                   }`}
                 >
                   <div className="flex items-center gap-2.5">
                     <div className={`w-4 h-4 rounded-md border flex items-center justify-center transition-colors ${
                       item.completed 
-                        ? 'bg-emerald-600 border-emerald-600 text-white' 
+                        ? 'bg-[#27AE60] border-[#27AE60] text-white' 
                         : 'border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800'
                     }`}>
                       {item.completed && <Check className="w-3 h-3 stroke-[3]" />}
@@ -518,7 +520,7 @@ export default function FlowHubNotesPlanner() {
                       type="button"
                       onClick={() => setNewNoteColor(color)}
                       className={`w-6 h-6 rounded-full border-2 transition-all cursor-pointer ${
-                        color === 'blue' ? 'bg-blue-400' : color === 'yellow' ? 'bg-amber-400' : color === 'green' ? 'bg-emerald-400' : 'bg-rose-400'
+                        color === 'blue' ? 'bg-blue-400' : color === 'yellow' ? 'bg-amber-400' : color === 'green' ? 'bg-[#27AE60]' : 'bg-rose-400'
                       } ${newNoteColor === color ? 'border-slate-900 dark:border-white scale-110' : 'border-transparent opacity-70'}`}
                     />
                   ))}
@@ -575,7 +577,7 @@ export default function FlowHubNotesPlanner() {
                       </button>
                       <button
                         type="button"
-                        onClick={() => handleDeleteSticky(note.id)}
+                        onClick={() => setStickyToDelete(note.id)}
                         className="p-1 rounded text-slate-400 hover:text-rose-600 cursor-pointer"
                         title="Delete note"
                       >
@@ -807,6 +809,24 @@ export default function FlowHubNotesPlanner() {
           </div>
         </div>
       )}
+
+      {/* Delete Note Confirmation Modal matching user screenshot */}
+      <ConfirmActionModal
+        isOpen={!!stickyToDelete}
+        onClose={() => setStickyToDelete(null)}
+        onConfirm={() => {
+          if (stickyToDelete) {
+            handleDeleteSticky(stickyToDelete);
+            setStickyToDelete(null);
+          }
+        }}
+        title="Delete Note"
+        description="Are you sure you want to delete this note?"
+        subDescription="This note will be permanently removed from your scratchpad."
+        confirmLabel="Yes"
+        cancelLabel="Cancel"
+        iconType="delete"
+      />
 
     </div>
   );

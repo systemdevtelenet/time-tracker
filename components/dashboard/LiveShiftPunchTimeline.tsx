@@ -274,18 +274,18 @@ export default function LiveShiftPunchTimeline({
           </div>
 
           {/* Right: Shift Handover & Incident Notes (Cols 5 - Styled in Shaded Green Fill) */}
-          <div className="lg:col-span-5 p-4 sm:p-5 rounded-2xl bg-emerald-50/70 dark:bg-emerald-950/40 border border-emerald-200/80 dark:border-emerald-900/50 flex flex-col justify-between space-y-3 shadow-2xs">
+          <div className="lg:col-span-5 p-4 sm:p-5 rounded-2xl bg-[#27AE60]/[0.08] dark:bg-[#27AE60]/15 border border-[#27AE60]/40 dark:border-[#27AE60]/50 flex flex-col justify-between space-y-3 shadow-2xs">
             <div>
               <div className="flex items-center justify-between mb-1.5 flex-wrap gap-1.5">
-                <h4 className="text-xs font-black uppercase tracking-wider text-emerald-950 dark:text-emerald-100 flex items-center gap-1.5">
-                  <FileText className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+                <h4 className="text-xs font-black uppercase tracking-wider text-slate-900 dark:text-emerald-100 flex items-center gap-1.5">
+                  <FileText className="w-3.5 h-3.5 text-[#27AE60]" />
                   <span>Supervisor Shift &amp; Handover Notes</span>
                 </h4>
-                <span className="px-2.5 py-0.5 rounded-full bg-emerald-100/90 dark:bg-emerald-900/60 text-emerald-800 dark:text-emerald-200 text-[10px] font-bold border border-emerald-300/80 dark:border-emerald-700 tracking-wide">
+                <span className="px-2.5 py-0.5 rounded-full bg-[#27AE60]/15 dark:bg-[#27AE60]/25 text-[#27AE60] dark:text-emerald-300 text-[10px] font-bold border border-[#27AE60]/30 dark:border-[#27AE60]/40 tracking-wide">
                   Auto-synced
                 </span>
               </div>
-              <p className="text-[11px] text-emerald-800/80 dark:text-emerald-300/80 leading-relaxed">
+              <p className="text-[11px] text-slate-600 dark:text-slate-300 leading-relaxed">
                 Document training milestones, coverage remarks, or handover notes for the incoming shift lead.
               </p>
             </div>
@@ -297,7 +297,7 @@ export default function LiveShiftPunchTimeline({
                 value={shiftNotes}
                 onChange={(e) => setShiftNotes(e.target.value)}
                 placeholder="Type shift notes or handover comments..."
-                className="w-full p-3 rounded-xl bg-white dark:bg-slate-900 text-xs text-slate-800 dark:text-slate-100 placeholder:text-slate-400 border border-emerald-200/90 dark:border-emerald-800/70 focus:outline-none focus:ring-2 focus:ring-emerald-500/30 resize-none font-medium leading-relaxed shadow-2xs"
+                className="w-full p-3 rounded-xl bg-white dark:bg-slate-900 text-xs text-slate-800 dark:text-slate-100 placeholder:text-slate-400 border border-[#27AE60]/40 dark:border-[#27AE60]/50 focus:outline-none focus:ring-2 focus:ring-[#27AE60]/30 resize-none font-medium leading-relaxed shadow-2xs"
               />
             </div>
 
@@ -305,16 +305,16 @@ export default function LiveShiftPunchTimeline({
             <div className="flex items-center justify-between pt-1 flex-wrap gap-2">
               <div className="flex items-center gap-2">
                 {isSavedToast ? (
-                  <span className="px-2.5 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-950/60 border border-emerald-300 dark:border-emerald-800 text-[10px] font-bold text-emerald-800 dark:text-emerald-300 flex items-center gap-1">
+                  <span className="px-2.5 py-0.5 rounded-full bg-[#27AE60]/15 dark:bg-[#27AE60]/25 border border-[#27AE60]/30 text-[10px] font-bold text-[#27AE60] dark:text-emerald-300 flex items-center gap-1">
                     ✓ Shift notes saved
                   </span>
                 ) : (
-                  <span className="px-2.5 py-0.5 rounded-full bg-white/90 dark:bg-slate-800 border border-emerald-200 dark:border-emerald-800/60 text-[10px] font-bold text-emerald-900 dark:text-emerald-200 flex items-center gap-1.5">
-                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                  <span className="px-2.5 py-0.5 rounded-full bg-white/90 dark:bg-slate-800 border border-[#27AE60]/30 text-[10px] font-bold text-slate-700 dark:text-slate-200 flex items-center gap-1.5">
+                    <span className="w-1.5 h-1.5 rounded-full bg-[#27AE60] animate-pulse" />
                     Ready to sync
                   </span>
                 )}
-                <span className="px-2 py-0.5 rounded-full bg-white/90 dark:bg-slate-800 border border-emerald-200 dark:border-emerald-800/60 text-[10px] font-bold text-emerald-700 dark:text-emerald-300 font-mono">
+                <span className="px-2 py-0.5 rounded-full bg-white/90 dark:bg-slate-800 border border-[#27AE60]/30 text-[10px] font-bold text-[#27AE60] dark:text-emerald-300 font-mono">
                   {shiftNotes.length} chars
                 </span>
               </div>
@@ -324,7 +324,7 @@ export default function LiveShiftPunchTimeline({
                 type="button"
                 disabled={isSavingNotes}
                 onClick={handleSaveNotes}
-                className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white text-xs font-black shadow-sm transition-all cursor-pointer flex items-center gap-1.5 disabled:opacity-50"
+                className="px-4 py-2 rounded-xl bg-[#27AE60] hover:bg-[#219653] active:bg-[#1e824c] text-white text-xs font-black shadow-sm transition-all cursor-pointer flex items-center gap-1.5 disabled:opacity-50"
               >
                 <Save className="w-3.5 h-3.5 text-white" />
                 <span>{isSavingNotes ? 'Saving...' : 'Save Note'}</span>
