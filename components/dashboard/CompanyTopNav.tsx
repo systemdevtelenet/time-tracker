@@ -6,6 +6,7 @@ import {
   Search, 
   Bell, 
   User, 
+  HelpCircle,
   Settings, 
   LogOut, 
   X, 
@@ -275,47 +276,46 @@ export default function CompanyTopNav({
             )}
           </div>
 
-          {/* User Profile Avatar with Dropdown (Reduced Width by 3 -> w-60, Text size reduced by 1) */}
+          {/* 1. Avatar Trigger Button (In Topbar) */}
           <div className="relative pl-1" ref={avatarDropdownRef}>
             <button
               type="button"
               onClick={() => setIsAvatarDropdownOpen(!isAvatarDropdownOpen)}
-              className="w-9 h-9 rounded-full bg-[#2F6798] text-white font-bold text-xs flex items-center justify-center shadow-2xs ring-2 ring-slate-100 dark:ring-slate-700 hover:ring-[#2F6798]/30 transition-all cursor-pointer select-none"
+              className="w-9 h-9 rounded-full bg-gradient-to-br from-[#2F6798] to-[#1F4A6E] ring-2 ring-white dark:ring-slate-800 shadow-lg shadow-[#2F6798]/30 text-xs font-bold text-white flex items-center justify-center hover:scale-105 hover:opacity-90 transition-all cursor-pointer select-none"
               title="User profile & settings"
             >
-              NR
+              {supervisor.name ? supervisor.name.split(' ').filter(Boolean).map(n => n[0]).slice(0, 2).join('').toUpperCase() : 'NR'}
             </button>
 
-            {/* Avatar Dropdown (Width reduced by 3: w-60, Name/Email/Pill reduced by 1) */}
+            {/* 2. Dropdown Menu Card Container */}
             {isAvatarDropdownOpen && (
-              <div className="absolute right-0 top-full mt-2.5 w-60 rounded-2xl bg-white dark:bg-[#101D3D] border border-slate-100 dark:border-slate-800 shadow-2xl p-3.5 space-y-2.5 z-50 animate-in fade-in zoom-in-95">
+              <div className="absolute right-0 mt-2 w-56 rounded-2xl bg-white dark:bg-[#0F172A] border border-[#F1F5F9] dark:border-slate-800 shadow-2xl origin-top-right animate-in fade-in zoom-in-95 duration-200 z-50 overflow-hidden">
                 
-                {/* Profile Header (Reduced sizes by 1) */}
-                <div className="flex items-start gap-2.5">
-                  <div className="w-10 h-10 rounded-full bg-[#2F6798] text-white font-bold text-xs flex items-center justify-center shrink-0 shadow-xs ring-2 ring-slate-100 dark:ring-slate-700">
-                    NR
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <h4 className="font-bold text-xs text-slate-900 dark:text-slate-100 leading-tight truncate">
-                      {supervisor.name || 'Nissi-Jeh Reguero'}
-                    </h4>
-                    <p className="text-[10.5px] text-slate-400 dark:text-slate-500 truncate mt-0.5">
-                      {supervisor.email || 'nreguero.telenet@gmail.com'}
-                    </p>
-                    <div className="mt-1">
-                      <span className="inline-block px-2 py-0.5 rounded-full text-[8.5px] font-bold bg-[#EBF3FA] dark:bg-blue-950/60 text-[#24537D] dark:text-blue-300 border border-[#BFDBFE] dark:border-blue-900/60 tracking-wider uppercase font-poppins">
-                        {supervisor.position || 'HEAD OF TRAINING'}
-                      </span>
+                {/* 3. Dropdown Header (User Profile & Role Pill) */}
+                <div className="p-4 border-b border-[#F1F5F9] dark:border-slate-800">
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-8 h-8 rounded-full bg-gradient-to-br from-[#2F6798] to-[#1F4A6E] ring-1 ring-slate-200 dark:ring-slate-700 text-white font-bold text-xs flex items-center justify-center shrink-0">
+                      {supervisor.name ? supervisor.name.split(' ').filter(Boolean).map(n => n[0]).slice(0, 2).join('').toUpperCase() : 'NR'}
                     </div>
+                    <div className="min-w-0 flex-1">
+                      <h4 className="text-xs font-bold text-[#0F172A] dark:text-slate-100 truncate leading-tight">
+                        {supervisor.name || 'Nissi-Jeh Reguero'}
+                      </h4>
+                      <p className="text-[10px] text-[#94A3B8] truncate leading-tight mt-0.5">
+                        {supervisor.email || 'nreguero.telenet@gmail.com'}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="mt-2">
+                    <span className="inline-block px-2 py-0.5 rounded-full text-[9.5px] font-bold text-[#2F6798] dark:text-blue-300 bg-[#2F6798]/10 border border-[#2F6798]/20 tracking-wider uppercase">
+                      {supervisor.position || supervisor.role || 'HEAD OF TRAINING'}
+                    </span>
                   </div>
                 </div>
 
-                {/* Divider Line */}
-                <div className="h-px bg-slate-100 dark:border-slate-800 my-1" />
-
-                {/* Dropdown Menu Items */}
-                <div className="space-y-0.5">
-                  {/* 1. My Profile */}
+                {/* 4. Menu Action Items Body */}
+                <div className="p-2 space-y-1">
+                  {/* My Profile */}
                   <button
                     type="button"
                     onClick={() => {
@@ -323,35 +323,50 @@ export default function CompanyTopNav({
                       if (onOpenProfile) onOpenProfile();
                       else if (onSelectTab) onSelectTab('settings');
                     }}
-                    className="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-xl text-[11px] font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors cursor-pointer group"
+                    className="w-full flex items-center gap-3 py-2 px-3 rounded-xl text-xs font-medium text-[#334155] dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800/60 transition-colors cursor-pointer group text-left"
                   >
-                    <User className="w-3.5 h-3.5 text-slate-400 group-hover:text-[#2F6798] transition-colors" />
+                    <User className="w-4 h-4 text-[#94A3B8] group-hover:text-[#2F6798] transition-colors shrink-0" />
                     <span>My Profile</span>
                   </button>
 
-                  {/* 2. Settings */}
+                  {/* Help & Support */}
                   <button
                     type="button"
                     onClick={() => {
                       setIsAvatarDropdownOpen(false);
                       if (onSelectTab) onSelectTab('settings');
                     }}
-                    className="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-xl text-[11px] font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors cursor-pointer group"
+                    className="w-full flex items-center gap-3 py-2 px-3 rounded-xl text-xs font-medium text-[#334155] dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800/60 transition-colors cursor-pointer group text-left"
                   >
-                    <Settings className="w-3.5 h-3.5 text-slate-400 group-hover:text-[#2F6798] transition-colors" />
-                    <span>Settings</span>
+                    <HelpCircle className="w-4 h-4 text-[#94A3B8] group-hover:text-[#2F6798] transition-colors shrink-0" />
+                    <span>Help & Support</span>
                   </button>
 
-                  {/* 3. Logout (Red text) */}
+                  {/* Settings */}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsAvatarDropdownOpen(false);
+                      if (onSelectTab) onSelectTab('settings');
+                    }}
+                    className="w-full flex items-center gap-3 py-2 px-3 rounded-xl text-xs font-medium text-[#334155] dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800/60 transition-colors cursor-pointer group text-left"
+                  >
+                    <Settings className="w-4 h-4 text-[#94A3B8] group-hover:text-[#2F6798] transition-colors shrink-0" />
+                    <span>Settings</span>
+                  </button>
+                </div>
+
+                {/* 5. Dropdown Footer (Logout Row) */}
+                <div className="p-2 border-t border-[#F1F5F9] dark:border-slate-800">
                   <button
                     type="button"
                     onClick={() => {
                       setIsAvatarDropdownOpen(false);
                       setIsLogoutModalOpen(true);
                     }}
-                    className="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-xl text-[11px] font-bold text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors cursor-pointer"
+                    className="w-full flex items-center gap-3 py-2 px-3 rounded-xl text-xs font-bold text-[#DC2626] dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors cursor-pointer text-left"
                   >
-                    <LogOut className="w-3.5 h-3.5 stroke-[2.2]" />
+                    <LogOut className="w-4 h-4 text-[#DC2626] dark:text-red-400 shrink-0" />
                     <span>Logout</span>
                   </button>
                 </div>

@@ -13,15 +13,24 @@ import {
   Menu,
   Utensils,
   Coffee,
-  CheckCircle2,
-  Users,
-  Shield,
-  Layers,
-  Sparkles,
   LogIn
 } from 'lucide-react';
 import { PunchActionType } from '@/lib/punchLogs';
 import ConfirmActionModal from './ConfirmActionModal';
+
+interface NavItem {
+  id: string;
+  label: string;
+  icon: any;
+}
+
+const NAV_ITEMS: NavItem[] = [
+  { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
+  { id: 'tracker', label: 'Time Tracking', icon: Clock },
+  { id: 'flowhub', label: 'Flow Hub', icon: Zap },
+  { id: 'attendance', label: 'Attendance & Roster', icon: Calendar },
+  { id: 'analytics', label: 'Analytics & Insights', icon: BarChart3 },
+];
 
 interface CompanySidebarProps {
   currentTab: string;
@@ -133,110 +142,112 @@ export default function CompanySidebar({
     }
   };
 
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://zhdmsmwrskxowvytedgh.supabase.co';
-  const logoUrl = `${supabaseUrl}/storage/v1/object/public/Images/ctnp-logo.png`;
-
-  const handleLogout = () => {
-    router.push('/login');
-  };
-
-  const navItems = [
-    { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
-    { id: 'tracker', label: 'Time Tracking', icon: Clock },
-    { id: 'flowhub', label: 'Flow Hub', icon: Zap },
-    { id: 'attendance', label: 'Attendance & Roster', icon: Calendar },
-    { id: 'analytics', label: 'Analytics & Insights', icon: BarChart3 },
-  ];
+  const logoUrl = 'https://zhdmsmwrskxowvytedgh.supabase.co/storage/v1/object/public/Images/ctnp-logo.png';
+  const artworkUrl = 'https://zhdmsmwrskxowvytedgh.supabase.co/storage/v1/object/public/Images/design%20(1).png';
 
   return (
     <aside 
-      className={`shrink-0 bg-[#2F6798] text-white flex flex-col justify-between transition-all duration-300 select-none z-30 shadow-xl ${
-        isCollapsed ? 'w-20' : 'w-60 lg:w-64'
+      className={`shrink-0 bg-[#2F6798] dark:bg-[#1A1C1E] text-white flex flex-col justify-between transition-[width] duration-200 ease-out select-none z-50 shadow-xl ${
+        isCollapsed ? 'w-20' : 'w-64'
       } h-screen sticky top-0 overflow-hidden relative`}
     >
       
-      {/* Bottom Illustration Background Image (Properly Scaled) */}
+      {/* 7. Decorative Bottom Artwork Background */}
       <div 
-        className="absolute bottom-0 left-0 right-0 h-64 pointer-events-none opacity-30 bg-contain bg-bottom bg-no-repeat z-0"
+        className={`absolute bottom-5 left-0 right-0 h-64 pointer-events-none select-none z-0 bg-contain bg-bottom bg-no-repeat transition-opacity duration-200 ${
+          isCollapsed ? 'opacity-20' : 'opacity-40'
+        }`}
         style={{
-          backgroundImage: `url("https://zhdmsmwrskxowvytedgh.supabase.co/storage/v1/object/public/Images/design%20(1).png")`,
+          backgroundImage: `url("${artworkUrl}")`,
         }}
       />
 
       {/* Top Header & Navigation Links */}
       <div className="relative z-10 flex-1 flex flex-col min-h-0">
         
-        {/* Brand Header */}
-        <div className={`p-3.5 border-b border-white/10 flex items-center ${
-          isCollapsed ? 'flex-col gap-2.5 justify-center' : 'justify-between'
+        {/* 3. Header / Brand Section */}
+        <div className={`p-4 border-b border-[#2F6798]/20 dark:border-white/10 flex items-center ${
+          isCollapsed ? 'justify-center' : 'justify-between'
         }`}>
-          <div className={`flex items-center gap-2.5 overflow-hidden ${isCollapsed ? 'justify-center' : ''}`}>
-            
-            {/* White Circular Logo Container */}
-            <div className="w-10 h-10 rounded-full bg-white flex items-center justify-center p-1.5 shrink-0 shadow-md">
-              <img
-                src={logoUrl}
-                alt="CTNP Logo"
-                className="w-full h-full object-contain"
-              />
-            </div>
+          {!isCollapsed ? (
+            <>
+              <div className="flex items-center gap-2.5 overflow-hidden">
+                {/* CTNP Logo Box */}
+                <div className="w-9 h-9 rounded-xl bg-white flex items-center justify-center p-1 shrink-0 shadow-md shadow-black/10">
+                  <img
+                    src={logoUrl}
+                    alt="CTNP Logo"
+                    className="w-full h-full object-contain"
+                  />
+                </div>
 
-            {!isCollapsed && (
-              <div className="truncate">
-                <h1 className="font-extrabold text-sm text-white tracking-tight leading-none">
-                  Cebu Tele-Net
-                </h1>
-                <p className="text-[10px] font-semibold text-blue-100/90 tracking-wide mt-1">
-                  Workforce Portal
-                </p>
+                <div className="truncate">
+                  <h1 className="font-extrabold text-sm text-white tracking-tight leading-none">
+                    Cebu Tele-Net
+                  </h1>
+                  <p className="text-[10px] font-medium tracking-[0.05em] uppercase text-white/60 mt-1">
+                    Workforce Portal
+                  </p>
+                </div>
               </div>
-            )}
 
-          </div>
-
-          {/* Toggle Collapse Button */}
-          <button
-            onClick={() => setIsCollapsed(!isCollapsed)}
-            className="p-1.5 rounded-lg hover:bg-white/10 text-white/80 hover:text-white transition-colors cursor-pointer shrink-0"
-            title={isCollapsed ? 'Expand Sidebar' : 'Collapse Sidebar'}
-          >
-            <Menu className="w-4 h-4" />
-          </button>
+              {/* Toggle Collapse Button in Expanded Mode */}
+              <button
+                onClick={() => setIsCollapsed(true)}
+                className="p-2 rounded-xl hover:bg-white/10 text-white/80 hover:text-white transition-colors cursor-pointer shrink-0"
+                title="Collapse Sidebar"
+              >
+                <Menu className="h-5 w-5" />
+              </button>
+            </>
+          ) : (
+            /* When collapsed: Do NOT show logo, only the Menu icon centered */
+            <button
+              onClick={() => setIsCollapsed(false)}
+              className="p-2 rounded-xl hover:bg-white/10 text-white/80 hover:text-white transition-colors cursor-pointer mx-auto"
+              title="Expand Sidebar"
+            >
+              <Menu className="h-5 w-5" />
+            </button>
+          )}
         </div>
 
-        {/* Navigation Menu (Scrollable only if screen height is very short) */}
-        <nav className="p-2.5 sm:p-3 space-y-1 text-xs font-semibold overflow-y-auto flex-1">
-          {navItems.map((item) => {
+        {/* 4. Clean Navigation Links (No Nested Accordion Dropdown) */}
+        <nav className="px-3 py-4 space-y-1.5 text-xs font-semibold overflow-y-auto flex-1">
+          {NAV_ITEMS.map((item) => {
             const Icon = item.icon;
             const isActive = currentTab === item.id;
 
             return (
               <button
                 key={item.id}
+                type="button"
                 onClick={() => onSelectTab(item.id)}
                 title={item.label}
-                className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl transition-all cursor-pointer ${
+                className={`w-full flex items-center gap-3 py-2.5 px-3 rounded-xl transition-all cursor-pointer ${
                   isActive
-                    ? 'bg-white/20 text-white font-bold shadow-xs border border-white/25'
-                    : 'text-white/80 hover:bg-white/10 hover:text-white'
+                    ? 'bg-white/20 font-bold text-white shadow-xs'
+                    : 'text-white/75 hover:bg-white/10 hover:text-white'
                 } ${isCollapsed ? 'justify-center px-2' : ''}`}
               >
-                <Icon className={`w-4 h-4 shrink-0 ${isActive ? 'text-white' : 'text-white/80'}`} />
-                {!isCollapsed && <span className="truncate">{item.label}</span>}
+                <Icon className={`h-4 w-4 shrink-0 ${isActive ? 'text-white' : 'text-white/75'}`} />
+                {!isCollapsed && (
+                  <span className="truncate text-xs">{item.label}</span>
+                )}
               </button>
             );
           })}
         </nav>
       </div>
 
-      {/* Bottom Section: Compact Punch Clock Widget + Glassmorphic Settings + User Profile */}
-      <div className="p-2.5 sm:p-3 relative z-10 space-y-2 shrink-0">
+      {/* 6. Sidebar Footer (Settings & User Profile Card) */}
+      <div className="p-3 border-t border-[#2F6798]/20 dark:border-white/10 relative z-10 space-y-2 shrink-0">
         
         {/* Compact Punch Clock Action Card */}
         {!isCollapsed ? (
-          <div className="p-2.5 rounded-xl bg-white/10 backdrop-blur-md border border-white/15 space-y-1.5 shadow-xs">
+          <div className="p-2.5 rounded-2xl bg-white/10 backdrop-blur-md border border-white/15 space-y-1.5 shadow-xs">
             <div className="flex items-center justify-between">
-              <span className="text-[10px] font-bold text-blue-100/90 uppercase tracking-wider flex items-center gap-1">
+              <span className="text-[10px] font-bold text-white/80 uppercase tracking-wider flex items-center gap-1">
                 <Clock className="w-3 h-3 text-[#E5CA80]" />
                 <span>Punch Status</span>
               </span>
@@ -355,71 +366,79 @@ export default function CompanySidebar({
           </div>
         )}
 
-        {/* Glassmorphic Settings Button */}
+        {/* Settings Link (Icon matching text color text-white/75 when inactive, text-white when active) */}
         <button
           onClick={() => onSelectTab('settings')}
-          className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer backdrop-blur-md border ${
+          className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
             currentTab === 'settings'
-              ? 'bg-white/25 text-white shadow-xs border-white/40'
-              : 'bg-white/15 text-white hover:bg-white/20 border-white/15'
+              ? 'bg-white/20 font-bold text-white shadow-xs'
+              : 'text-white/75 hover:bg-white/10 hover:text-white'
           } ${isCollapsed ? 'justify-center px-2' : ''}`}
           title="Settings"
         >
-          <Settings className="w-4 h-4 shrink-0 text-white" />
+          <Settings className={`h-4 w-4 shrink-0 ${currentTab === 'settings' ? 'text-white' : 'text-white/75'}`} />
           {!isCollapsed && <span>Settings</span>}
         </button>
 
-        {/* Glassmorphic User Profile Card */}
+        {/* User Profile Pill */}
         {isCollapsed ? (
-          <div className="p-1.5 rounded-xl bg-white/15 backdrop-blur-md border border-white/20 flex flex-col items-center gap-2 shadow-xs">
-            <div className="w-8 h-8 rounded-full overflow-hidden shrink-0 border border-white/40 bg-white/20 flex items-center justify-center" title={supervisor.name}>
-              <img
-                src={supervisor.avatarUrl || 'https://images.unsplash.com/photo-1560250097-0b93528c311a?w=150&auto=format&fit=crop&q=80'}
-                alt={supervisor.name}
-                className="w-full h-full object-cover"
-              />
-            </div>
-            <button
-              onClick={() => setIsLogoutModalOpen(true)}
-              title="Log Out"
-              className="p-1 rounded-lg hover:bg-white/20 text-white/80 hover:text-white transition-colors cursor-pointer shrink-0"
+          /* When collapsed: Show ONLY the avatar and its container (no logout icon) */
+          <div className="p-2 rounded-2xl bg-white/10 border border-white/10 flex items-center justify-center shadow-xs">
+            <div 
+              className="w-8 h-8 rounded-full overflow-hidden shrink-0 border border-white/30 bg-white/20 flex items-center justify-center font-black text-xs text-white"
+              title={supervisor.name}
             >
-              <LogOut className="w-3.5 h-3.5" />
-            </button>
-          </div>
-        ) : (
-          <div className="p-2.5 rounded-xl bg-white/15 backdrop-blur-md border border-white/20 flex items-center justify-between gap-2 shadow-xs">
-            <div className="flex items-center gap-2.5 overflow-hidden">
-              <div className="w-9 h-9 rounded-full overflow-hidden shrink-0 border border-white/40 bg-white/20 flex items-center justify-center">
+              {supervisor.avatarUrl ? (
                 <img
-                  src={supervisor.avatarUrl || 'https://images.unsplash.com/photo-1560250097-0b93528c311a?w=150&auto=format&fit=crop&q=80'}
+                  src={supervisor.avatarUrl}
                   alt={supervisor.name}
                   className="w-full h-full object-cover"
                 />
+              ) : (
+                <span>{supervisor.name ? supervisor.name.split(' ').map(n => n[0]).slice(0, 2).join('').toUpperCase() : 'NR'}</span>
+              )}
+            </div>
+          </div>
+        ) : (
+          /* When expanded: Show full profile with Name, Position, and Logout button */
+          <div className="p-2.5 rounded-2xl bg-white/10 border border-white/10 flex items-center justify-between gap-2 shadow-xs">
+            <div className="flex items-center gap-2.5 overflow-hidden">
+              {/* Avatar Circle (32px × 32px, bg-white/20, border border-white/30) */}
+              <div className="w-8 h-8 rounded-full overflow-hidden shrink-0 border border-white/30 bg-white/20 flex items-center justify-center font-black text-xs text-white">
+                {supervisor.avatarUrl ? (
+                  <img
+                    src={supervisor.avatarUrl}
+                    alt={supervisor.name}
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  <span>{supervisor.name ? supervisor.name.split(' ').map(n => n[0]).slice(0, 2).join('').toUpperCase() : 'NR'}</span>
+                )}
               </div>
               <div className="truncate">
                 <div className="text-xs font-bold text-white truncate leading-tight">
                   {supervisor.name}
                 </div>
-                <div className="text-[9px] font-semibold text-blue-100/80 tracking-wider uppercase truncate">
+                <div className="text-[10px] font-medium text-white/60 tracking-wider uppercase truncate leading-tight mt-0.5">
                   {supervisor.position || 'HEAD OF TRAINING'}
                 </div>
               </div>
             </div>
 
+            {/* Logout Action Button in Expanded Mode */}
             <button
               onClick={() => setIsLogoutModalOpen(true)}
               title="Log Out"
-              className="p-1.5 rounded-lg hover:bg-white/20 text-white/80 hover:text-white transition-colors cursor-pointer shrink-0"
+              className="p-1.5 rounded-xl hover:text-white hover:bg-[#ED1C25]/20 active:bg-[#ED1C25]/30 text-white/75 transition-colors cursor-pointer shrink-0"
             >
-              <LogOut className="w-4 h-4" />
+              <LogOut className="h-4 w-4" />
             </button>
           </div>
         )}
 
       </div>
 
-      {/* Logout Confirmation Modal matching user screenshot */}
+      {/* 8. Logout Confirmation Modal */}
       <ConfirmActionModal
         isOpen={isLogoutModalOpen}
         onClose={() => setIsLogoutModalOpen(false)}

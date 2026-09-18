@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { getSupabaseAdmin } from '@/lib/supabase/server';
 
 export const dynamic = 'force-dynamic';
 
@@ -224,6 +225,43 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const empId = searchParams.get('empId') || '1597';
 
+    // 1. Check if Supabase has persisted tasks
+    try {
+      const supabase = getSupabaseAdmin();
+      const { data: dbTasks, error: taskErr } = await supabase
+        .from('flowhub_tasks')
+        .select('*')
+        .eq('employee_id', empId)
+        .order('created_at', { ascending: false });
+
+      if (!taskErr && dbTasks && dbTasks.length > 0) {
+        if (!flowHubData[empId]) {
+          flowHubData[empId] = {
+            tasks: [],
+            habits: flowHubData['1597']?.habits || [],
+            sessions: 0,
+            mindDump: { title: 'Notes', text: '' },
+            stickies: [],
+            priorities: [],
+          };
+        }
+        flowHubData[empId].tasks = dbTasks.map((d: any) => ({
+          id: String(d.task_id || d.id),
+          title: d.title,
+          ticketCode: d.ticket_code || '#17889',
+          priority: d.priority || 'HIGH',
+          status: d.status || 'todo',
+          estimate: d.estimate || '2h',
+          category: d.category || 'General',
+          categoryColor: d.category_color || 'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950/60 dark:text-amber-300 dark:border-amber-800',
+          assignee: d.assignee || 'NR',
+          assigneeColor: d.assignee_color || 'bg-[#24537D]',
+        }));
+      }
+    } catch (dbErr) {
+      // Graceful fallback to memory store
+    }
+
     const userData = flowHubData[empId] || flowHubData['1597'];
 
     return NextResponse.json({
@@ -254,6 +292,7 @@ export async function POST(request: NextRequest) {
 
     const current = flowHubData[empId];
 
+    // Primary memory & live session sync
     switch (type) {
       case 'UPDATE_TASKS':
         current.tasks = payload;
@@ -306,6 +345,62 @@ export async function POST(request: NextRequest) {
         break;
       default:
         break;
+    }
+
+    // Direct asynchronous Supabase persistence (non-blocking)
+    try {
+      const supabase = getSupabaseAdmin();
+      if (type === 'ADD_TASK' && payload) {
+        await supabase.from('flowhub_tasks').upsert([
+          {
+            task_id: String(payload.id),
+            employee_id: String(empId),
+            title: payload.title,
+            ticket_code: payload.ticketCode,
+            priority: payload.priority,
+            status: payload.status,
+            estimate: payload.estimate,
+            category: payload.category,
+            category_color: payload.categoryColor,
+            assignee: payload.assignee,
+            assignee_color: payload.assigneeColor,
+            created_at: new Date().toISOString(),
+          }
+        ], { onConflict: 'task_id' });
+      } else if (type === 'UPDATE_TASK' && payload) {
+        await supabase
+          .from('flowhub_tasks')
+          .update({
+            title: payload.title,
+            priority: payload.priority,
+            status: payload.status,
+            estimate: payload.estimate,
+            category: payload.category,
+            category_color: payload.categoryColor,
+            assignee: payload.assignee,
+            assignee_color: payload.assigneeColor,
+          })
+          .eq('task_id', String(payload.id));
+      } else if (type === 'UPDATE_TASKS' && Array.isArray(payload)) {
+        const upsertPayload = payload.map((t: any) => ({
+          task_id: String(t.id),
+          employee_id: String(empId),
+          title: t.title,
+          ticket_code: t.ticketCode,
+          priority: t.priority,
+          status: t.status,
+          estimate: t.estimate,
+          category: t.category,
+          category_color: t.categoryColor,
+          assignee: t.assignee,
+          assignee_color: t.assigneeColor,
+        }));
+        await supabase.from('flowhub_tasks').upsert(upsertPayload, { onConflict: 'task_id' });
+      } else if (type === 'DELETE_TASK' && payload?.id) {
+        await supabase.from('flowhub_tasks').delete().eq('task_id', String(payload.id));
+      }
+    } catch (dbErr) {
+      // Non-blocking fallback ensures 0 UI disruption if DB table is initializing
     }
 
     return NextResponse.json({

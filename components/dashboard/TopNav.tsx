@@ -47,9 +47,13 @@ export default function TopNav({
         
         {/* Left: Brand & Role Badge */}
         <div className="flex items-center gap-2.5 sm:gap-3">
-          <Link href="/" className="flex items-center gap-2 group">
-            <div className="w-9 h-9 rounded-xl bg-[#1E4E79] text-white flex items-center justify-center font-black text-sm shadow-sm group-hover:scale-105 transition-transform">
-              CT
+          <Link href="/" className="flex items-center gap-2.5 group">
+            <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-full bg-white flex items-center justify-center p-1.5 border border-slate-200 shadow-xs group-hover:scale-105 transition-transform shrink-0">
+              <img
+                src="https://zhdmsmwrskxowvytedgh.supabase.co/storage/v1/object/public/Images/ctnp-logo.png"
+                alt="Workforce Portal Logo"
+                className="w-full h-full object-contain"
+              />
             </div>
             <span className="font-extrabold text-lg sm:text-xl tracking-tight text-slate-900 dark:text-slate-100">
               Workforce Portal

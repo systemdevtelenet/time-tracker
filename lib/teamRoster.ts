@@ -19,7 +19,7 @@ export interface TeamMember {
 export const INITIAL_TEAM_ROSTER: TeamMember[] = [
   {
     employee_id: '1597',
-    password: '1597',
+    password: 'CTNP-1597',
     name: 'Nissi-Jeh Reguero',
     role: 'Admin',
     shift: '9:00 PM to 6:00 AM',
@@ -34,7 +34,7 @@ export const INITIAL_TEAM_ROSTER: TeamMember[] = [
   },
   {
     employee_id: '1108',
-    password: '1108',
+    password: 'CTNP-1108',
     name: 'Raymundo Alasagas III',
     role: 'Admin',
     shift: '9:00 PM to 6:00 AM',
@@ -49,7 +49,7 @@ export const INITIAL_TEAM_ROSTER: TeamMember[] = [
   },
   {
     employee_id: '1021',
-    password: '1021',
+    password: 'CTNP-1021',
     name: 'Jerico Leyson',
     role: 'Admin',
     shift: '9:00 PM to 6:00 AM',
@@ -64,7 +64,7 @@ export const INITIAL_TEAM_ROSTER: TeamMember[] = [
   },
   {
     employee_id: '1772',
-    password: '1772',
+    password: 'CTNP-1772',
     name: 'Bianca Kaye Ernestine Colonia',
     role: 'User',
     shift: '9:00 PM to 6:00 AM',
@@ -79,7 +79,7 @@ export const INITIAL_TEAM_ROSTER: TeamMember[] = [
   },
   {
     employee_id: '2385',
-    password: '2385',
+    password: 'CTNP-2385',
     name: 'Michelle Yncierto',
     role: 'User',
     shift: '5:00 PM to 2:00 AM',
@@ -94,11 +94,9 @@ export const INITIAL_TEAM_ROSTER: TeamMember[] = [
   },
   {
     employee_id: '1035',
-    password: '1035',
+    password: 'CTNP-1035',
     name: 'Rommel Mendoza',
     role: 'User',
-    shift: '9:00 PM to 6:00 AM',
-    shift_type: 'Night Shift',
     position: 'Trainer',
     account: 'Corporate',
     supervisor: 'Nissi-Jeh Reguero',
@@ -106,10 +104,12 @@ export const INITIAL_TEAM_ROSTER: TeamMember[] = [
     hire_date: '11/24/2022',
     tenure: 45,
     traffic_light_status: 'GREEN',
+    shift: '9:00 PM to 6:00 AM',
+    shift_type: 'Night Shift',
   },
   {
     employee_id: '1820',
-    password: '1820',
+    password: 'CTNP-1820',
     name: 'Ronelyn Baguio',
     role: 'User',
     shift: '11:00 AM to 8:00 PM',
@@ -124,7 +124,7 @@ export const INITIAL_TEAM_ROSTER: TeamMember[] = [
   },
   {
     employee_id: '836',
-    password: '836',
+    password: 'CTNP-836',
     name: 'Krisland Pepito',
     role: 'User',
     shift: '9:00 PM to 6:00 AM',
@@ -139,7 +139,7 @@ export const INITIAL_TEAM_ROSTER: TeamMember[] = [
   },
   {
     employee_id: '1006',
-    password: '1006',
+    password: 'CTNP-1006',
     name: 'Niño Elijah R. Reyes',
     role: 'User',
     shift: '9:00 PM to 6:00 AM',
@@ -154,7 +154,7 @@ export const INITIAL_TEAM_ROSTER: TeamMember[] = [
   },
   {
     employee_id: '1880',
-    password: '1880',
+    password: 'CTNP-1880',
     name: 'Kier Ariola',
     role: 'User',
     shift: '9:00 PM to 6:00 AM',
@@ -169,7 +169,7 @@ export const INITIAL_TEAM_ROSTER: TeamMember[] = [
   },
   {
     employee_id: '946',
-    password: '946',
+    password: 'CTNP-946',
     name: 'Vincent Luis Celdran',
     role: 'User',
     shift: '9:00 PM to 6:00 AM',
@@ -184,7 +184,7 @@ export const INITIAL_TEAM_ROSTER: TeamMember[] = [
   },
   {
     employee_id: '2298',
-    password: '2298',
+    password: 'CTNP-2298',
     name: 'Nina Joy Briones',
     role: 'User',
     shift: '8:00 PM to 5:00 AM',
@@ -199,7 +199,7 @@ export const INITIAL_TEAM_ROSTER: TeamMember[] = [
   },
   {
     employee_id: '1954',
-    password: '1954',
+    password: 'CTNP-1954',
     name: 'Matt Riner Balaba',
     role: 'User',
     shift: '9:00 PM to 6:00 AM',
@@ -214,7 +214,7 @@ export const INITIAL_TEAM_ROSTER: TeamMember[] = [
   },
   {
     employee_id: '2610',
-    password: '2610',
+    password: 'CTNP-2610',
     name: 'Maegan Marie Cabardo',
     role: 'User',
     shift: '8:00 PM to 5:00 AM',
@@ -229,7 +229,7 @@ export const INITIAL_TEAM_ROSTER: TeamMember[] = [
   },
   {
     employee_id: '1898',
-    password: '1898',
+    password: 'CTNP-1898',
     name: 'Hezel Mae Domo',
     role: 'User',
     shift: '9:00 PM to 6:00 AM',
@@ -244,7 +244,7 @@ export const INITIAL_TEAM_ROSTER: TeamMember[] = [
   },
   {
     employee_id: '1671',
-    password: '1671',
+    password: 'CTNP-1671',
     name: 'Janine Codilla',
     role: 'User',
     shift: '9:00 PM to 6:00 AM',
@@ -259,7 +259,7 @@ export const INITIAL_TEAM_ROSTER: TeamMember[] = [
   },
   {
     employee_id: '518',
-    password: '518',
+    password: 'CTNP-518',
     name: 'Darin Vic Ecle',
     role: 'User',
     shift: '9:00 PM to 6:00 AM',
@@ -274,7 +274,7 @@ export const INITIAL_TEAM_ROSTER: TeamMember[] = [
   },
   {
     employee_id: '770',
-    password: '770',
+    password: 'CTNP-770',
     name: 'Jeffrey Verallo',
     role: 'User',
     shift: '9:00 PM to 6:00 AM',
@@ -289,7 +289,7 @@ export const INITIAL_TEAM_ROSTER: TeamMember[] = [
   },
   {
     employee_id: '745',
-    password: '745',
+    password: 'CTNP-745',
     name: 'Steffany Cagape',
     role: 'User',
     shift: '9:00 PM to 6:00 AM',
@@ -304,7 +304,7 @@ export const INITIAL_TEAM_ROSTER: TeamMember[] = [
   },
   {
     employee_id: '892',
-    password: '892',
+    password: 'CTNP-892',
     name: 'Hanazaira Peleno',
     role: 'User',
     shift: '9:00 PM to 6:00 AM',
@@ -319,7 +319,7 @@ export const INITIAL_TEAM_ROSTER: TeamMember[] = [
   },
   {
     employee_id: '1708',
-    password: '1708',
+    password: 'CTNP-1708',
     name: 'Jhonmel Commedador',
     role: 'User',
     shift: '9:00 PM to 6:00 AM',

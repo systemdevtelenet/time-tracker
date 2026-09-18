@@ -65,6 +65,7 @@ import ConfirmActionModal from './ConfirmActionModal';
 
 interface FlowHubViewProps {
   onBackToPortal: () => void;
+  supervisorId?: string;
 }
 
 interface TaskItem {
@@ -91,7 +92,7 @@ interface HabitItem {
   timeOfDay: string;
 }
 
-export default function FlowHubView({ onBackToPortal }: FlowHubViewProps) {
+export default function FlowHubView({ onBackToPortal, supervisorId = '1597' }: FlowHubViewProps) {
   // Live Date & Time
   const [currentDateTime, setCurrentDateTime] = useState({
     dateStr: 'Tuesday, September 15, 2026',
@@ -285,7 +286,7 @@ export default function FlowHubView({ onBackToPortal }: FlowHubViewProps) {
   // Flow Hub Database / API Load
   const fetchFlowHubData = React.useCallback(async () => {
     try {
-      const res = await fetch('/api/flow-hub?empId=1597');
+      const res = await fetch(`/api/flow-hub?empId=${supervisorId}`);
       const json = await res.json();
       if (json.data) {
         if (json.data.tasks && Array.isArray(json.data.tasks) && json.data.tasks.length > 0) {
@@ -330,7 +331,7 @@ export default function FlowHubView({ onBackToPortal }: FlowHubViewProps) {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          empId: '1597',
+          empId: supervisorId,
           type: 'SAVE_MIND_DUMP',
           payload: { title: mindDumpTitle, text: mindDumpText },
         }),
@@ -580,7 +581,7 @@ export default function FlowHubView({ onBackToPortal }: FlowHubViewProps) {
       await fetch('/api/flow-hub', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ empId: '1597', type: 'ADD_TASK', payload: newTask }),
+        body: JSON.stringify({ empId: supervisorId, type: 'ADD_TASK', payload: newTask }),
       });
     } catch (err) {
       console.error('Error adding task:', err);
@@ -594,7 +595,7 @@ export default function FlowHubView({ onBackToPortal }: FlowHubViewProps) {
       await fetch('/api/flow-hub', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ empId: '1597', type: 'UPDATE_TASKS', payload: updated }),
+        body: JSON.stringify({ empId: supervisorId, type: 'UPDATE_TASKS', payload: updated }),
       });
     } catch (err) {
       console.error('Error moving task:', err);
@@ -624,7 +625,7 @@ export default function FlowHubView({ onBackToPortal }: FlowHubViewProps) {
       await fetch('/api/flow-hub', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ empId: '1597', type: 'DELETE_TASK', payload: { id } }),
+        body: JSON.stringify({ empId: supervisorId, type: 'DELETE_TASK', payload: { id } }),
       });
     } catch (err) {
       console.error('Error deleting task:', err);
@@ -639,7 +640,7 @@ export default function FlowHubView({ onBackToPortal }: FlowHubViewProps) {
       await fetch('/api/flow-hub', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ empId: '1597', type: 'UPDATE_TASK', payload: updated }),
+        body: JSON.stringify({ empId: supervisorId, type: 'UPDATE_TASK', payload: updated }),
       });
     } catch (err) {
       console.error('Error updating task:', err);
@@ -1529,18 +1530,18 @@ export default function FlowHubView({ onBackToPortal }: FlowHubViewProps) {
                 <span>AMBIENT FOCUS AUDIO</span>
               </span>
 
-              {/* Animated Equalizer Wave when Audio is Active */}
+              {/* Animated Equalizer Wave when Audio is Active (Gold Lines) */}
               {activeAmbient && (
                 <div className="flex items-end gap-[2px] h-3.5">
-                  <span className="w-0.5 h-3 bg-emerald-500 rounded-full animate-bounce [animation-delay:-0.3s]" />
-                  <span className="w-0.5 h-4 bg-emerald-500 rounded-full animate-bounce [animation-delay:-0.1s]" />
-                  <span className="w-0.5 h-2 bg-emerald-500 rounded-full animate-bounce [animation-delay:-0.2s]" />
-                  <span className="w-0.5 h-3.5 bg-emerald-500 rounded-full animate-bounce [animation-delay:-0.4s]" />
+                  <span className="w-0.5 h-3 bg-amber-400 rounded-full animate-bounce [animation-delay:-0.3s] shadow-[0_0_6px_rgba(251,191,36,0.6)]" />
+                  <span className="w-0.5 h-4 bg-amber-400 rounded-full animate-bounce [animation-delay:-0.1s] shadow-[0_0_6px_rgba(251,191,36,0.6)]" />
+                  <span className="w-0.5 h-2 bg-amber-400 rounded-full animate-bounce [animation-delay:-0.2s] shadow-[0_0_6px_rgba(251,191,36,0.6)]" />
+                  <span className="w-0.5 h-3.5 bg-amber-400 rounded-full animate-bounce [animation-delay:-0.4s] shadow-[0_0_6px_rgba(251,191,36,0.6)]" />
                 </div>
               )}
             </div>
 
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5 pt-1">
               {[
                 { name: 'Rain', icon: <CloudRain className="w-3 h-3 text-sky-500" />, label: 'Soft Rain' },
                 { name: 'Brown Noise', icon: <Radio className="w-3 h-3 text-amber-700 dark:text-amber-400" />, label: 'Brown Noise' },
@@ -1553,19 +1554,27 @@ export default function FlowHubView({ onBackToPortal }: FlowHubViewProps) {
               ].map((sound) => {
                 const isPlaying = activeAmbient === sound.name;
                 return (
-                  <button
-                    key={sound.name}
-                    type="button"
-                    onClick={() => toggleAmbient(sound.name)}
-                    className={`py-1.5 px-1.5 rounded-lg text-[10.5px] font-bold transition-all flex items-center justify-center gap-1 cursor-pointer border ${
-                      isPlaying
-                        ? 'bg-[#2F6798] text-white border-[#2F6798] shadow-xs ring-1 ring-[#2F6798]'
-                        : 'bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-700'
-                    }`}
-                  >
-                    {sound.icon}
-                    <span className="truncate">{sound.label}</span>
-                  </button>
+                  <div key={sound.name} className="relative group">
+                    <button
+                      type="button"
+                      onClick={() => toggleAmbient(sound.name)}
+                      title={sound.label}
+                      className={`w-full py-1.5 px-1.5 rounded-lg text-[10px] font-bold transition-all flex items-center justify-center gap-1 cursor-pointer border ${
+                        isPlaying
+                          ? 'bg-[#2F6798] text-white border-[#2F6798] shadow-xs ring-1 ring-[#2F6798]'
+                          : 'bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-700'
+                      }`}
+                    >
+                      <span className="shrink-0">{sound.icon}</span>
+                      <span className="truncate">{sound.label}</span>
+                    </button>
+
+                    {/* Floating Tooltip displaying complete words on hover */}
+                    <div className="absolute -top-7 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-100 scale-95 group-hover:scale-100 transition-all duration-150 pointer-events-none z-40 bg-slate-900/95 dark:bg-slate-800 text-white text-[10px] font-bold px-2 py-0.5 rounded-md shadow-xl border border-slate-700/50 whitespace-nowrap flex items-center gap-1">
+                      <span>{sound.label}</span>
+                      <div className="absolute top-full left-1/2 -translate-x-1/2 -mt-[1px] border-4 border-transparent border-t-slate-900/95 dark:border-t-slate-800" />
+                    </div>
+                  </div>
                 );
               })}
             </div>
@@ -2312,40 +2321,55 @@ export default function FlowHubView({ onBackToPortal }: FlowHubViewProps) {
         </div>
       )}
 
-      {/* Create New Task Modal Popup */}
+      {/* Create New Task Slide-over Right Panel matching Attendance Details design */}
       {isAddTaskOpen && (
-        <div className="fixed inset-0 z-50 bg-slate-950/60 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in duration-200">
-          <div className="w-full max-w-lg rounded-3xl bg-white dark:bg-[#101D3D] border border-slate-200/90 dark:border-slate-800 shadow-2xl p-6 sm:p-7 space-y-5 animate-in zoom-in-95 duration-200">
-            
-            {/* Modal Header */}
-            <div className="flex items-center justify-between pb-3.5 border-b border-slate-100 dark:border-slate-800">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-2xl bg-[#24537D]/10 text-[#24537D] dark:bg-blue-950/60 dark:text-blue-300 flex items-center justify-center shadow-2xs">
-                  <Plus className="w-5 h-5 stroke-[2.5]" />
-                </div>
-                <div>
-                  <h3 className="font-black text-base text-slate-900 dark:text-slate-100 tracking-tight">
-                    Create New Task
-                  </h3>
-                  <span className="text-xs text-slate-400 dark:text-slate-500 font-medium">
-                    Add a new task card to your workflow board
-                  </span>
-                </div>
+        <div 
+          className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-xs flex justify-end animate-in fade-in duration-200 select-none"
+          onClick={() => setIsAddTaskOpen(false)}
+        >
+          <div 
+            className="w-full max-w-md sm:max-w-lg h-full bg-white dark:bg-[#0E1B38] shadow-2xl flex flex-col animate-in slide-in-from-right duration-300 relative border-l border-slate-200 dark:border-slate-800"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* 1. Solid Primary Blue Header Bar */}
+            <div className="bg-[#2F6798] px-5 py-3.5 flex items-center justify-between text-white shrink-0 shadow-xs">
+              <div className="flex items-center gap-2">
+                <ListTodo className="w-4 h-4 text-white" />
+                <h3 className="text-xs sm:text-sm font-bold tracking-wider uppercase">
+                  CREATE NEW TASK
+                </h3>
               </div>
               <button
+                type="button"
                 onClick={() => setIsAddTaskOpen(false)}
-                className="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-400 hover:text-slate-700 dark:text-slate-300 flex items-center justify-center transition-colors cursor-pointer"
+                className="p-1 rounded-lg text-white/80 hover:text-white hover:bg-white/20 transition-colors cursor-pointer"
+                title="Close Panel"
               >
-                <X className="w-4 h-4" />
+                <X className="w-5 h-5" />
               </button>
             </div>
 
-            {/* Form */}
-            <form onSubmit={handleAddTask} className="space-y-4 text-xs">
-              
-              {/* Task Title */}
+            {/* 2. Sub-Header: Task Overview */}
+            <div className="p-4 sm:p-5 border-b border-slate-100 dark:border-slate-800 bg-slate-50/60 dark:bg-slate-900/40 shrink-0 flex items-center justify-between">
               <div>
-                <label className="block text-[10px] font-extrabold text-slate-400 uppercase tracking-wider mb-1.5">
+                <h2 className="text-xl sm:text-2xl font-bold text-slate-900 dark:text-slate-100 tracking-tight">
+                  New Task Card
+                </h2>
+                <p className="text-xs font-semibold text-[#2F6798] dark:text-blue-300 mt-0.5">
+                  Add a new task card to your workflow board
+                </p>
+              </div>
+
+              <span className="px-3 py-1 rounded-full text-xs font-semibold bg-[#2F6798]/10 text-[#2F6798] dark:bg-blue-950/60 dark:text-blue-300 border border-[#2F6798]/20 capitalize">
+                {newTaskColumn === 'done' ? 'Completed' : newTaskColumn === 'inprogress' ? 'In Progress' : 'To Do'}
+              </span>
+            </div>
+
+            {/* 3. Panel Body Form */}
+            <form onSubmit={handleAddTask} id="create-task-form" className="p-4 sm:p-5 overflow-y-auto flex-1 space-y-4 text-xs">
+              {/* Task Title */}
+              <div className="p-3.5 rounded-2xl bg-slate-50/70 dark:bg-slate-900/50 border border-slate-200/80 dark:border-slate-800 space-y-1.5">
+                <label className="block text-[10px] font-extrabold text-slate-400 uppercase tracking-wider">
                   TASK TITLE
                 </label>
                 <textarea
@@ -2354,29 +2378,29 @@ export default function FlowHubView({ onBackToPortal }: FlowHubViewProps) {
                   value={newTaskTitle}
                   onChange={(e) => setNewTaskTitle(e.target.value)}
                   placeholder="e.g. COVA Escalation - TM or SL Form review..."
-                  className="w-full p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/90 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-slate-100 font-bold outline-none focus:ring-2 focus:ring-[#24537D] transition-all resize-none text-xs"
+                  className="w-full p-2.5 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-slate-100 font-bold outline-none focus:ring-2 focus:ring-[#2F6798] transition-all resize-none text-xs"
                 />
               </div>
 
-              {/* Column / Stage Selection */}
-              <div>
-                <label className="block text-[10px] font-extrabold text-slate-400 uppercase tracking-wider mb-1.5">
+              {/* Stage Column Selection */}
+              <div className="p-3.5 rounded-2xl bg-slate-50/70 dark:bg-slate-900/50 border border-slate-200/80 dark:border-slate-800 space-y-1.5">
+                <label className="block text-[10px] font-extrabold text-slate-400 uppercase tracking-wider">
                   STAGE COLUMN
                 </label>
                 <div className="grid grid-cols-3 gap-2">
                   {[
-                    { key: 'todo', label: 'TO DO', color: 'bg-[#E55755] text-white shadow-xs' },
-                    { key: 'inprogress', label: 'IN PROGRESS', color: 'bg-[#E68A38] text-slate-950 shadow-xs' },
-                    { key: 'done', label: 'COMPLETED', color: 'bg-[#27AE60] text-white shadow-xs' }
+                    { key: 'todo', label: 'TO DO', color: 'bg-[#E55755] text-white shadow-xs font-bold' },
+                    { key: 'inprogress', label: 'IN PROGRESS', color: 'bg-[#E68A38] text-white shadow-xs font-bold' },
+                    { key: 'done', label: 'COMPLETED', color: 'bg-[#27AE60] text-white shadow-xs font-bold' }
                   ].map((col) => (
                     <button
                       key={col.key}
                       type="button"
                       onClick={() => setNewTaskColumn(col.key as any)}
-                      className={`py-2 px-2 rounded-xl text-xs font-black transition-all cursor-pointer text-center ${
+                      className={`py-2 px-2 rounded-xl text-xs transition-all cursor-pointer text-center ${
                         newTaskColumn === col.key
                           ? col.color
-                          : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200'
+                          : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700'
                       }`}
                     >
                       {col.label}
@@ -2385,10 +2409,10 @@ export default function FlowHubView({ onBackToPortal }: FlowHubViewProps) {
                 </div>
               </div>
 
-              {/* Priority Selection */}
-              <div>
-                <label className="block text-[10px] font-extrabold text-slate-400 uppercase tracking-wider mb-1.5">
-                  PRIORITY
+              {/* Priority */}
+              <div className="p-3.5 rounded-2xl bg-slate-50/70 dark:bg-slate-900/50 border border-slate-200/80 dark:border-slate-800 space-y-1.5">
+                <label className="block text-[10px] font-extrabold text-slate-400 uppercase tracking-wider">
+                  PRIORITY LEVEL
                 </label>
                 <div className="grid grid-cols-3 gap-2">
                   {(['HIGH', 'MEDIUM', 'LOW'] as const).map((p) => {
@@ -2398,14 +2422,14 @@ export default function FlowHubView({ onBackToPortal }: FlowHubViewProps) {
                         key={p}
                         type="button"
                         onClick={() => setNewTaskPriority(p)}
-                        className={`py-2 px-2 rounded-xl text-xs font-extrabold transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
+                        className={`py-2 px-2 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
                           isSelected
                             ? p === 'HIGH'
                               ? 'bg-rose-50 text-rose-600 border-2 border-rose-500 dark:bg-rose-950/60 dark:text-rose-300 shadow-xs'
                               : p === 'MEDIUM'
                               ? 'bg-amber-50 text-amber-700 border-2 border-amber-500 dark:bg-amber-950/60 dark:text-amber-300 shadow-xs'
                               : 'bg-emerald-50 text-emerald-700 border-2 border-emerald-500 dark:bg-emerald-950/60 dark:text-emerald-300 shadow-xs'
-                            : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200 border-2 border-transparent'
+                            : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-100 border border-slate-200 dark:border-slate-700'
                         }`}
                       >
                         <span
@@ -2422,8 +2446,8 @@ export default function FlowHubView({ onBackToPortal }: FlowHubViewProps) {
 
               {/* Estimate & Category Tag */}
               <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-[10px] font-extrabold text-slate-400 uppercase tracking-wider mb-1.5">
+                <div className="p-3.5 rounded-2xl bg-slate-50/70 dark:bg-slate-900/50 border border-slate-200/80 dark:border-slate-800 space-y-1.5">
+                  <label className="block text-[10px] font-extrabold text-slate-400 uppercase tracking-wider">
                     ESTIMATE (HOURS)
                   </label>
                   <input
@@ -2431,12 +2455,12 @@ export default function FlowHubView({ onBackToPortal }: FlowHubViewProps) {
                     value={newTaskEstimate}
                     onChange={(e) => setNewTaskEstimate(e.target.value)}
                     placeholder="e.g. 2h, 4h"
-                    className="w-full px-3 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 font-bold text-slate-800 dark:text-slate-200 outline-none focus:ring-2 focus:ring-[#24537D] text-xs"
+                    className="w-full px-3 py-2 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 font-bold text-slate-800 dark:text-slate-200 outline-none focus:ring-2 focus:ring-[#2F6798] text-xs"
                   />
                 </div>
 
-                <div>
-                  <label className="block text-[10px] font-extrabold text-slate-400 uppercase tracking-wider mb-1.5">
+                <div className="p-3.5 rounded-2xl bg-slate-50/70 dark:bg-slate-900/50 border border-slate-200/80 dark:border-slate-800 space-y-1.5">
+                  <label className="block text-[10px] font-extrabold text-slate-400 uppercase tracking-wider">
                     CATEGORY TAG
                   </label>
                   <input
@@ -2444,16 +2468,21 @@ export default function FlowHubView({ onBackToPortal }: FlowHubViewProps) {
                     value={newTaskCategory}
                     onChange={(e) => setNewTaskCategory(e.target.value)}
                     placeholder="e.g. Escalation, QA FRIA"
-                    className="w-full px-3 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 font-bold text-slate-800 dark:text-slate-200 outline-none focus:ring-2 focus:ring-[#24537D] text-xs"
+                    className="w-full px-3 py-2 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 font-bold text-slate-800 dark:text-slate-200 outline-none focus:ring-2 focus:ring-[#2F6798] text-xs"
                   />
                 </div>
               </div>
 
               {/* Assignee Selection */}
-              <div>
-                <label className="block text-[10px] font-extrabold text-slate-400 uppercase tracking-wider mb-1.5">
-                  ASSIGNEE
-                </label>
+              <div className="p-3.5 rounded-2xl bg-slate-50/70 dark:bg-slate-900/50 border border-slate-200/80 dark:border-slate-800 space-y-2">
+                <div className="flex items-center justify-between">
+                  <label className="block text-[10px] font-extrabold text-slate-400 uppercase tracking-wider">
+                    ASSIGNED TEAM MEMBER
+                  </label>
+                  <span className="text-[10px] font-bold text-[#2F6798]">
+                    Selected: {newTaskAssignee}
+                  </span>
+                </div>
                 <div className="grid grid-cols-4 gap-2">
                   {[
                     { id: 'NR', name: 'Nissi-Jeh', color: 'bg-[#24537D]' },
@@ -2467,10 +2496,10 @@ export default function FlowHubView({ onBackToPortal }: FlowHubViewProps) {
                         key={user.id}
                         type="button"
                         onClick={() => setNewTaskAssignee(user.id)}
-                        className={`p-2 rounded-2xl transition-all flex flex-col items-center justify-center gap-1 cursor-pointer border ${
+                        className={`p-2 rounded-xl transition-all flex flex-col items-center justify-center gap-1 cursor-pointer border ${
                           isSelected
-                            ? 'border-[#24537D] bg-blue-50/70 dark:bg-blue-950/50 shadow-xs ring-1 ring-[#24537D]'
-                            : 'border-slate-200/80 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-slate-50'
+                            ? 'border-[#2F6798] bg-blue-50/70 dark:bg-blue-950/50 shadow-xs ring-1 ring-[#2F6798]'
+                            : 'border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-slate-100'
                         }`}
                       >
                         <div className={`w-7 h-7 rounded-full text-white font-black text-xs flex items-center justify-center shadow-xs ${user.color}`}>
@@ -2484,67 +2513,85 @@ export default function FlowHubView({ onBackToPortal }: FlowHubViewProps) {
                   })}
                 </div>
               </div>
+            </form>
 
-              {/* Footer Actions */}
-              <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-slate-100 dark:border-slate-800">
+            {/* 4. Sticky Footer Bar */}
+            <div className="p-4 sm:p-5 border-t border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/30 flex items-center justify-between gap-3 shrink-0">
+              <span className="text-[11px] font-semibold text-slate-400 font-mono">
+                Date: {currentDateTime.dateStr.split(',')[0]}
+              </span>
+              <div className="flex items-center gap-2.5">
                 <button
                   type="button"
                   onClick={() => setIsAddTaskOpen(false)}
-                  className="px-4 py-2.5 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 text-slate-600 dark:text-slate-300 text-xs font-bold transition-colors cursor-pointer"
+                  className="px-4 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 text-slate-600 dark:text-slate-300 text-xs font-bold transition-colors cursor-pointer"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="px-5 py-2.5 rounded-xl bg-[#24537D] hover:bg-[#1B4266] text-white text-xs font-extrabold transition-all shadow-md shadow-[#24537D]/25 cursor-pointer flex items-center gap-1.5"
+                  form="create-task-form"
+                  className="px-5 py-2 rounded-xl bg-[#2F6798] hover:bg-[#24527A] active:bg-[#1f4a6e] text-white text-xs font-bold transition-all shadow-sm cursor-pointer flex items-center gap-1.5"
                 >
                   <Plus className="w-3.5 h-3.5 stroke-[3]" />
                   <span>Create Task</span>
                 </button>
               </div>
-
-            </form>
-
+            </div>
           </div>
         </div>
       )}
 
-      {/* Add Routine Pop-up Modal Overlay */}
+      {/* Add Routine Slide-over Right Panel matching Attendance Details design */}
       {isAddHabitOpen && (
-        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in">
-          <div className="w-full max-w-md rounded-3xl bg-white dark:bg-[#101D3D] border border-slate-200 dark:border-slate-800 shadow-2xl p-6 space-y-5 animate-in zoom-in-95">
-            
-            {/* Modal Header */}
-            <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
-              <div className="flex items-center gap-2.5">
-                <div className="w-9 h-9 rounded-2xl bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300 flex items-center justify-center">
-                  <Flame className="w-4 h-4 text-amber-500 fill-amber-500" />
-                </div>
-                <div>
-                  <h3 className="text-base font-extrabold text-slate-900 dark:text-slate-100">
-                    Add Daily Routine & Habit
-                  </h3>
-                  <span className="text-[11px] font-semibold text-slate-400">
-                    Track your day & agent wellness
-                  </span>
-                </div>
+        <div 
+          className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-xs flex justify-end animate-in fade-in duration-200 select-none"
+          onClick={() => setIsAddHabitOpen(false)}
+        >
+          <div 
+            className="w-full max-w-md sm:max-w-lg h-full bg-white dark:bg-[#0E1B38] shadow-2xl flex flex-col animate-in slide-in-from-right duration-300 relative border-l border-slate-200 dark:border-slate-800"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* 1. Solid Primary Blue Header Bar */}
+            <div className="bg-[#2F6798] px-5 py-3.5 flex items-center justify-between text-white shrink-0 shadow-xs">
+              <div className="flex items-center gap-2">
+                <Flame className="w-4 h-4 text-white fill-white" />
+                <h3 className="text-xs sm:text-sm font-bold tracking-wider uppercase">
+                  ADD DAILY ROUTINE & HABIT
+                </h3>
               </div>
-
               <button
                 type="button"
                 onClick={() => setIsAddHabitOpen(false)}
-                className="p-1.5 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-500 hover:text-slate-800 dark:hover:text-white transition-colors cursor-pointer"
+                className="p-1 rounded-lg text-white/80 hover:text-white hover:bg-white/20 transition-colors cursor-pointer"
+                title="Close Panel"
               >
-                <X className="w-4 h-4" />
+                <X className="w-5 h-5" />
               </button>
             </div>
 
-            {/* Modal Form */}
-            <form onSubmit={handleAddHabit} className="space-y-4">
-              
-              {/* Routine Name */}
+            {/* 2. Sub-Header: Habit Overview */}
+            <div className="p-4 sm:p-5 border-b border-slate-100 dark:border-slate-800 bg-slate-50/60 dark:bg-slate-900/40 shrink-0 flex items-center justify-between">
               <div>
-                <label className="block text-[10px] font-extrabold text-slate-400 uppercase tracking-wider mb-1.5">
+                <h2 className="text-xl sm:text-2xl font-bold text-slate-900 dark:text-slate-100 tracking-tight">
+                  Daily Habit & Focus
+                </h2>
+                <p className="text-xs font-semibold text-[#2F6798] dark:text-blue-300 mt-0.5">
+                  Track your day & agent wellness routines
+                </p>
+              </div>
+
+              <span className="px-3 py-1 rounded-full text-xs font-semibold bg-amber-50 text-amber-700 dark:bg-amber-950/60 dark:text-amber-300 border border-amber-200 dark:border-amber-800 capitalize flex items-center gap-1">
+                <Flame className="w-3 h-3 text-amber-500 fill-amber-500" />
+                <span>Wellness</span>
+              </span>
+            </div>
+
+            {/* 3. Panel Body Form */}
+            <form onSubmit={handleAddHabit} id="add-habit-form" className="p-4 sm:p-5 overflow-y-auto flex-1 space-y-4 text-xs">
+              {/* Routine Name */}
+              <div className="p-3.5 rounded-2xl bg-slate-50/70 dark:bg-slate-900/50 border border-slate-200/80 dark:border-slate-800 space-y-1.5">
+                <label className="block text-[10px] font-extrabold text-slate-400 uppercase tracking-wider">
                   ROUTINE TITLE
                 </label>
                 <input
@@ -2553,13 +2600,13 @@ export default function FlowHubView({ onBackToPortal }: FlowHubViewProps) {
                   value={newHabitName}
                   onChange={(e) => setNewHabitName(e.target.value)}
                   placeholder="e.g. Drink a glass of water, Call log review..."
-                  className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 font-bold text-slate-800 dark:text-slate-200 outline-none focus:ring-2 focus:ring-[#24537D] text-xs"
+                  className="w-full px-3 py-2.5 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 font-bold text-slate-800 dark:text-slate-200 outline-none focus:ring-2 focus:ring-[#2F6798] text-xs"
                 />
               </div>
 
               {/* Category Selection */}
-              <div>
-                <label className="block text-[10px] font-extrabold text-slate-400 uppercase tracking-wider mb-1.5">
+              <div className="p-3.5 rounded-2xl bg-slate-50/70 dark:bg-slate-900/50 border border-slate-200/80 dark:border-slate-800 space-y-2">
+                <label className="block text-[10px] font-extrabold text-slate-400 uppercase tracking-wider">
                   CATEGORY & DOMAIN
                 </label>
                 <div className="grid grid-cols-3 gap-2">
@@ -2577,10 +2624,10 @@ export default function FlowHubView({ onBackToPortal }: FlowHubViewProps) {
                         key={cat.id}
                         type="button"
                         onClick={() => setNewHabitCategory(cat.id as any)}
-                        className={`p-2 rounded-xl border text-xs font-bold transition-all flex items-center gap-1.5 justify-center cursor-pointer ${
+                        className={`p-2.5 rounded-xl border text-xs font-bold transition-all flex items-center gap-1.5 justify-center cursor-pointer ${
                           isSelected
-                            ? 'border-[#24537D] bg-blue-50/80 dark:bg-blue-950/60 text-[#24537D] dark:text-blue-300 ring-1 ring-[#24537D]'
-                            : 'border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-50'
+                            ? 'border-[#2F6798] bg-blue-50/80 dark:bg-blue-950/60 text-[#2F6798] dark:text-blue-300 ring-1 ring-[#2F6798]'
+                            : 'border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-100'
                         }`}
                       >
                         {cat.icon}
@@ -2593,14 +2640,14 @@ export default function FlowHubView({ onBackToPortal }: FlowHubViewProps) {
 
               {/* Duration & Time of Day */}
               <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-[10px] font-extrabold text-slate-400 uppercase tracking-wider mb-1.5">
+                <div className="p-3.5 rounded-2xl bg-slate-50/70 dark:bg-slate-900/50 border border-slate-200/80 dark:border-slate-800 space-y-1.5">
+                  <label className="block text-[10px] font-extrabold text-slate-400 uppercase tracking-wider">
                     DURATION
                   </label>
                   <select
                     value={newHabitDuration}
                     onChange={(e) => setNewHabitDuration(e.target.value)}
-                    className="w-full px-3 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 font-bold text-slate-800 dark:text-slate-200 outline-none focus:ring-2 focus:ring-[#24537D] text-xs cursor-pointer"
+                    className="w-full px-3 py-2 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 font-bold text-slate-800 dark:text-slate-200 outline-none focus:ring-2 focus:ring-[#2F6798] text-xs cursor-pointer"
                   >
                     <option value="5 min">5 min</option>
                     <option value="10 min">10 min</option>
@@ -2610,14 +2657,14 @@ export default function FlowHubView({ onBackToPortal }: FlowHubViewProps) {
                   </select>
                 </div>
 
-                <div>
-                  <label className="block text-[10px] font-extrabold text-slate-400 uppercase tracking-wider mb-1.5">
+                <div className="p-3.5 rounded-2xl bg-slate-50/70 dark:bg-slate-900/50 border border-slate-200/80 dark:border-slate-800 space-y-1.5">
+                  <label className="block text-[10px] font-extrabold text-slate-400 uppercase tracking-wider">
                     SHIFT TIMING
                   </label>
                   <select
                     value={newHabitTimeOfDay}
                     onChange={(e) => setNewHabitTimeOfDay(e.target.value)}
-                    className="w-full px-3 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 font-bold text-slate-800 dark:text-slate-200 outline-none focus:ring-2 focus:ring-[#24537D] text-xs cursor-pointer"
+                    className="w-full px-3 py-2 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 font-bold text-slate-800 dark:text-slate-200 outline-none focus:ring-2 focus:ring-[#2F6798] text-xs cursor-pointer"
                   >
                     <option value="Morning Shift">Morning Shift</option>
                     <option value="Mid Shift">Mid Shift</option>
@@ -2628,27 +2675,31 @@ export default function FlowHubView({ onBackToPortal }: FlowHubViewProps) {
                   </select>
                 </div>
               </div>
+            </form>
 
-              {/* Footer Actions */}
-              <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-slate-100 dark:border-slate-800">
+            {/* 4. Sticky Footer Bar */}
+            <div className="p-4 sm:p-5 border-t border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/30 flex items-center justify-between gap-3 shrink-0">
+              <span className="text-[11px] font-semibold text-slate-400 font-mono">
+                Date: {currentDateTime.dateStr.split(',')[0]}
+              </span>
+              <div className="flex items-center gap-2.5">
                 <button
                   type="button"
                   onClick={() => setIsAddHabitOpen(false)}
-                  className="px-4 py-2.5 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 text-slate-600 dark:text-slate-300 text-xs font-bold transition-colors cursor-pointer"
+                  className="px-4 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 text-slate-600 dark:text-slate-300 text-xs font-bold transition-colors cursor-pointer"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="px-5 py-2.5 rounded-xl bg-[#24537D] hover:bg-[#1B4266] text-white text-xs font-extrabold transition-all shadow-md shadow-[#24537D]/25 cursor-pointer flex items-center gap-1.5"
+                  form="add-habit-form"
+                  className="px-5 py-2 rounded-xl bg-[#2F6798] hover:bg-[#24527A] active:bg-[#1f4a6e] text-white text-xs font-bold transition-all shadow-sm cursor-pointer flex items-center gap-1.5"
                 >
                   <Plus className="w-3.5 h-3.5 stroke-[3]" />
                   <span>Add Routine</span>
                 </button>
               </div>
-
-            </form>
-
+            </div>
           </div>
         </div>
       )}

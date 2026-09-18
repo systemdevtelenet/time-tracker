@@ -10,8 +10,16 @@ const poppins = Poppins({
 });
 
 export const metadata: Metadata = {
-  title: 'Tele-net Time Tracker | Workforce Portal',
-  description: 'Live phone time tracking, shift logging, and AHT analytics connected to the Workforce Portal database.',
+  title: 'Workforce Portal',
+  description: 'Workforce Portal - Live phone time tracking, shift logging, and AHT analytics.',
+  icons: {
+    icon: [
+      { url: '/icon.png', type: 'image/png' },
+      { url: 'https://zhdmsmwrskxowvytedgh.supabase.co/storage/v1/object/public/Images/ctnp-logo.png', type: 'image/png' },
+    ],
+    shortcut: '/icon.png',
+    apple: '/icon.png',
+  },
 };
 
 export default function RootLayout({

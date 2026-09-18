@@ -1,33 +1,43 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { 
   ArrowLeft, 
-  Settings, 
-  User, 
-  Clock, 
-  Shield, 
-  Bell, 
-  Moon, 
-  Sun, 
-  Database, 
+  RotateCcw,
   Save, 
-  Check, 
-  Sparkles, 
+  User, 
+  Bell, 
   Sliders, 
+  ShieldCheck, 
+  Camera, 
+  Upload,
+  Trash2,
+  Mail, 
+  Building2, 
+  Calendar, 
+  Clock, 
+  Briefcase, 
+  Hash, 
+  Check, 
+  CheckCircle2, 
   Volume2, 
   RefreshCw, 
   Download, 
-  Trash2, 
-  AlertTriangle, 
-  CheckCircle2, 
-  Lock, 
-  Mail, 
-  Smartphone, 
-  Building2, 
+  Sun, 
+  Moon,
+  Database,
+  Lock,
   Layers,
-  Palette,
-  Laptop
+  Sparkles,
+  Play,
+  Square,
+  Music,
+  Phone,
+  Radio,
+  Gamepad2,
+  Disc,
+  BellRing,
+  Activity
 } from 'lucide-react';
 import { SupervisorProfile } from './Sidebar';
 
@@ -38,7 +48,7 @@ interface SettingsViewProps {
   onToggleTheme: () => void;
 }
 
-type SettingsSection = 'profile' | 'shift' | 'tracker' | 'notifications' | 'appearance' | 'integrations';
+type TabType = 'profile' | 'notifications' | 'general' | 'shift';
 
 export default function SettingsView({
   onBackToDashboard,
@@ -46,137 +56,329 @@ export default function SettingsView({
   isDark,
   onToggleTheme,
 }: SettingsViewProps) {
-  const [activeSection, setActiveSection] = useState<SettingsSection>('profile');
+  const [activeTab, setActiveTab] = useState<TabType>('profile');
   const [isSaved, setIsSaved] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
-  // Profile Settings Form
-  const [fullName, setFullName] = useState(supervisor.name || 'Nissi-Jeh Reguero');
-  const [employeeId, setEmployeeId] = useState(supervisor.id || '1597');
-  const [positionTitle, setPositionTitle] = useState(supervisor.position || 'Head of Training');
-  const [emailContact, setEmailContact] = useState('nissijeh.reguero@cebutelenet.com');
-  const [slackHandle, setSlackHandle] = useState('@nissijeh.r');
-  const [timezone, setTimezone] = useState('Asia/Manila (UTC+08:00)');
+  // Profile data (Company managed)
+  const displayName = supervisor.name || 'Nissi-Jeh Reguero';
+  const nameParts = displayName.split(' ');
+  const firstName = nameParts.length > 1 ? nameParts.slice(0, -1).join(' ') : displayName;
+  const lastName = nameParts.length > 1 ? nameParts[nameParts.length - 1] : '';
+  const employeeId = supervisor.id || '1597';
+  const positionTitle = supervisor.position || 'HEAD OF TRAINING';
+  const emailContact = supervisor.email || 'nreguero.telenet@gmail.com';
+  const department = 'Corporate Training & Operations';
+  const assignedShift = supervisor.shift || '9:00 PM - 6:00 AM (Graveyard)';
+  const directSupervisor = supervisor.directSupervisor || 'June Babe Caballes';
+  const accountLOB = 'CORP';
+  const startDate = '1/3/2024';
 
-  // Shift & Adherence Rules
-  const [gracePeriodMins, setGracePeriodMins] = useState(5);
-  const [maxBreakMins, setMaxBreakMins] = useState(15);
-  const [maxLunchMins, setMaxLunchMins] = useState(60);
-  const [autoFlagUndertime, setAutoFlagUndertime] = useState(true);
-  const [trafficGreenThreshold, setTrafficGreenThreshold] = useState(95);
-  const [trafficYellowThreshold, setTrafficYellowThreshold] = useState(85);
+  // Photo state & dropdown
+  const [avatarPhoto, setAvatarPhoto] = useState<string | null>(supervisor.avatarUrl || null);
+  const [isCameraDropdownOpen, setIsCameraDropdownOpen] = useState(false);
+  const cameraDropdownRef = useRef<HTMLDivElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Time Tracker Rules
-  const [targetAhtSeconds, setTargetAhtSeconds] = useState(300); // 5 min
-  const [defaultPomodoroMins, setDefaultPomodoroMins] = useState(25);
-  const [autoPauseIdleMins, setAutoPauseIdleMins] = useState(3);
-  const [autoReconcileLogs, setAutoReconcileLogs] = useState(true);
+  // Handle clicking outside camera dropdown
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (cameraDropdownRef.current && !cameraDropdownRef.current.contains(event.target as Node)) {
+        setIsCameraDropdownOpen(false);
+      }
+    }
+    if (isCameraDropdownOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [isCameraDropdownOpen]);
 
-  // Notification Preferences
-  const [soundAlertsEnabled, setSoundAlertsEnabled] = useState(true);
-  const [overBreakAlerts, setOverBreakAlerts] = useState(true);
-  const [escalationPush, setEscalationPush] = useState(true);
-  const [wellnessReminders, setWellnessReminders] = useState(true);
-  const [alertTone, setAlertTone] = useState<'gentle' | 'modern' | 'bell'>('modern');
-
-  // Appearance & Display
-  const [tableDensity, setTableDensity] = useState<'comfortable' | 'compact'>('comfortable');
-  const [showLiveGlow, setShowLiveGlow] = useState(true);
-
-  // Trigger Save Feedback
-  const handleSaveAll = () => {
-    setIsSaved(true);
-    setToastMessage('Settings successfully saved and synced!');
-    setTimeout(() => {
-      setIsSaved(false);
-    }, 2500);
-    setTimeout(() => {
-      setToastMessage(null);
-    }, 3500);
-  };
-
-  // Test Web Audio Chime
-  const handleTestSound = () => {
-    try {
-      const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
-      if (!AudioCtx) return;
-      const ctx = new AudioCtx();
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
-      
-      osc.type = 'sine';
-      osc.frequency.setValueAtTime(alertTone === 'gentle' ? 520 : alertTone === 'bell' ? 880 : 660, ctx.currentTime);
-      osc.frequency.exponentialRampToValueAtTime(440, ctx.currentTime + 0.3);
-      
-      gain.gain.setValueAtTime(0.2, ctx.currentTime);
-      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.4);
-      
-      osc.connect(gain);
-      gain.connect(ctx.destination);
-      osc.start();
-      osc.stop(ctx.currentTime + 0.4);
-      
-      setToastMessage(`Played sound preview: ${alertTone.toUpperCase()}`);
-      setTimeout(() => setToastMessage(null), 2000);
-    } catch (e) {
-      console.error(e);
+  // Handle photo upload
+  const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = (uploadEvent) => {
+        if (uploadEvent.target?.result) {
+          setAvatarPhoto(uploadEvent.target.result as string);
+          setToastMessage('Profile photo updated!');
+          setTimeout(() => setToastMessage(null), 2500);
+        }
+      };
+      reader.readAsDataURL(file);
     }
   };
 
-  // Export CSV Handler
-  const handleExportData = () => {
-    const csvContent = "data:text/csv;charset=utf-8,Date,Agent,Status,AHT,Adherence\n2026-09-15,Matt Riner Balaba,Completed,4m 12s,98%\n2026-09-15,Jeremy Rigodon,Completed,5m 02s,96%";
-    const encodedUri = encodeURI(csvContent);
-    const link = document.createElement("a");
-    link.setAttribute("href", encodedUri);
-    link.setAttribute("download", `cebu_telenet_shift_logs_${new Date().toISOString().slice(0,10)}.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+  // Alarm Ringtone State (10 sounds: 5 original + 5 extra)
+  const [selectedRingtone, setSelectedRingtone] = useState<string>('jungle');
+  const [playingRingtone, setPlayingRingtone] = useState<string | null>(null);
 
-    setToastMessage("Shift log export downloaded!");
+  // Web Audio Synthesizer for all 10 Ringtones
+  const playRingtone = (ringtoneId: string) => {
+    if (typeof window === 'undefined') return;
+    try {
+      setPlayingRingtone(ringtoneId);
+      const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
+      if (!AudioCtx) return;
+      const ctx = new AudioCtx();
+      const now = ctx.currentTime;
+
+      if (ringtoneId === 'jungle') {
+        // 80s Rock guitar arpeggiation (E, G, A, B riff)
+        const notes = [164.81, 196.00, 220.00, 246.94, 220.00, 196.00, 164.81, 146.83];
+        notes.forEach((freq, idx) => {
+          const osc = ctx.createOscillator();
+          const gain = ctx.createGain();
+          osc.type = 'sawtooth';
+          osc.frequency.setValueAtTime(freq, now + idx * 0.12);
+          gain.gain.setValueAtTime(0.14, now + idx * 0.12);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + (idx + 1) * 0.12);
+          osc.connect(gain);
+          gain.connect(ctx.destination);
+          osc.start(now + idx * 0.12);
+          osc.stop(now + (idx + 1) * 0.12);
+        });
+        setTimeout(() => setPlayingRingtone(null), 1100);
+      } else if (ringtoneId === 'phone') {
+        // Classic twin-bell rotary telephone ring burst
+        [0, 0.06, 0.12, 0.18, 0.32, 0.38, 0.44, 0.50].forEach((offset) => {
+          const osc1 = ctx.createOscillator();
+          const osc2 = ctx.createOscillator();
+          const gain = ctx.createGain();
+          osc1.type = 'sine';
+          osc2.type = 'sine';
+          osc1.frequency.setValueAtTime(750, now + offset);
+          osc2.frequency.setValueAtTime(850, now + offset);
+          gain.gain.setValueAtTime(0.12, now + offset);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + offset + 0.05);
+          osc1.connect(gain);
+          osc2.connect(gain);
+          gain.connect(ctx.destination);
+          osc1.start(now + offset);
+          osc2.start(now + offset);
+          osc1.stop(now + offset + 0.05);
+          osc2.stop(now + offset + 0.05);
+        });
+        setTimeout(() => setPlayingRingtone(null), 800);
+      } else if (ringtoneId === 'beep') {
+        // Digital wristwatch alarm beep pattern
+        [0, 0.12, 0.24, 0.36].forEach((offset) => {
+          const osc = ctx.createOscillator();
+          const gain = ctx.createGain();
+          osc.type = 'square';
+          osc.frequency.setValueAtTime(2048, now + offset);
+          gain.gain.setValueAtTime(0.08, now + offset);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + offset + 0.07);
+          osc.connect(gain);
+          gain.connect(ctx.destination);
+          osc.start(now + offset);
+          osc.stop(now + offset + 0.07);
+        });
+        setTimeout(() => setPlayingRingtone(null), 600);
+      } else if (ringtoneId === 'chime') {
+        // Warm soft harmonic bell chime
+        [523.25, 659.25, 783.99, 1046.50].forEach((freq, idx) => {
+          const osc = ctx.createOscillator();
+          const gain = ctx.createGain();
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(freq, now + idx * 0.15);
+          gain.gain.setValueAtTime(0.18, now + idx * 0.15);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + idx * 0.15 + 0.7);
+          osc.connect(gain);
+          gain.connect(ctx.destination);
+          osc.start(now + idx * 0.15);
+          osc.stop(now + idx * 0.15 + 0.7);
+        });
+        setTimeout(() => setPlayingRingtone(null), 1200);
+      } else if (ringtoneId === 'retro') {
+        // Retro 8-bit arcade oscillating laser buzzer
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(880, now);
+        osc.frequency.exponentialRampToValueAtTime(110, now + 0.4);
+        gain.gain.setValueAtTime(0.12, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.4);
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.start(now);
+        osc.stop(now + 0.4);
+        setTimeout(() => setPlayingRingtone(null), 500);
+      } else if (ringtoneId === 'gong') {
+        // Deep resonant Zen singing bowl / meditation gong
+        [180, 220, 330, 440].forEach((freq, idx) => {
+          const osc = ctx.createOscillator();
+          const gain = ctx.createGain();
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(freq, now);
+          const volume = idx === 0 ? 0.3 : 0.12;
+          gain.gain.setValueAtTime(volume, now);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + 1.8);
+          osc.connect(gain);
+          gain.connect(ctx.destination);
+          osc.start(now);
+          osc.stop(now + 1.8);
+        });
+        setTimeout(() => setPlayingRingtone(null), 1800);
+      } else if (ringtoneId === 'dingdong') {
+        // Two-tone elevator / PA announcement Ding-Dong (High G5 -> Low C5)
+        const tones = [
+          { freq: 783.99, time: 0, dur: 0.8 },     // G5 (Ding)
+          { freq: 523.25, time: 0.35, dur: 0.9 }   // C5 (Dong)
+        ];
+        tones.forEach(({ freq, time, dur }) => {
+          const osc = ctx.createOscillator();
+          const gain = ctx.createGain();
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(freq, now + time);
+          gain.gain.setValueAtTime(0.22, now + time);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + time + dur);
+          osc.connect(gain);
+          gain.connect(ctx.destination);
+          osc.start(now + time);
+          osc.stop(now + time + dur);
+        });
+        setTimeout(() => setPlayingRingtone(null), 1300);
+      } else if (ringtoneId === 'sparkle') {
+        // Ascending crystal sparkle arpeggio
+        [587.33, 739.99, 880, 1174.66, 1479.98].forEach((freq, idx) => {
+          const osc = ctx.createOscillator();
+          const gain = ctx.createGain();
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(freq, now + idx * 0.08);
+          gain.gain.setValueAtTime(0.14, now + idx * 0.08);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + idx * 0.08 + 0.5);
+          osc.connect(gain);
+          gain.connect(ctx.destination);
+          osc.start(now + idx * 0.08);
+          osc.stop(now + idx * 0.08 + 0.5);
+        });
+        setTimeout(() => setPlayingRingtone(null), 900);
+      } else if (ringtoneId === 'woodblock') {
+        // Snappy organic woodblock double-knock percussion
+        [0, 0.14].forEach((offset, idx) => {
+          const osc = ctx.createOscillator();
+          const gain = ctx.createGain();
+          osc.type = 'triangle';
+          const freq = idx === 0 ? 880 : 1046.5;
+          osc.frequency.setValueAtTime(freq, now + offset);
+          osc.frequency.exponentialRampToValueAtTime(freq * 0.5, now + offset + 0.05);
+          gain.gain.setValueAtTime(0.3, now + offset);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + offset + 0.08);
+          osc.connect(gain);
+          gain.connect(ctx.destination);
+          osc.start(now + offset);
+          osc.stop(now + offset + 0.08);
+        });
+        setTimeout(() => setPlayingRingtone(null), 300);
+      } else if (ringtoneId === 'synthpad') {
+        // Warm polyphonic 80s synth pad chord (Maj7)
+        [261.63, 329.63, 392.00, 493.88].forEach((freq) => {
+          const osc = ctx.createOscillator();
+          const gain = ctx.createGain();
+          osc.type = 'triangle';
+          osc.frequency.setValueAtTime(freq, now);
+          gain.gain.setValueAtTime(0.08, now);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + 1.2);
+          osc.connect(gain);
+          gain.connect(ctx.destination);
+          osc.start(now);
+          osc.stop(now + 1.2);
+        });
+        setTimeout(() => setPlayingRingtone(null), 1200);
+      }
+    } catch (err) {
+      console.error('Ringtone playback error:', err);
+      setPlayingRingtone(null);
+    }
+  };
+
+  // Notification Preferences States (Alert Triggers & Delivery Channels)
+  const [performanceAlerts, setPerformanceAlerts] = useState(true);
+  const [batchTrainerUpdates, setBatchTrainerUpdates] = useState(true);
+  const [inAppNotifications, setInAppNotifications] = useState(true);
+  const [emailDigestAlerts, setEmailDigestAlerts] = useState(false);
+
+  // Theme Preference State
+  const [themeMode, setThemeMode] = useState<'light' | 'dark' | 'system'>(isDark ? 'dark' : 'light');
+
+  const handleSelectTheme = (mode: 'light' | 'dark' | 'system') => {
+    setThemeMode(mode);
+    if (mode === 'light' && isDark) {
+      onToggleTheme();
+    } else if (mode === 'dark' && !isDark) {
+      onToggleTheme();
+    } else if (mode === 'system') {
+      if (typeof window !== 'undefined') {
+        const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+        if (prefersDark !== isDark) {
+          onToggleTheme();
+        }
+      }
+    }
+  };
+
+  // Shift & Adherence States
+  const [gracePeriodMins, setGracePeriodMins] = useState(5);
+  const [targetAhtSeconds, setTargetAhtSeconds] = useState(300);
+  const [defaultPomodoroMins, setDefaultPomodoroMins] = useState(25);
+
+  // Trigger Save Feedback
+  const handleSaveChanges = () => {
+    setIsSaved(true);
+    setToastMessage('Settings successfully saved!');
+    setTimeout(() => setIsSaved(false), 2500);
+    setTimeout(() => setToastMessage(null), 3500);
+  };
+
+  // Reset to default
+  const handleResetDefault = () => {
+    setPerformanceAlerts(true);
+    setBatchTrainerUpdates(true);
+    setInAppNotifications(true);
+    setEmailDigestAlerts(false);
+    setGracePeriodMins(5);
+    setTargetAhtSeconds(300);
+    setDefaultPomodoroMins(25);
+    setThemeMode('light');
+    setSelectedRingtone('jungle');
+    if (isDark) onToggleTheme();
+    setToastMessage('Settings reset to system defaults');
     setTimeout(() => setToastMessage(null), 2500);
   };
 
-  const navItems = [
-    { id: 'profile', label: 'Supervisor Profile', icon: <User className="w-4 h-4" />, desc: 'Personal details, credentials & role' },
-    { id: 'shift', label: 'Shift & Adherence', icon: <Clock className="w-4 h-4" />, desc: 'Grace periods, break limits & penalties' },
-    { id: 'tracker', label: 'Time Tracking', icon: <Sliders className="w-4 h-4" />, desc: 'AHT targets, Pomodoro & idle limits' },
-    { id: 'notifications', label: 'Notifications & Audio', icon: <Bell className="w-4 h-4" />, desc: 'Sound alerts, escalation bells & tones' },
-    { id: 'appearance', label: 'Appearance & Theme', icon: <Palette className="w-4 h-4" />, desc: 'Dark mode, density & visual accents' },
-    { id: 'integrations', label: 'Database & Sync', icon: <Database className="w-4 h-4" />, desc: 'Supabase realtime sync & data export' },
+  const tabs = [
+    { id: 'profile' as TabType, label: 'Profile', icon: <User className="w-4 h-4" /> },
+    { id: 'notifications' as TabType, label: 'Notifications', icon: <Bell className="w-4 h-4" /> },
+    { id: 'general' as TabType, label: 'General', icon: <Sliders className="w-4 h-4" /> },
+    { id: 'shift' as TabType, label: 'Shift & Policies', icon: <Clock className="w-4 h-4" /> },
   ];
 
   return (
-    <div className="space-y-6 animate-in fade-in duration-200">
+    <div className="max-w-6xl mx-auto space-y-6 pb-12 animate-in fade-in duration-200">
       
-      {/* Top Banner & Header Bar */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 pb-4 border-b border-slate-200 dark:border-slate-800">
+      {/* 1. Page Container & Header */}
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
           <button
             onClick={onBackToDashboard}
-            className="inline-flex items-center gap-2 text-xs font-bold text-[#24537D] dark:text-blue-400 hover:underline mb-2 cursor-pointer"
+            className="inline-flex items-center gap-1.5 text-xs font-bold text-[#2F6798] dark:text-blue-400 hover:underline mb-1.5 cursor-pointer"
           >
             <ArrowLeft className="w-3.5 h-3.5" />
             <span>Back to Workforce Portal</span>
           </button>
           
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-2xl bg-[#24537D] text-white flex items-center justify-center shadow-md">
-              <Settings className="w-5 h-5 stroke-[2.2]" />
-            </div>
-            <div>
-              <h2 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-slate-50 tracking-tight">
-                Workforce Portal Settings
-              </h2>
-              <p className="text-xs text-slate-500 dark:text-slate-400 font-medium">
-                Manage operational policies, agent tracking targets, notifications, and portal preferences.
-              </p>
-            </div>
-          </div>
+          <h1 className="text-lg font-bold text-slate-800 dark:text-slate-100 tracking-tight">
+            System Settings
+          </h1>
+          <p className="text-xs font-normal text-slate-400">
+            Manage system preferences, notifications, and company profile details.
+          </p>
         </div>
 
-        {/* Top Actions: Save Button & Live Toast */}
+        {/* 2. Header Action Buttons */}
         <div className="flex items-center gap-3 self-stretch sm:self-auto">
           {toastMessage && (
             <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-200 dark:border-emerald-800 text-emerald-700 dark:text-emerald-300 text-xs font-bold animate-in fade-in">
@@ -185,688 +387,752 @@ export default function SettingsView({
             </span>
           )}
 
+          {/* Reset to Default Button */}
           <button
-            onClick={handleSaveAll}
-            className="flex-1 sm:flex-initial inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-2xl bg-[#24537D] hover:bg-[#1B4266] active:bg-[#153450] text-white text-xs font-extrabold shadow-md shadow-[#24537D]/25 transition-all cursor-pointer"
+            type="button"
+            onClick={handleResetDefault}
+            className="py-2 px-4 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700/60 hover:border-slate-300 transition-all flex items-center gap-2 cursor-pointer shadow-2xs"
           >
-            {isSaved ? <Check className="w-4 h-4" /> : <Save className="w-4 h-4" />}
-            <span>{isSaved ? 'Changes Saved!' : 'Save All Changes'}</span>
+            <RotateCcw className="w-3.5 h-3.5" />
+            <span>Reset to Default</span>
+          </button>
+
+          {/* Save Changes Button */}
+          <button
+            type="button"
+            onClick={handleSaveChanges}
+            className="py-2 px-5 rounded-xl bg-[#2F6798] hover:bg-[#24527A] active:bg-[#1f4a6e] text-xs font-bold text-white shadow-xs transition-all flex items-center gap-2 cursor-pointer"
+          >
+            {isSaved ? <Check className="w-3.5 h-3.5" /> : <Save className="w-3.5 h-3.5" />}
+            <span>{isSaved ? 'Saved!' : 'Save Changes'}</span>
           </button>
         </div>
       </div>
 
-      {/* Main Settings 2-Column Studio Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-        
-        {/* Left: Navigation Categories Menu (4 cols) */}
-        <div className="lg:col-span-4 rounded-3xl bg-white dark:bg-[#101D3D] border border-slate-200/80 dark:border-slate-800 shadow-sm p-3 sm:p-4 space-y-1.5">
-          <span className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest px-3 py-1 block">
-            SETTINGS CATEGORIES
-          </span>
+      {/* 3. Navigation Tabs Bar */}
+      <div className="flex items-center gap-1.5 border-b border-slate-200 dark:border-slate-800 pb-2">
+        {tabs.map((tab) => {
+          const isActive = activeTab === tab.id;
+          return (
+            <button
+              key={tab.id}
+              type="button"
+              onClick={() => setActiveTab(tab.id)}
+              className={`py-2.5 px-4 rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer ${
+                isActive
+                  ? 'bg-white dark:bg-slate-800 text-[#2F6798] dark:text-blue-400 border border-slate-200/80 dark:border-slate-700 shadow-xs'
+                  : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 hover:bg-slate-100/60 dark:hover:bg-slate-800/60'
+              }`}
+            >
+              {tab.icon}
+              <span>{tab.label}</span>
+            </button>
+          );
+        })}
+      </div>
 
-          {navItems.map((item) => {
-            const isActive = activeSection === item.id;
-            return (
+      {/* Tab 1: Profile Information */}
+      {activeTab === 'profile' && (
+        <div className="rounded-2xl p-8 bg-white dark:bg-[#101D3D] border border-slate-200 dark:border-slate-800 shadow-sm space-y-6">
+          
+          {/* Card Header Section */}
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+            <div>
+              <h2 className="text-lg font-black text-slate-800 dark:text-slate-100">
+                Profile Information
+              </h2>
+              <p className="text-sm font-medium text-slate-500 dark:text-slate-400">
+                Personal & employment details managed by Cebu Tele-Net.
+              </p>
+            </div>
+
+            {/* Company Managed Badge */}
+            <div className="py-1.5 px-3 rounded-full bg-slate-100 dark:bg-slate-800/90 border border-slate-200/60 dark:border-slate-700/60 flex items-center gap-1.5 shrink-0">
+              <ShieldCheck className="w-3.5 h-3.5 text-[#2F6798] dark:text-blue-400" />
+              <span className="text-xs font-bold text-slate-600 dark:text-slate-300">
+                Company Managed
+              </span>
+            </div>
+          </div>
+
+          {/* Blue Profile Hero Banner */}
+          <div className="bg-[#2F6798] rounded-[24px] p-5 max-w-[95%] mx-auto w-full shadow-xl text-white">
+            <div className="flex flex-col md:flex-row items-center md:items-start gap-8">
+              
+              {/* Avatar with Camera Overlay & Dropdown Menu */}
+              <div className="relative shrink-0" ref={cameraDropdownRef}>
+                <div className="w-32 h-32 rounded-full ring-4 ring-white/20 p-2 flex items-center justify-center">
+                  {avatarPhoto ? (
+                    <img
+                      src={avatarPhoto}
+                      alt={displayName}
+                      className="w-full h-full object-cover rounded-full shadow-inner select-none"
+                    />
+                  ) : (
+                    <div className="w-full h-full rounded-full bg-[#24527A] text-white font-black text-3xl flex items-center justify-center shadow-inner select-none">
+                      {displayName ? displayName.split(' ').filter(Boolean).map(n => n[0]).slice(0, 2).join('').toUpperCase() : 'NR'}
+                    </div>
+                  )}
+                </div>
+
+                {/* Camera Action Button */}
+                <button
+                  type="button"
+                  onClick={() => setIsCameraDropdownOpen(!isCameraDropdownOpen)}
+                  title="Update profile picture"
+                  className="absolute bottom-1 right-1 w-8 h-8 rounded-full bg-slate-800 hover:bg-slate-700 text-white border-2 border-white flex items-center justify-center cursor-pointer transition-colors shadow-md z-10"
+                >
+                  <Camera className="w-4 h-4" />
+                </button>
+
+                {/* Hidden File Input for Image Selection */}
+                <input
+                  type="file"
+                  ref={fileInputRef}
+                  accept="image/*"
+                  onChange={handlePhotoUpload}
+                  className="hidden"
+                />
+
+                {/* Dropdown Menu when Camera is Clicked (Matching Second Image) */}
+                {isCameraDropdownOpen && (
+                  <div className="absolute top-full left-0 mt-2 w-44 rounded-2xl bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 shadow-2xl p-1.5 space-y-0.5 z-50 animate-in fade-in zoom-in-95 origin-top-left">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsCameraDropdownOpen(false);
+                        fileInputRef.current?.click();
+                      }}
+                      className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-bold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors cursor-pointer text-left"
+                    >
+                      <Upload className="w-4 h-4 text-[#2F6798] dark:text-blue-400 shrink-0" />
+                      <span>Upload Photo</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsCameraDropdownOpen(false);
+                        setAvatarPhoto(null);
+                        setToastMessage('Profile photo removed');
+                        setTimeout(() => setToastMessage(null), 2000);
+                      }}
+                      className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-bold text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/40 transition-colors cursor-pointer text-left"
+                    >
+                      <Trash2 className="w-4 h-4 text-red-500 shrink-0" />
+                      <span>Remove Photo</span>
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              {/* User Identity, Role & 4-Column Bar (Pill Position on Next Line) */}
+              <div className="flex-1 text-center md:text-left min-w-0">
+                <div>
+                  <h3 className="text-xl md:text-2xl font-black text-white tracking-tight">
+                    {displayName}
+                  </h3>
+                  <div className="mt-1.5 mb-1.5">
+                    <div className="inline-flex py-1 px-3 rounded-full bg-white/20 backdrop-blur-md border border-white/25">
+                      <span className="text-[11px] font-extrabold uppercase tracking-wider text-white">
+                        {positionTitle}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                <p className="text-xs font-medium text-white/80">
+                  {emailContact}
+                </p>
+
+                {/* Stats Pill Container (4-Column Details Bar) */}
+                <div className="mt-3 bg-white/10 backdrop-blur-md border border-white/15 rounded-2xl p-4">
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 divide-y sm:divide-y-0 sm:divide-x divide-white/15">
+                    
+                    {/* Col 1: Employee ID */}
+                    <div className="pt-2 sm:pt-0 sm:pr-2">
+                      <span className="block text-[10px] font-black uppercase tracking-widest text-white/60">
+                        EMPLOYEE ID
+                      </span>
+                      <span className="block text-xs font-bold text-white mt-0.5">
+                        {employeeId}
+                      </span>
+                    </div>
+
+                    {/* Col 2: Start Date */}
+                    <div className="pt-2 sm:pt-0 sm:px-2">
+                      <span className="block text-[10px] font-black uppercase tracking-widest text-white/60">
+                        START DATE
+                      </span>
+                      <span className="block text-xs font-bold text-white mt-0.5">
+                        {startDate}
+                      </span>
+                    </div>
+
+                    {/* Col 3: Accounts */}
+                    <div className="pt-2 sm:pt-0 sm:px-2">
+                      <span className="block text-[10px] font-black uppercase tracking-widest text-white/60">
+                        ACCOUNTS
+                      </span>
+                      <span className="block text-xs font-bold text-white mt-0.5">
+                        {accountLOB}
+                      </span>
+                    </div>
+
+                    {/* Col 4: Primary Task */}
+                    <div className="pt-2 sm:pt-0 sm:pl-2">
+                      <span className="block text-[10px] font-black uppercase tracking-widest text-white/60">
+                        PRIMARY TASK
+                      </span>
+                      <span className="block text-xs font-bold text-white mt-0.5 truncate">
+                        {positionTitle}
+                      </span>
+                    </div>
+
+                  </div>
+                </div>
+
+              </div>
+
+            </div>
+          </div>
+
+          {/* Form Input Fields (Read-Only Company Details) */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-2">
+            
+            {/* First Name */}
+            <div className="space-y-2">
+              <label className="flex items-center gap-1.5 text-xs font-bold text-slate-400">
+                <User className="w-3.5 h-3.5 text-slate-400" />
+                <span>First Name</span>
+              </label>
+              <input
+                type="text"
+                readOnly
+                value={firstName}
+                className="w-full py-3 px-4 rounded-xl border-none bg-[#f1f1f1] dark:bg-slate-700/50 text-sm font-medium text-slate-800 dark:text-slate-100 cursor-default select-none pointer-events-none outline-none"
+              />
+            </div>
+
+            {/* Middle Name */}
+            <div className="space-y-2">
+              <label className="flex items-center gap-1.5 text-xs font-bold text-slate-400">
+                <User className="w-3.5 h-3.5 text-slate-400" />
+                <span>Middle Name</span>
+              </label>
+              <input
+                type="text"
+                readOnly
+                value="—"
+                className="w-full py-3 px-4 rounded-xl border-none bg-[#f1f1f1] dark:bg-slate-700/50 text-sm font-medium text-slate-800 dark:text-slate-100 cursor-default select-none pointer-events-none outline-none"
+              />
+            </div>
+
+            {/* Last Name */}
+            <div className="space-y-2">
+              <label className="flex items-center gap-1.5 text-xs font-bold text-slate-400">
+                <User className="w-3.5 h-3.5 text-slate-400" />
+                <span>Last Name</span>
+              </label>
+              <input
+                type="text"
+                readOnly
+                value={lastName || 'Reguero'}
+                className="w-full py-3 px-4 rounded-xl border-none bg-[#f1f1f1] dark:bg-slate-700/50 text-sm font-medium text-slate-800 dark:text-slate-100 cursor-default select-none pointer-events-none outline-none"
+              />
+            </div>
+
+            {/* Suffix Name */}
+            <div className="space-y-2">
+              <label className="flex items-center gap-1.5 text-xs font-bold text-slate-400">
+                <User className="w-3.5 h-3.5 text-slate-400" />
+                <span>Suffix Name</span>
+              </label>
+              <input
+                type="text"
+                readOnly
+                value="N/A"
+                className="w-full py-3 px-4 rounded-xl border-none bg-[#f1f1f1] dark:bg-slate-700/50 text-sm font-medium text-slate-800 dark:text-slate-100 cursor-default select-none pointer-events-none outline-none"
+              />
+            </div>
+
+            {/* Employee Number */}
+            <div className="space-y-2">
+              <label className="flex items-center gap-1.5 text-xs font-bold text-slate-400">
+                <Hash className="w-3.5 h-3.5 text-slate-400" />
+                <span>Employee Number</span>
+              </label>
+              <input
+                type="text"
+                readOnly
+                value={employeeId}
+                className="w-full py-3 px-4 rounded-xl border-none bg-[#f1f1f1] dark:bg-slate-700/50 text-sm font-medium text-slate-800 dark:text-slate-100 cursor-default select-none pointer-events-none outline-none"
+              />
+            </div>
+
+            {/* Official Email */}
+            <div className="space-y-2">
+              <label className="flex items-center gap-1.5 text-xs font-bold text-slate-400">
+                <Mail className="w-3.5 h-3.5 text-slate-400" />
+                <span>Official Work Email</span>
+              </label>
+              <input
+                type="text"
+                readOnly
+                value={emailContact}
+                className="w-full py-3 px-4 rounded-xl border-none bg-[#f1f1f1] dark:bg-slate-700/50 text-sm font-medium text-slate-800 dark:text-slate-100 cursor-default select-none pointer-events-none outline-none"
+              />
+            </div>
+
+            {/* Department / Program */}
+            <div className="space-y-2">
+              <label className="flex items-center gap-1.5 text-xs font-bold text-slate-400">
+                <Building2 className="w-3.5 h-3.5 text-slate-400" />
+                <span>Department / Program</span>
+              </label>
+              <input
+                type="text"
+                readOnly
+                value={department}
+                className="w-full py-3 px-4 rounded-xl border-none bg-[#f1f1f1] dark:bg-slate-700/50 text-sm font-medium text-slate-800 dark:text-slate-100 cursor-default select-none pointer-events-none outline-none"
+              />
+            </div>
+
+            {/* Assigned Shift */}
+            <div className="space-y-2">
+              <label className="flex items-center gap-1.5 text-xs font-bold text-slate-400">
+                <Clock className="w-3.5 h-3.5 text-slate-400" />
+                <span>Assigned Shift Schedule</span>
+              </label>
+              <input
+                type="text"
+                readOnly
+                value={assignedShift}
+                className="w-full py-3 px-4 rounded-xl border-none bg-[#f1f1f1] dark:bg-slate-700/50 text-sm font-medium text-slate-800 dark:text-slate-100 cursor-default select-none pointer-events-none outline-none"
+              />
+            </div>
+
+            {/* Reporting Lead */}
+            <div className="space-y-2">
+              <label className="flex items-center gap-1.5 text-xs font-bold text-slate-400">
+                <Briefcase className="w-3.5 h-3.5 text-slate-400" />
+                <span>Reporting Manager / Lead</span>
+              </label>
+              <input
+                type="text"
+                readOnly
+                value={directSupervisor}
+                className="w-full py-3 px-4 rounded-xl border-none bg-[#f1f1f1] dark:bg-slate-700/50 text-sm font-medium text-slate-800 dark:text-slate-100 cursor-default select-none pointer-events-none outline-none"
+              />
+            </div>
+
+            {/* Account / Line of Business */}
+            <div className="space-y-2">
+              <label className="flex items-center gap-1.5 text-xs font-bold text-slate-400">
+                <Layers className="w-3.5 h-3.5 text-slate-400" />
+                <span>Account / Line of Business</span>
+              </label>
+              <input
+                type="text"
+                readOnly
+                value={accountLOB}
+                className="w-full py-3 px-4 rounded-xl border-none bg-[#f1f1f1] dark:bg-slate-700/50 text-sm font-medium text-slate-800 dark:text-slate-100 cursor-default select-none pointer-events-none outline-none"
+              />
+            </div>
+
+          </div>
+
+        </div>
+      )}
+
+      {/* Tab 2: Notification Preferences (Styled Exactly as Image 2) */}
+      {activeTab === 'notifications' && (
+        <div className="space-y-6 animate-in fade-in">
+          
+          {/* Notification Header */}
+          <div>
+            <h2 className="text-lg font-black text-slate-800 dark:text-slate-100 tracking-tight">
+              Notification Preferences
+            </h2>
+            <p className="text-xs text-slate-400 font-normal">
+              Manage which critical events notify you and how you receive them.
+            </p>
+          </div>
+
+          {/* Card 1: Alert Triggers */}
+          <div className="rounded-2xl p-6 bg-white dark:bg-[#101D3D] border border-slate-200 dark:border-slate-800 shadow-sm space-y-5">
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 rounded-xl bg-amber-50 dark:bg-amber-950/60 text-amber-500 flex items-center justify-center shrink-0">
+                <span className="text-sm font-black">⚠️</span>
+              </div>
+              <div>
+                <h3 className="text-sm font-bold text-slate-800 dark:text-slate-100 leading-tight">
+                  Alert Triggers
+                </h3>
+                <p className="text-xs text-slate-400 font-normal mt-0.5">
+                  Essential operational and performance notifications.
+                </p>
+              </div>
+            </div>
+
+            <div className="space-y-4 pt-1">
+              {/* Row 1: Performance & KPI Alerts */}
+              <div className="flex items-center justify-between gap-4 py-1">
+                <div>
+                  <span className="block text-xs font-bold text-slate-800 dark:text-slate-100">
+                    Performance & KPI Alerts
+                  </span>
+                  <span className="block text-xs text-slate-400 font-normal mt-0.5">
+                    Notify when attrition, attendance, or reliability fall below target thresholds.
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setPerformanceAlerts(!performanceAlerts)}
+                  className={`w-11 h-6 flex items-center rounded-full p-1 transition-colors cursor-pointer shrink-0 ${
+                    performanceAlerts ? 'bg-[#2F6798]' : 'bg-slate-200 dark:bg-slate-700'
+                  }`}
+                >
+                  <div
+                    className={`bg-white w-4 h-4 rounded-full shadow-md transform transition-transform ${
+                      performanceAlerts ? 'translate-x-5' : 'translate-x-0'
+                    }`}
+                  />
+                </button>
+              </div>
+
+              {/* Row 2: Batch & Trainer Updates */}
+              <div className="flex items-center justify-between gap-4 py-1">
+                <div>
+                  <span className="block text-xs font-bold text-slate-800 dark:text-slate-100">
+                    Batch & Trainer Updates
+                  </span>
+                  <span className="block text-xs text-slate-400 font-normal mt-0.5">
+                    Alert when new batches are assigned, trainer rosters change, or status updates occur.
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setBatchTrainerUpdates(!batchTrainerUpdates)}
+                  className={`w-11 h-6 flex items-center rounded-full p-1 transition-colors cursor-pointer shrink-0 ${
+                    batchTrainerUpdates ? 'bg-[#2F6798]' : 'bg-slate-200 dark:bg-slate-700'
+                  }`}
+                >
+                  <div
+                    className={`bg-white w-4 h-4 rounded-full shadow-md transform transition-transform ${
+                      batchTrainerUpdates ? 'translate-x-5' : 'translate-x-0'
+                    }`}
+                  />
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {/* Card 2: Delivery Channels */}
+          <div className="rounded-2xl p-6 bg-white dark:bg-[#101D3D] border border-slate-200 dark:border-slate-800 shadow-sm space-y-5">
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 rounded-xl bg-blue-50 dark:bg-blue-950/60 text-[#2F6798] dark:text-blue-400 flex items-center justify-center shrink-0">
+                <Bell className="w-4 h-4" />
+              </div>
+              <div>
+                <h3 className="text-sm font-bold text-slate-800 dark:text-slate-100 leading-tight">
+                  Delivery Channels
+                </h3>
+                <p className="text-xs text-slate-400 font-normal mt-0.5">
+                  Choose where alerts are delivered.
+                </p>
+              </div>
+            </div>
+
+            <div className="space-y-4 pt-1">
+              {/* Row 1: In-App Notifications */}
+              <div className="flex items-center justify-between gap-4 py-1">
+                <div className="flex items-center gap-3">
+                  <Bell className="w-4 h-4 text-slate-400 shrink-0" />
+                  <div>
+                    <span className="block text-xs font-bold text-slate-800 dark:text-slate-100">
+                      In-App Notifications
+                    </span>
+                    <span className="block text-xs text-slate-400 font-normal mt-0.5">
+                      Display banner badges and alerts within the application
+                    </span>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setInAppNotifications(!inAppNotifications)}
+                  className={`w-11 h-6 flex items-center rounded-full p-1 transition-colors cursor-pointer shrink-0 ${
+                    inAppNotifications ? 'bg-[#2F6798]' : 'bg-slate-200 dark:bg-slate-700'
+                  }`}
+                >
+                  <div
+                    className={`bg-white w-4 h-4 rounded-full shadow-md transform transition-transform ${
+                      inAppNotifications ? 'translate-x-5' : 'translate-x-0'
+                    }`}
+                  />
+                </button>
+              </div>
+
+              {/* Row 2: Email Digest & Alerts */}
+              <div className="flex items-center justify-between gap-4 py-1">
+                <div className="flex items-center gap-3">
+                  <Mail className="w-4 h-4 text-slate-400 shrink-0" />
+                  <div>
+                    <span className="block text-xs font-bold text-slate-800 dark:text-slate-100">
+                      Email Digest & Alerts
+                    </span>
+                    <span className="block text-xs text-slate-400 font-normal mt-0.5">
+                      Send critical summaries directly to your registered email
+                    </span>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setEmailDigestAlerts(!emailDigestAlerts)}
+                  className={`w-11 h-6 flex items-center rounded-full p-1 transition-colors cursor-pointer shrink-0 ${
+                    emailDigestAlerts ? 'bg-[#2F6798]' : 'bg-slate-200 dark:bg-slate-700'
+                  }`}
+                >
+                  <div
+                    className={`bg-white w-4 h-4 rounded-full shadow-md transform transition-transform ${
+                      emailDigestAlerts ? 'translate-x-5' : 'translate-x-0'
+                    }`}
+                  />
+                </button>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      )}
+
+      {/* Tab 3: General & Theme Preference, Font Size, and Alarm Ringtone */}
+      {activeTab === 'general' && (
+        <div className="space-y-6 animate-in fade-in">
+          
+          {/* 1. Theme Preference Card */}
+          <div className="rounded-2xl p-6 bg-white dark:bg-[#101D3D] border border-slate-200 dark:border-slate-800 shadow-sm space-y-5">
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 rounded-xl bg-blue-50 dark:bg-blue-950/60 text-[#2F6798] dark:text-blue-400 flex items-center justify-center shrink-0">
+                <Sliders className="w-4 h-4" />
+              </div>
+              <div>
+                <h3 className="text-sm font-bold text-slate-800 dark:text-slate-100 leading-tight">
+                  Theme Preference
+                </h3>
+                <p className="text-xs text-slate-400 font-normal mt-0.5">
+                  Select how the Interface should appear on your device.
+                </p>
+              </div>
+            </div>
+
+            {/* 3 Option Buttons: Light, Dark, System */}
+            <div className="flex items-center gap-3 pt-1">
+              {/* Light Button */}
               <button
-                key={item.id}
                 type="button"
-                onClick={() => setActiveSection(item.id as SettingsSection)}
-                className={`w-full text-left p-3 rounded-2xl transition-all flex items-start gap-3 cursor-pointer border ${
-                  isActive
-                    ? 'bg-blue-50/80 dark:bg-blue-950/60 border-[#24537D]/40 text-[#24537D] dark:text-blue-300 shadow-xs'
-                    : 'bg-transparent border-transparent hover:bg-slate-50 dark:hover:bg-slate-800/60 text-slate-600 dark:text-slate-300'
+                onClick={() => handleSelectTheme('light')}
+                className={`w-28 py-3.5 px-4 rounded-xl flex flex-col items-center justify-center gap-1.5 transition-all cursor-pointer ${
+                  themeMode === 'light'
+                    ? 'border-2 border-[#2F6798] text-[#2F6798] bg-white dark:bg-slate-800 shadow-xs'
+                    : 'border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:border-slate-300 bg-white dark:bg-slate-800'
                 }`}
               >
-                <div className={`p-2 rounded-xl shrink-0 ${
-                  isActive 
-                    ? 'bg-[#24537D] text-white shadow-xs' 
-                    : 'bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400'
-                }`}>
-                  {item.icon}
-                </div>
-                <div className="min-w-0">
-                  <span className="block font-black text-xs leading-snug">
-                    {item.label}
-                  </span>
-                  <span className="text-[11px] text-slate-400 dark:text-slate-500 font-medium truncate block">
-                    {item.desc}
-                  </span>
-                </div>
+                <Sun className="w-5 h-5" />
+                <span className="text-xs font-bold">Light</span>
               </button>
-            );
-          })}
 
-          {/* Quick System Summary Card at bottom of sidebar */}
-          <div className="pt-3 mt-3 border-t border-slate-100 dark:border-slate-800 px-2">
-            <div className="p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200/60 dark:border-slate-700/60 space-y-2">
-              <div className="flex items-center justify-between">
-                <span className="text-[10px] font-extrabold text-slate-400 uppercase">SYSTEM STATUS</span>
-                <span className="inline-flex items-center gap-1 text-[10px] font-black text-emerald-600 dark:text-emerald-400">
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                  Synced
+              {/* Dark Button */}
+              <button
+                type="button"
+                onClick={() => handleSelectTheme('dark')}
+                className={`w-28 py-3.5 px-4 rounded-xl flex flex-col items-center justify-center gap-1.5 transition-all cursor-pointer ${
+                  themeMode === 'dark'
+                    ? 'border-2 border-[#2F6798] text-[#2F6798] bg-white dark:bg-slate-800 shadow-xs'
+                    : 'border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:border-slate-300 bg-white dark:bg-slate-800'
+                }`}
+              >
+                <Moon className="w-5 h-5" />
+                <span className="text-xs font-bold">Dark</span>
+              </button>
+
+              {/* System Button */}
+              <button
+                type="button"
+                onClick={() => handleSelectTheme('system')}
+                className={`w-28 py-3.5 px-4 rounded-xl flex flex-col items-center justify-center gap-1.5 transition-all cursor-pointer ${
+                  themeMode === 'system'
+                    ? 'border-2 border-[#2F6798] text-[#2F6798] bg-white dark:bg-slate-800 shadow-xs'
+                    : 'border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:border-slate-300 bg-white dark:bg-slate-800'
+                }`}
+              >
+                <Sliders className="w-5 h-5" />
+                <span className="text-xs font-bold">System</span>
+              </button>
+            </div>
+          </div>
+
+          {/* 2. Alarm Ringtone Card (10 Functional Sounds) */}
+          <div className="rounded-2xl p-6 bg-white dark:bg-[#101D3D] border border-slate-200 dark:border-slate-800 shadow-sm space-y-5">
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 rounded-xl bg-blue-50 dark:bg-blue-950/60 text-[#2F6798] dark:text-blue-400 flex items-center justify-center shrink-0">
+                <Volume2 className="w-4 h-4" />
+              </div>
+              <div>
+                <h3 className="text-sm font-bold text-slate-800 dark:text-slate-100 leading-tight">
+                  Alarm Ringtone
+                </h3>
+                <p className="text-xs text-slate-400 font-normal mt-0.5">
+                  This is the sound that rings when your break/lunch time is nearly up or you exceed your limit.
+                </p>
+              </div>
+            </div>
+
+            <div className="space-y-2 pt-1">
+              {[
+                { id: 'jungle', name: 'Welcome to the Jungle (classic)', Icon: Music },
+                { id: 'phone', name: 'Classic Phone', Icon: Phone },
+                { id: 'beep', name: 'Digital Beep', Icon: Radio },
+                { id: 'chime', name: 'Soft Chime', Icon: Bell },
+                { id: 'retro', name: 'Retro Alarm', Icon: Gamepad2 },
+                { id: 'gong', name: 'Zen Singing Bowl', Icon: Disc },
+                { id: 'dingdong', name: 'Elevator Ding-Dong', Icon: BellRing },
+                { id: 'sparkle', name: 'Ascending Sparkle', Icon: Sparkles },
+                { id: 'woodblock', name: 'Woodblock Knock', Icon: Layers },
+                { id: 'synthpad', name: 'Warm Synth Wave', Icon: Activity },
+              ].map((tone) => {
+                const isSelected = selectedRingtone === tone.id;
+                const isPlaying = playingRingtone === tone.id;
+                const ToneIcon = tone.Icon;
+
+                return (
+                  <div
+                    key={tone.id}
+                    onClick={() => setSelectedRingtone(tone.id)}
+                    className={`p-3 rounded-xl flex items-center justify-between gap-3 transition-all cursor-pointer ${
+                      isSelected
+                        ? 'border-2 border-[#2F6798] bg-blue-50/40 dark:bg-blue-950/30 shadow-xs'
+                        : 'border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:border-slate-300'
+                    }`}
+                  >
+                    <div className="flex items-center gap-3">
+                      {/* Radio Indicator */}
+                      <div className={`w-4 h-4 rounded-full border flex items-center justify-center shrink-0 ${
+                        isSelected ? 'border-[#2F6798] bg-[#2F6798]' : 'border-slate-300 dark:border-slate-600'
+                      }`}>
+                        {isSelected && <div className="w-1.5 h-1.5 rounded-full bg-white" />}
+                      </div>
+
+                      {/* Icon Container (No Emojis) */}
+                      <div className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 transition-colors ${
+                        isSelected 
+                          ? 'bg-[#2F6798]/10 text-[#2F6798] dark:bg-blue-950/60 dark:text-blue-400' 
+                          : 'bg-slate-100 dark:bg-slate-700/60 text-slate-500 dark:text-slate-400'
+                      }`}>
+                        <ToneIcon className="w-3.5 h-3.5" />
+                      </div>
+
+                      <span className={`text-xs ${
+                        isSelected ? 'text-slate-900 dark:text-slate-100 font-bold' : 'text-slate-700 dark:text-slate-300 font-medium'
+                      }`}>
+                        {tone.name}
+                      </span>
+                    </div>
+
+                    {/* Interactive Play / Stop Preview Button (Blue with white icon & text) */}
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setSelectedRingtone(tone.id);
+                        playRingtone(tone.id);
+                      }}
+                      className="px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer bg-[#2F6798] hover:bg-[#24527A] active:bg-[#1f4a6e] text-white shadow-2xs"
+                    >
+                      {isPlaying ? (
+                        <>
+                          <Square className="w-3 h-3 fill-white text-white" />
+                          <span className="text-white font-bold">Playing</span>
+                        </>
+                      ) : (
+                        <>
+                          <Play className="w-3 h-3 fill-white text-white" />
+                          <span className="text-white font-bold">Play</span>
+                        </>
+                      )}
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+        </div>
+      )}
+
+      {/* Tab 4: Shift & Policies */}
+      {activeTab === 'shift' && (
+        <div className="rounded-2xl p-8 bg-white dark:bg-[#101D3D] border border-slate-200 dark:border-slate-800 shadow-sm space-y-6">
+          <div>
+            <h2 className="text-lg font-black text-slate-800 dark:text-slate-100">
+              Shift & Adherence Policies
+            </h2>
+            <p className="text-sm font-medium text-slate-500 dark:text-slate-400">
+              Configure grace periods, break duration allowances, and time tracking targets.
+            </p>
+          </div>
+
+          <div className="space-y-4">
+            {/* Grace Period */}
+            <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-700/80 flex items-center justify-between gap-4">
+              <div>
+                <span className="font-extrabold text-xs text-slate-900 dark:text-slate-100 block">
+                  Shift Start Grace Period
+                </span>
+                <span className="text-[11px] text-slate-500">
+                  Minutes allowed past scheduled shift before flagging as Late.
                 </span>
               </div>
-              <div className="text-[11px] font-bold text-slate-700 dark:text-slate-300">
-                Cebu Tele-Net v2.4 • Supabase DB
+              <div className="flex items-center gap-2">
+                <input
+                  type="number"
+                  min="0"
+                  max="30"
+                  value={gracePeriodMins}
+                  onChange={(e) => setGracePeriodMins(parseInt(e.target.value) || 0)}
+                  className="w-16 px-2.5 py-1.5 rounded-xl bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 font-extrabold text-center text-xs text-slate-800 dark:text-white"
+                />
+                <span className="text-xs font-bold text-slate-500">mins</span>
+              </div>
+            </div>
+
+            {/* Target AHT */}
+            <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-700/80 flex items-center justify-between gap-4">
+              <div>
+                <span className="font-extrabold text-xs text-slate-900 dark:text-slate-100 block">
+                  Target Average Handling Time (AHT)
+                </span>
+                <span className="text-[11px] text-slate-500">
+                  Goal duration per customer interaction ({Math.floor(targetAhtSeconds / 60)} minutes).
+                </span>
+              </div>
+              <div className="flex items-center gap-2">
+                <input
+                  type="number"
+                  min="60"
+                  max="1800"
+                  step="30"
+                  value={targetAhtSeconds}
+                  onChange={(e) => setTargetAhtSeconds(parseInt(e.target.value) || 300)}
+                  className="w-20 px-2.5 py-1.5 rounded-xl bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 font-extrabold text-center text-xs text-slate-800 dark:text-white"
+                />
+                <span className="text-xs font-bold text-slate-500">sec</span>
               </div>
             </div>
           </div>
         </div>
-
-        {/* Right: Active Settings Panel Content (8 cols) */}
-        <div className="lg:col-span-8 rounded-3xl bg-white dark:bg-[#101D3D] border border-slate-200/80 dark:border-slate-800 shadow-sm p-6 sm:p-8 space-y-6">
-          
-          {/* 1. SUPERVISOR PROFILE TAB */}
-          {activeSection === 'profile' && (
-            <div className="space-y-6 animate-in fade-in">
-              <div>
-                <h3 className="text-lg font-black text-slate-900 dark:text-slate-50">
-                  Supervisor Profile & Account Details
-                </h3>
-                <p className="text-xs text-slate-500 dark:text-slate-400">
-                  Information displayed on shift rosters, coaching evaluations, and operational logs.
-                </p>
-              </div>
-
-              {/* Profile Card Preview */}
-              <div className="p-5 rounded-2xl bg-blue-50/70 dark:bg-blue-950/40 border border-blue-200/60 dark:border-blue-800/40 flex flex-col sm:flex-row items-center gap-5">
-                <div className="w-20 h-20 rounded-full bg-[#24537D] text-[#E5CA80] font-black text-2xl flex items-center justify-center shadow-md ring-4 ring-white dark:ring-slate-800 shrink-0 border-2 border-[#C8A54B]/40">
-                  NR
-                </div>
-                <div className="space-y-1 text-center sm:text-left">
-                  <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2">
-                    <h4 className="text-base font-extrabold text-slate-900 dark:text-slate-100">
-                      {fullName}
-                    </h4>
-                    <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black bg-[#C8A54B]/20 text-[#9C7924] dark:text-[#E5CA80] border border-[#C8A54B]/40 uppercase">
-                      ID: {employeeId} • {supervisor.role || 'SUPERVISOR'}
-                    </span>
-                  </div>
-                  <p className="text-xs font-bold text-slate-600 dark:text-slate-300">
-                    {positionTitle} • Corporate Training
-                  </p>
-                  <p className="text-[11px] text-slate-500">
-                    Assigned Shift: {supervisor.shift || '9:00 PM to 6:00 AM'} • Reporting to: {supervisor.directSupervisor || 'June Babe Caballes'}
-                  </p>
-                </div>
-              </div>
-
-              {/* Editable Fields Grid */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-[10px] font-extrabold text-slate-400 uppercase tracking-wider mb-1.5">
-                    DISPLAY NAME
-                  </label>
-                  <input
-                    type="text"
-                    value={fullName}
-                    onChange={(e) => setFullName(e.target.value)}
-                    className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 font-bold text-slate-800 dark:text-slate-200 outline-none focus:ring-2 focus:ring-[#24537D] text-xs"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-[10px] font-extrabold text-slate-400 uppercase tracking-wider mb-1.5">
-                    EMPLOYEE ID
-                  </label>
-                  <input
-                    type="text"
-                    value={employeeId}
-                    onChange={(e) => setEmployeeId(e.target.value)}
-                    className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 font-bold text-slate-800 dark:text-slate-200 outline-none focus:ring-2 focus:ring-[#24537D] text-xs"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-[10px] font-extrabold text-slate-400 uppercase tracking-wider mb-1.5">
-                    OFFICIAL WORK EMAIL
-                  </label>
-                  <div className="relative">
-                    <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
-                    <input
-                      type="email"
-                      value={emailContact}
-                      onChange={(e) => setEmailContact(e.target.value)}
-                      className="w-full pl-9 pr-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 font-bold text-slate-800 dark:text-slate-200 outline-none focus:ring-2 focus:ring-[#24537D] text-xs"
-                    />
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-[10px] font-extrabold text-slate-400 uppercase tracking-wider mb-1.5">
-                    SLACK USER HANDLE
-                  </label>
-                  <input
-                    type="text"
-                    value={slackHandle}
-                    onChange={(e) => setSlackHandle(e.target.value)}
-                    className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 font-bold text-slate-800 dark:text-slate-200 outline-none focus:ring-2 focus:ring-[#24537D] text-xs"
-                  />
-                </div>
-
-                <div className="sm:col-span-2">
-                  <label className="block text-[10px] font-extrabold text-slate-400 uppercase tracking-wider mb-1.5">
-                    PORTAL TIMEZONE
-                  </label>
-                  <select
-                    value={timezone}
-                    onChange={(e) => setTimezone(e.target.value)}
-                    className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 font-bold text-slate-800 dark:text-slate-200 outline-none focus:ring-2 focus:ring-[#24537D] text-xs cursor-pointer"
-                  >
-                    <option value="Asia/Manila (UTC+08:00)">Asia/Manila (UTC+08:00) • Philippine Standard Time</option>
-                    <option value="America/New_York (UTC-05:00)">America/New_York (UTC-05:00) • US Eastern Time</option>
-                    <option value="UTC (UTC+00:00)">UTC (UTC+00:00) • Universal Coordinated Time</option>
-                  </select>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* 2. SHIFT & ADHERENCE RULES TAB */}
-          {activeSection === 'shift' && (
-            <div className="space-y-6 animate-in fade-in">
-              <div>
-                <h3 className="text-lg font-black text-slate-900 dark:text-slate-50">
-                  Shift Policies & Adherence Rules
-                </h3>
-                <p className="text-xs text-slate-500 dark:text-slate-400">
-                  Configure punch allowances, grace periods, and traffic light status benchmarks.
-                </p>
-              </div>
-
-              <div className="space-y-4">
-                {/* Grace Period */}
-                <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-700/80 flex items-center justify-between gap-4">
-                  <div>
-                    <span className="font-extrabold text-xs text-slate-900 dark:text-slate-100 block">
-                      Shift Start Grace Period
-                    </span>
-                    <span className="text-[11px] text-slate-500">
-                      Minutes allowed past scheduled shift before flagging as Late.
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <input
-                      type="number"
-                      min="0"
-                      max="30"
-                      value={gracePeriodMins}
-                      onChange={(e) => setGracePeriodMins(parseInt(e.target.value) || 0)}
-                      className="w-16 px-2.5 py-1.5 rounded-xl bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 font-extrabold text-center text-xs text-slate-800 dark:text-white"
-                    />
-                    <span className="text-xs font-bold text-slate-500">mins</span>
-                  </div>
-                </div>
-
-                {/* Max Break & Lunch */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-700/80 space-y-2">
-                    <span className="font-extrabold text-xs text-slate-900 dark:text-slate-100 block">
-                      Standard Break Limit
-                    </span>
-                    <div className="flex items-center justify-between">
-                      <span className="text-[11px] text-slate-500">Allowed short break</span>
-                      <span className="px-2.5 py-1 rounded-lg bg-amber-100 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300 font-black text-xs">
-                        {maxBreakMins} Minutes
-                      </span>
-                    </div>
-                  </div>
-
-                  <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-700/80 space-y-2">
-                    <span className="font-extrabold text-xs text-slate-900 dark:text-slate-100 block">
-                      Standard Lunch Limit
-                    </span>
-                    <div className="flex items-center justify-between">
-                      <span className="text-[11px] text-slate-500">Allowed meal break</span>
-                      <span className="px-2.5 py-1 rounded-lg bg-emerald-100 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300 font-black text-xs">
-                        {maxLunchMins} Minutes
-                      </span>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Traffic Light Adherence Thresholds */}
-                <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-700/80 space-y-3">
-                  <span className="font-extrabold text-xs text-slate-900 dark:text-slate-100 block">
-                    Traffic Light Adherence Status Benchmarks
-                  </span>
-                  
-                  <div className="grid grid-cols-3 gap-2 text-center text-xs">
-                    <div className="p-2.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800">
-                      <span className="block font-black text-emerald-700 dark:text-emerald-300">GREEN</span>
-                      <span className="text-[10px] text-slate-500">&gt;= {trafficGreenThreshold}% Reliability</span>
-                    </div>
-                    <div className="p-2.5 rounded-xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800">
-                      <span className="block font-black text-amber-700 dark:text-amber-300">YELLOW</span>
-                      <span className="text-[10px] text-slate-500">{trafficYellowThreshold}% - {trafficGreenThreshold - 1}%</span>
-                    </div>
-                    <div className="p-2.5 rounded-xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800">
-                      <span className="block font-black text-rose-700 dark:text-rose-300">RED</span>
-                      <span className="text-[10px] text-slate-500">&lt; {trafficYellowThreshold}% Adherence</span>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Auto Flag Undertime Toggle */}
-                <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-700/80 flex items-center justify-between gap-4">
-                  <div>
-                    <span className="font-extrabold text-xs text-slate-900 dark:text-slate-100 block">
-                      Auto-Flag Undertime Punches
-                    </span>
-                    <span className="text-[11px] text-slate-500">
-                      Highlight punches that end prior to scheduled shift end time.
-                    </span>
-                  </div>
-                  <input
-                    type="checkbox"
-                    checked={autoFlagUndertime}
-                    onChange={(e) => setAutoFlagUndertime(e.target.checked)}
-                    className="w-4 h-4 accent-[#24537D] cursor-pointer"
-                  />
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* 3. TIME TRACKING & PRODUCTIVITY TAB */}
-          {activeSection === 'tracker' && (
-            <div className="space-y-6 animate-in fade-in">
-              <div>
-                <h3 className="text-lg font-black text-slate-900 dark:text-slate-50">
-                  Time Tracking & Handling Targets
-                </h3>
-                <p className="text-xs text-slate-500 dark:text-slate-400">
-                  Configure average handling time goals, Pomodoro focus cycles, and auto-pause settings.
-                </p>
-              </div>
-
-              <div className="space-y-4">
-                {/* Target AHT */}
-                <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-700/80 flex items-center justify-between gap-4">
-                  <div>
-                    <span className="font-extrabold text-xs text-slate-900 dark:text-slate-100 block">
-                      Target Average Handling Time (AHT)
-                    </span>
-                    <span className="text-[11px] text-slate-500">
-                      Goal duration per customer interaction ({Math.floor(targetAhtSeconds / 60)} minutes).
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <input
-                      type="number"
-                      min="60"
-                      max="1800"
-                      step="30"
-                      value={targetAhtSeconds}
-                      onChange={(e) => setTargetAhtSeconds(parseInt(e.target.value) || 300)}
-                      className="w-20 px-2.5 py-1.5 rounded-xl bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 font-extrabold text-center text-xs text-slate-800 dark:text-white"
-                    />
-                    <span className="text-xs font-bold text-slate-500">sec</span>
-                  </div>
-                </div>
-
-                {/* Default Pomodoro Session */}
-                <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-700/80 flex items-center justify-between gap-4">
-                  <div>
-                    <span className="font-extrabold text-xs text-slate-900 dark:text-slate-100 block">
-                      Default Focus Timer Duration
-                    </span>
-                    <span className="text-[11px] text-slate-500">
-                      Starting duration for new deep work sessions in Flow Hub.
-                    </span>
-                  </div>
-                  <select
-                    value={defaultPomodoroMins}
-                    onChange={(e) => setDefaultPomodoroMins(parseInt(e.target.value))}
-                    className="px-3 py-1.5 rounded-xl bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 font-bold text-xs text-slate-800 dark:text-white cursor-pointer"
-                  >
-                    <option value="15">15 Minutes (Sprint)</option>
-                    <option value="25">25 Minutes (Standard)</option>
-                    <option value="45">45 Minutes (Deep Work)</option>
-                    <option value="60">60 Minutes (Power Hour)</option>
-                  </select>
-                </div>
-
-                {/* Auto Pause on Inactivity */}
-                <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-700/80 flex items-center justify-between gap-4">
-                  <div>
-                    <span className="font-extrabold text-xs text-slate-900 dark:text-slate-100 block">
-                      Inactivity Auto-Pause
-                    </span>
-                    <span className="text-[11px] text-slate-500">
-                      Automatically prompt to pause stopwatch if no interaction is recorded.
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <input
-                      type="number"
-                      min="1"
-                      max="15"
-                      value={autoPauseIdleMins}
-                      onChange={(e) => setAutoPauseIdleMins(parseInt(e.target.value) || 3)}
-                      className="w-16 px-2.5 py-1.5 rounded-xl bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 font-extrabold text-center text-xs text-slate-800 dark:text-white"
-                    />
-                    <span className="text-xs font-bold text-slate-500">mins</span>
-                  </div>
-                </div>
-
-                {/* Auto Reconcile Logs */}
-                <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-700/80 flex items-center justify-between gap-4">
-                  <div>
-                    <span className="font-extrabold text-xs text-slate-900 dark:text-slate-100 block">
-                      Auto-Reconcile Phone Time Logs
-                    </span>
-                    <span className="text-[11px] text-slate-500">
-                      Sync completed customer logs directly with supervisor dashboard metrics.
-                    </span>
-                  </div>
-                  <input
-                    type="checkbox"
-                    checked={autoReconcileLogs}
-                    onChange={(e) => setAutoReconcileLogs(e.target.checked)}
-                    className="w-4 h-4 accent-[#24537D] cursor-pointer"
-                  />
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* 4. NOTIFICATIONS & AUDIO TAB */}
-          {activeSection === 'notifications' && (
-            <div className="space-y-6 animate-in fade-in">
-              <div>
-                <h3 className="text-lg font-black text-slate-900 dark:text-slate-50">
-                  Notification & Audio Alerts
-                </h3>
-                <p className="text-xs text-slate-500 dark:text-slate-400">
-                  Manage sound chimes, escalation bells, and wellness reminder prompts.
-                </p>
-              </div>
-
-              <div className="space-y-4">
-                {/* Master Sound Alerts */}
-                <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-700/80 flex items-center justify-between gap-4">
-                  <div>
-                    <span className="font-extrabold text-xs text-slate-900 dark:text-slate-100 block">
-                      Master Audio Chimes
-                    </span>
-                    <span className="text-[11px] text-slate-500">
-                      Play acoustic notifications for punches, break completions, and reminders.
-                    </span>
-                  </div>
-                  <input
-                    type="checkbox"
-                    checked={soundAlertsEnabled}
-                    onChange={(e) => setSoundAlertsEnabled(e.target.checked)}
-                    className="w-4 h-4 accent-[#24537D] cursor-pointer"
-                  />
-                </div>
-
-                {/* Tone Selector with Test Button */}
-                <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-700/80 flex items-center justify-between gap-4">
-                  <div>
-                    <span className="font-extrabold text-xs text-slate-900 dark:text-slate-100 block">
-                      Alert Sound Chime Tone
-                    </span>
-                    <span className="text-[11px] text-slate-500">
-                      Choose notification acoustic profile.
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <select
-                      value={alertTone}
-                      onChange={(e) => setAlertTone(e.target.value as any)}
-                      className="px-3 py-1.5 rounded-xl bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 font-bold text-xs text-slate-800 dark:text-white cursor-pointer"
-                    >
-                      <option value="modern">Modern Ping</option>
-                      <option value="gentle">Gentle Chime</option>
-                      <option value="bell">Acoustic Bell</option>
-                    </select>
-
-                    <button
-                      type="button"
-                      onClick={handleTestSound}
-                      className="px-3 py-1.5 rounded-xl bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 dark:hover:bg-slate-600 text-slate-800 dark:text-slate-200 font-bold text-xs transition-colors flex items-center gap-1 cursor-pointer"
-                    >
-                      <Volume2 className="w-3.5 h-3.5" />
-                      <span>Test</span>
-                    </button>
-                  </div>
-                </div>
-
-                {/* Over Break Alerts */}
-                <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-700/80 flex items-center justify-between gap-4">
-                  <div>
-                    <span className="font-extrabold text-xs text-slate-900 dark:text-slate-100 block">
-                      Over-Break Sound Alerts
-                    </span>
-                    <span className="text-[11px] text-slate-500">
-                      Notify immediately when meal or rest breaks exceed allowed threshold.
-                    </span>
-                  </div>
-                  <input
-                    type="checkbox"
-                    checked={overBreakAlerts}
-                    onChange={(e) => setOverBreakAlerts(e.target.checked)}
-                    className="w-4 h-4 accent-[#24537D] cursor-pointer"
-                  />
-                </div>
-
-                {/* Daily Wellness Check-ins */}
-                <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-700/80 flex items-center justify-between gap-4">
-                  <div>
-                    <span className="font-extrabold text-xs text-slate-900 dark:text-slate-100 block">
-                      Daily Wellness & Hydration Prompts
-                    </span>
-                    <span className="text-[11px] text-slate-500">
-                      Remind agents to take quick ergonomic posture breaks & hydrate.
-                    </span>
-                  </div>
-                  <input
-                    type="checkbox"
-                    checked={wellnessReminders}
-                    onChange={(e) => setWellnessReminders(e.target.checked)}
-                    className="w-4 h-4 accent-[#24537D] cursor-pointer"
-                  />
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* 5. APPEARANCE & THEME TAB */}
-          {activeSection === 'appearance' && (
-            <div className="space-y-6 animate-in fade-in">
-              <div>
-                <h3 className="text-lg font-black text-slate-900 dark:text-slate-50">
-                  Appearance & Display Preferences
-                </h3>
-                <p className="text-xs text-slate-500 dark:text-slate-400">
-                  Customize the interface theme, table density, and visual accessibility.
-                </p>
-              </div>
-
-              <div className="space-y-4">
-                {/* Theme Selector Cards */}
-                <div>
-                  <label className="block text-[10px] font-extrabold text-slate-400 uppercase tracking-wider mb-2">
-                    PORTAL COLOR THEME
-                  </label>
-                  <div className="grid grid-cols-2 gap-3">
-                    <button
-                      type="button"
-                      onClick={() => !isDark || onToggleTheme()}
-                      className={`p-4 rounded-2xl border text-left transition-all cursor-pointer ${
-                        !isDark
-                          ? 'border-[#24537D] bg-blue-50/50 shadow-xs ring-2 ring-[#24537D]'
-                          : 'border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800'
-                      }`}
-                    >
-                      <div className="flex items-center gap-2 mb-2">
-                        <Sun className="w-5 h-5 text-amber-500" />
-                        <span className="font-black text-xs text-slate-800 dark:text-slate-200">Light Mode</span>
-                      </div>
-                      <p className="text-[11px] text-slate-500">
-                        Crisp white & corporate navy palette for bright environments.
-                      </p>
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={() => isDark || onToggleTheme()}
-                      className={`p-4 rounded-2xl border text-left transition-all cursor-pointer ${
-                        isDark
-                          ? 'border-blue-500 bg-blue-950/40 shadow-xs ring-2 ring-blue-500'
-                          : 'border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800'
-                      }`}
-                    >
-                      <div className="flex items-center gap-2 mb-2">
-                        <Moon className="w-5 h-5 text-blue-400" />
-                        <span className="font-black text-xs text-slate-800 dark:text-slate-200">Dark Mode</span>
-                      </div>
-                      <p className="text-[11px] text-slate-500">
-                        Deep midnight blue palette optimized for night shift operations.
-                      </p>
-                    </button>
-                  </div>
-                </div>
-
-                {/* Table Density */}
-                <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-700/80 flex items-center justify-between gap-4">
-                  <div>
-                    <span className="font-extrabold text-xs text-slate-900 dark:text-slate-100 block">
-                      Roster & Time Log Density
-                    </span>
-                    <span className="text-[11px] text-slate-500">
-                      Adjust row padding in tables for higher information density.
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-1.5 p-1 rounded-xl bg-slate-200 dark:bg-slate-700">
-                    <button
-                      type="button"
-                      onClick={() => setTableDensity('comfortable')}
-                      className={`px-3 py-1 rounded-lg text-xs font-bold transition-all ${
-                        tableDensity === 'comfortable' ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-white shadow-xs' : 'text-slate-600 dark:text-slate-300'
-                      }`}
-                    >
-                      Comfortable
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setTableDensity('compact')}
-                      className={`px-3 py-1 rounded-lg text-xs font-bold transition-all ${
-                        tableDensity === 'compact' ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-white shadow-xs' : 'text-slate-600 dark:text-slate-300'
-                      }`}
-                    >
-                      Compact
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* 6. DATABASE & INTEGRATIONS TAB */}
-          {activeSection === 'integrations' && (
-            <div className="space-y-6 animate-in fade-in">
-              <div>
-                <h3 className="text-lg font-black text-slate-900 dark:text-slate-50">
-                  Database & System Integrations
-                </h3>
-                <p className="text-xs text-slate-500 dark:text-slate-400">
-                  Cloud synchronization status with Supabase and data management utilities.
-                </p>
-              </div>
-
-              <div className="space-y-4">
-                {/* Supabase Connection Status Card */}
-                <div className="p-5 rounded-2xl bg-emerald-50/70 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800/60 flex items-center justify-between gap-4">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-2xl bg-emerald-600 text-white flex items-center justify-center shadow-xs">
-                      <Database className="w-5 h-5" />
-                    </div>
-                    <div>
-                      <h4 className="text-xs font-black text-emerald-900 dark:text-emerald-100">
-                        Supabase Realtime Database Synced
-                      </h4>
-                      <p className="text-[11px] text-emerald-700 dark:text-emerald-300">
-                        Live connection to tables: <code className="font-mono bg-emerald-100 dark:bg-emerald-900/60 px-1 py-0.5 rounded">time_entries</code>, <code className="font-mono bg-emerald-100 dark:bg-emerald-900/60 px-1 py-0.5 rounded">users</code>
-                      </p>
-                    </div>
-                  </div>
-                  <span className="px-3 py-1 rounded-full bg-emerald-600 text-white font-black text-[10px] uppercase shadow-xs">
-                    Connected
-                  </span>
-                </div>
-
-                {/* CSV Log Export Utility */}
-                <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-700/80 flex items-center justify-between gap-4">
-                  <div>
-                    <span className="font-extrabold text-xs text-slate-900 dark:text-slate-100 block">
-                      Export Raw Shift & Phone Time Logs
-                    </span>
-                    <span className="text-[11px] text-slate-500">
-                      Download formatted CSV backup for offline supervisor review and analytics.
-                    </span>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={handleExportData}
-                    className="px-4 py-2 rounded-xl bg-[#24537D] hover:bg-[#1B4266] text-white font-extrabold text-xs transition-all shadow-xs flex items-center gap-1.5 cursor-pointer"
-                  >
-                    <Download className="w-3.5 h-3.5" />
-                    <span>Download CSV</span>
-                  </button>
-                </div>
-
-                {/* Cache Reset */}
-                <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-700/80 flex items-center justify-between gap-4">
-                  <div>
-                    <span className="font-extrabold text-xs text-slate-900 dark:text-slate-100 block">
-                      Local Workspace Cache
-                    </span>
-                    <span className="text-[11px] text-slate-500">
-                      Clear temporary offline storage and reload metadata.
-                    </span>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      if (typeof window !== 'undefined') {
-                        localStorage.removeItem('flow_hub_mind_dump');
-                        setToastMessage('Local cache refreshed!');
-                        setTimeout(() => setToastMessage(null), 2000);
-                      }
-                    }}
-                    className="px-4 py-2 rounded-xl bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 dark:hover:bg-slate-600 text-slate-800 dark:text-slate-200 font-extrabold text-xs transition-colors flex items-center gap-1.5 cursor-pointer"
-                  >
-                    <RefreshCw className="w-3.5 h-3.5" />
-                    <span>Clear Cache</span>
-                  </button>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Footer Save Button inside panel */}
-          <div className="pt-4 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between">
-            <span className="text-[11px] text-slate-400 font-medium">
-              Last saved: Today at 5:26 AM • All preferences persisted locally
-            </span>
-
-            <button
-              type="button"
-              onClick={handleSaveAll}
-              className="px-5 py-2.5 rounded-2xl bg-[#24537D] hover:bg-[#1B4266] active:bg-[#153450] text-white text-xs font-extrabold shadow-md shadow-[#24537D]/25 transition-all cursor-pointer flex items-center gap-1.5"
-            >
-              {isSaved ? <Check className="w-3.5 h-3.5" /> : <Save className="w-3.5 h-3.5" />}
-              <span>{isSaved ? 'Saved!' : 'Save Settings'}</span>
-            </button>
-          </div>
-
-        </div>
-
-      </div>
+      )}
 
     </div>
   );
 }
+

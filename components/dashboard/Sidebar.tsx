@@ -26,6 +26,7 @@ export interface SupervisorProfile {
   account: string;
   tenure: string;
   directSupervisor: string;
+  email?: string;
   avatarUrl?: string;
 }
 

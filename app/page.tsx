@@ -62,7 +62,7 @@ function HomePageContent() {
   const [supervisor, setSupervisor] = useState({
     name: 'Nissi-Jeh Reguero',
     id: '1597',
-    role: 'SUPERVISOR',
+    role: 'ADMIN',
     position: 'Head of Training',
     shift: '9:00 PM to 6:00 AM',
     account: 'Corporate',
@@ -77,6 +77,27 @@ function HomePageContent() {
         window.matchMedia('(prefers-color-scheme: dark)').matches;
       setIsDark(isDarkMode);
       if (isDarkMode) document.documentElement.classList.add('dark');
+
+      const savedUser = localStorage.getItem('ctnp_current_user');
+      if (savedUser) {
+        try {
+          const parsed = JSON.parse(savedUser);
+          if (parsed && parsed.name) {
+            setSupervisor({
+              name: parsed.name,
+              id: parsed.id || '1597',
+              role: (parsed.role || 'Admin').toUpperCase(),
+              position: parsed.position || 'Head of Training',
+              shift: parsed.shift || '9:00 PM to 6:00 AM',
+              account: parsed.account || 'Corporate',
+              tenure: parsed.tenure || '32 mos',
+              directSupervisor: parsed.directSupervisor || 'June Babe Caballes',
+            });
+          }
+        } catch (e) {
+          // ignore
+        }
+      }
 
       if (!tabParam) {
         const savedTab = localStorage.getItem('tele_active_tab')?.toLowerCase();
@@ -108,6 +129,7 @@ function HomePageContent() {
   // Fetch initial records & metadata from Supabase
   const fetchData = useCallback(async () => {
     setIsLoading(true);
+    const startTime = Date.now();
     try {
       // Fetch time entries
       const resLogs = await fetch('/api/time-entries');
@@ -122,13 +144,26 @@ function HomePageContent() {
       if (dataMeta.accounts) setAccounts(dataMeta.accounts);
       if (dataMeta.employees) {
         setEmployees(dataMeta.employees);
-        const activeEmp = dataMeta.employees.find((e: any) => String(e.id) === '1597');
+
+        let activeId = '1597';
+        if (typeof window !== 'undefined') {
+          const savedUser = localStorage.getItem('ctnp_current_user');
+          if (savedUser) {
+            try {
+              const parsed = JSON.parse(savedUser);
+              if (parsed?.id) activeId = String(parsed.id);
+            } catch (e) {}
+          }
+        }
+
+        const activeEmp = dataMeta.employees.find((e: any) => String(e.id) === String(activeId)) || 
+                          dataMeta.employees.find((e: any) => String(e.id) === '1597');
         if (activeEmp) {
           setSupervisor((prev) => ({
             ...prev,
             name: activeEmp.name || prev.name,
-            role: (activeEmp.role || 'Supervisor').toUpperCase(),
-            position: activeEmp.role || prev.position,
+            role: (activeEmp.userRole || activeEmp.role || 'Admin').toUpperCase(),
+            position: activeEmp.position || activeEmp.role || prev.position,
             shift: activeEmp.shift || prev.shift,
             account: activeEmp.account || prev.account,
             tenure: activeEmp.tenure ? `${activeEmp.tenure} mos` : prev.tenure,
@@ -139,7 +174,15 @@ function HomePageContent() {
     } catch (err) {
       console.error('Error fetching dashboard data:', err);
     } finally {
-      setIsLoading(false);
+      const elapsed = Date.now() - startTime;
+      const minDelay = 450;
+      if (elapsed < minDelay) {
+        setTimeout(() => {
+          setIsLoading(false);
+        }, minDelay - elapsed);
+      } else {
+        setIsLoading(false);
+      }
     }
   }, []);
 
@@ -430,7 +473,10 @@ function HomePageContent() {
           {/* TAB 3: FLOW HUB */}
           {activeTab === 'flowhub' && (
             <div className="animate-in fade-in">
-              <FlowHubView onBackToPortal={() => handleSelectTab('dashboard')} />
+              <FlowHubView 
+                onBackToPortal={() => handleSelectTab('dashboard')} 
+                supervisorId={supervisor.id}
+              />
             </div>
           )}
 

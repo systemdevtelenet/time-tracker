@@ -71,13 +71,17 @@ export default function Header({
         
         {/* Brand / Title */}
         <div className="flex items-center gap-3">
-          <div className="h-10 w-10 rounded-xl bg-[#2F6798] text-white flex items-center justify-center shadow-md ring-2 ring-[#2F6798]/30">
-            <PhoneCall className="h-5 w-5" />
+          <div className="w-11 h-11 rounded-full bg-white flex items-center justify-center p-1.5 border border-slate-200 shadow-xs shrink-0">
+            <img
+              src="https://zhdmsmwrskxowvytedgh.supabase.co/storage/v1/object/public/Images/ctnp-logo.png"
+              alt="Workforce Portal Logo"
+              className="w-full h-full object-contain"
+            />
           </div>
           <div>
             <div className="flex items-center gap-2">
               <span className="font-extrabold text-base sm:text-lg tracking-tight text-slate-900 dark:text-slate-100">
-                Tele-net <span className="text-[#2F6798] dark:text-[#5fa5de]">TimeTracker</span>
+                Workforce <span className="text-[#2F6798] dark:text-[#5fa5de]">Portal</span>
               </span>
               <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-blue-50 dark:bg-blue-950/70 text-[#2F6798] dark:text-blue-300 border border-blue-200 dark:border-blue-800/60">
                 <Sparkles className="w-2.5 h-2.5" />

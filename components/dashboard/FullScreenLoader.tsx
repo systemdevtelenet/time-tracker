@@ -17,7 +17,7 @@ export default function FullScreenLoader({
     switch (activeTab) {
       case 'dashboard':
         return {
-          title: 'Loading Dashboard...',
+          title: 'Loading Dashboard Data...',
           subtitle: 'Retrieving operational metrics and executive KPIs',
         };
       case 'tracker':
