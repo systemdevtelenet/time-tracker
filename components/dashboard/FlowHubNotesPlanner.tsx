@@ -482,7 +482,7 @@ export default function FlowHubNotesPlanner() {
           {/* Header Action: Add Sticky Button */}
           <div className="flex items-center justify-between">
             <span className="text-xs font-bold text-slate-400">
-              Pin critical thoughts, phone extensions, ticket IDs & quick reminders
+              Pin critical thoughts, shift tasks, training notes & quick reminders
             </span>
             <button
               type="button"

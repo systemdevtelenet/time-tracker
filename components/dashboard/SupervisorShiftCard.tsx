@@ -11,6 +11,7 @@ import {
   LogOut,
 } from 'lucide-react';
 import { PunchActionType, ShiftPunchesState } from '@/lib/punchLogs';
+import { addActivityLog } from '@/lib/activityLogs';
 
 export interface SupervisorShiftCardProps {
   supervisor?: {
@@ -149,7 +150,17 @@ export default function SupervisorShiftCard({
         window.dispatchEvent(new CustomEvent('punch-updated', { detail: { empId: supervisor.id, punchType: actionType } }));
       }
 
-      if (onPunchAction) onPunchAction(actionType);
+      if (onPunchAction) {
+        onPunchAction(actionType);
+      } else {
+        addActivityLog({
+          title: `${actionType} Recorded`,
+          description: `${supervisor.name} performed shift punch action: ${actionType}.`,
+          performedBy: supervisor.name,
+          category: 'PUNCH',
+          type: 'punch',
+        });
+      }
     } catch (err) {
       console.error('Error executing punch:', err);
     } finally {
@@ -403,7 +414,7 @@ export default function SupervisorShiftCard({
         </div>
 
         {/* POSITION & ASSIGNMENT SECTION (Right Side - White Container) */}
-        <div className="lg:col-span-6 p-4 sm:p-4.5 rounded-2xl bg-white dark:bg-[#0E1B38] border border-slate-200/90 dark:border-slate-800 space-y-3 flex flex-col justify-between shadow-2xs">
+        <div className="lg:col-span-6 p-4 sm:p-4.5 rounded-2xl bg-white dark:bg-[#0E1B38] border border-slate-200/90 dark:border-slate-800 space-y-3 flex flex-col justify-start shadow-2xs">
           
           <div className="flex items-center justify-between flex-wrap gap-2">
             <span className="text-[10px] font-extrabold text-slate-700 dark:text-slate-300 uppercase tracking-wider flex items-center gap-1.5">

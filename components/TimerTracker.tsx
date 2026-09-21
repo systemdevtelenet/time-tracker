@@ -30,15 +30,15 @@ interface TimerTrackerProps {
 }
 
 const COMMON_TAGS = [
-  'HOLD',
-  'Best plan',
-  'Requested Info',
-  'Past Due',
-  'Billing Issue',
+  'Training Session',
+  '1-on-1 Coaching',
+  'Quality Calibration',
+  'Shift Handover',
+  'Operations Review',
   'Technical Support',
-  'Escalation',
-  'Follow-up',
-  'General Inquiry',
+  'Queue Coverage',
+  'Documentation',
+  'Admin Task',
 ];
 
 export default function TimerTracker({
@@ -55,9 +55,9 @@ export default function TimerTracker({
   // Form State
   const [dateOfShift, setDateOfShift] = useState<string>(getTodayFormatted());
   const [agentName, setAgentName] = useState<string>(currentAgent);
-  const [account, setAccount] = useState<string>('DFT');
+  const [account, setAccount] = useState<string>('Corporate');
   const [ticketNumber, setTicketNumber] = useState<string>('');
-  const [selectedTags, setSelectedTags] = useState<string[]>(['HOLD']);
+  const [selectedTags, setSelectedTags] = useState<string[]>(['Training Session']);
   const [customTag, setCustomTag] = useState<string>('');
   const [summary, setSummary] = useState<string>('');
   
@@ -68,7 +68,7 @@ export default function TimerTracker({
 
   const heroImageUrl = 'https://zhdmsmwrskxowvytedgh.supabase.co/storage/v1/object/public/Images/ligh_mode_hero.png';
 
-  // Sync agentName if prop changes
+  // Sync agent name when prop changes
   useEffect(() => {
     if (currentAgent) {
       setAgentName(currentAgent);
@@ -95,7 +95,7 @@ export default function TimerTracker({
     };
   }, [isRunning, onTimerStateChange, seconds]);
 
-  // Set default account when accounts prop is loaded
+  // Set default account when accounts loaded
   useEffect(() => {
     if (accounts && accounts.length > 0 && !accounts.some((a) => a.account_code === account)) {
       setAccount(accounts[0].account_code);
@@ -103,28 +103,23 @@ export default function TimerTracker({
   }, [accounts, account]);
 
   const handleStart = () => {
-    if (!ticketNumber) {
-      const randTicket = Math.random().toString(16).substring(2, 10);
-      setTicketNumber(randTicket);
-    }
     setIsRunning(true);
+    onTimerStateChange(true, seconds);
     setErrorMsg(null);
     setSuccessMsg(null);
   };
 
   const handlePause = () => {
     setIsRunning(false);
+    onTimerStateChange(false, seconds);
   };
 
   const handleReset = () => {
     setIsRunning(false);
     setSeconds(0);
-    setTicketNumber('');
-    setSummary('');
-    setSelectedTags(['HOLD']);
+    onTimerStateChange(false, 0);
     setErrorMsg(null);
     setSuccessMsg(null);
-    onTimerStateChange(false, 0);
   };
 
   const toggleTag = (tag: string) => {
@@ -145,27 +140,33 @@ export default function TimerTracker({
   };
 
   const generateTicket = () => {
-    const randTicket = Math.random().toString(16).substring(2, 10);
-    setTicketNumber(randTicket);
+    const randomHex = Math.random().toString(16).substring(2, 10);
+    setTicketNumber(randomHex);
   };
 
   const handleSaveEntry = async (e: React.FormEvent) => {
     e.preventDefault();
+    setErrorMsg(null);
+    setSuccessMsg(null);
+
     if (seconds === 0) {
-      setErrorMsg('Timer has not elapsed. Please track duration before saving.');
+      setErrorMsg('Timer must be greater than 00:00 to log an activity.');
+      return;
+    }
+
+    if (!summary.trim()) {
+      setErrorMsg('Please enter an activity summary or shift note.');
       return;
     }
 
     setIsSubmitting(true);
-    setErrorMsg(null);
-    setSuccessMsg(null);
 
     const formattedDuration = formatSecondsToTrackerText(seconds);
     const taggingStr = selectedTags.join(', ');
 
     const newRecordPayload: PhoneTimeRecord = {
       date_of_shift: dateOfShift,
-      name: agentName.trim(),
+      name: agentName,
       account: account.trim(),
       total_minutes: formattedDuration,
       ticket_number: ticketNumber.trim() || Math.random().toString(16).substring(2, 10),
@@ -182,18 +183,18 @@ export default function TimerTracker({
 
       const json = await res.json();
       if (!res.ok) {
-        throw new Error(json.error || 'Failed to save phone time record.');
+        throw new Error(json.error || 'Failed to save shift activity record.');
       }
 
       onRecordSaved(json.data || newRecordPayload);
-      setSuccessMsg(`Call log #${newRecordPayload.ticket_number} saved successfully!`);
+      setSuccessMsg(`Activity record #${newRecordPayload.ticket_number} saved successfully!`);
       
-      // Reset timer & form for next call
+      // Reset timer & form for next activity
       setIsRunning(false);
       setSeconds(0);
       setTicketNumber('');
       setSummary('');
-      setSelectedTags(['HOLD']);
+      setSelectedTags(['Training Session']);
       onTimerStateChange(false, 0);
     } catch (err: any) {
       console.error('Error saving record:', err);
@@ -225,11 +226,11 @@ export default function TimerTracker({
                 <Timer className="w-4 h-4" />
               </div>
               <h3 className="text-base sm:text-lg font-black text-slate-900 dark:text-slate-50 tracking-tight">
-                Live Call & Shift Timer Tracker
+                Live Task & Shift Activity Tracker
               </h3>
             </div>
             <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-              Record active phone duration, select inquiry tagging, and log customer resolution summary.
+              Record task duration, select activity category tagging, and log shift work notes.
             </p>
           </div>
 
@@ -268,7 +269,7 @@ export default function TimerTracker({
           {/* Large Digital Stopwatch Display */}
           <div className="flex flex-col items-center md:items-start">
             <span className="text-[10px] font-extrabold text-slate-400 dark:text-slate-400 tracking-wider uppercase mb-1">
-              CALL DURATION (MM:SS)
+              TASK DURATION (MM:SS)
             </span>
             <div className="text-4xl sm:text-5xl md:text-6xl font-black font-mono tracking-tight text-slate-900 dark:text-slate-50 drop-shadow-xs">
               <span className={isRunning ? 'text-[#2F6798] dark:text-blue-400' : seconds > 0 ? 'text-[#C8A54B]' : 'text-slate-800 dark:text-slate-200'}>
@@ -289,7 +290,7 @@ export default function TimerTracker({
                 className="px-6 py-3.5 rounded-2xl bg-[#2F6798] hover:bg-[#235179] text-white font-extrabold text-sm shadow-md shadow-[#2F6798]/25 hover:shadow-lg transition-all flex items-center gap-2 cursor-pointer"
               >
                 <Play className="w-4 h-4 fill-white" />
-                <span>{seconds > 0 ? 'Resume Timer' : 'Start Call Timer'}</span>
+                <span>{seconds > 0 ? 'Resume Timer' : 'Start Task Timer'}</span>
               </button>
             ) : (
               <button
@@ -335,11 +336,11 @@ export default function TimerTracker({
             />
           </div>
 
-          {/* Agent Name */}
+          {/* Employee Name */}
           <div>
             <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5 flex items-center gap-1.5">
               <User className="w-3.5 h-3.5 text-[#2F6798]" />
-              <span>Agent Name</span>
+              <span>Employee Name</span>
             </label>
             <input
               type="text"
@@ -350,11 +351,11 @@ export default function TimerTracker({
             />
           </div>
 
-          {/* Account */}
+          {/* Department / Account */}
           <div>
             <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5 flex items-center gap-1.5">
               <Building2 className="w-3.5 h-3.5 text-[#2F6798]" />
-              <span>Account</span>
+              <span>Department / Account</span>
             </label>
             <select
               value={account}
@@ -369,12 +370,12 @@ export default function TimerTracker({
             </select>
           </div>
 
-          {/* Ticket Number */}
+          {/* Task / Activity Code */}
           <div>
             <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5 flex items-center justify-between">
               <span className="flex items-center gap-1.5">
                 <Ticket className="w-3.5 h-3.5 text-[#2F6798]" />
-                <span>Ticket Number</span>
+                <span>Task / Activity Code</span>
               </span>
               <button
                 type="button"
@@ -389,7 +390,7 @@ export default function TimerTracker({
               required
               value={ticketNumber}
               onChange={(e) => setTicketNumber(e.target.value)}
-              placeholder="e.g. f7efd2dd"
+              placeholder="e.g. act-84920"
               className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 text-xs font-semibold text-slate-800 dark:text-slate-200 focus:ring-2 focus:ring-[#2F6798]/30 outline-none"
             />
           </div>
@@ -400,7 +401,7 @@ export default function TimerTracker({
         <div>
           <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-2 flex items-center gap-1.5">
             <TagIcon className="w-3.5 h-3.5 text-[#2F6798]" />
-            <span>Call Categories / Tagging</span>
+            <span>Activity Categories / Tagging</span>
           </label>
           
           <div className="flex flex-wrap gap-2 mb-3">
@@ -430,7 +431,7 @@ export default function TimerTracker({
               value={customTag}
               onChange={(e) => setCustomTag(e.target.value)}
               onKeyDown={handleAddCustomTag}
-              placeholder="Type custom tag & press Enter..."
+              placeholder="Type custom category & press Enter..."
               className="w-full px-3.5 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs text-slate-800 dark:text-slate-200 placeholder-slate-400 focus:ring-2 focus:ring-[#2F6798]/30 outline-none"
             />
           </div>
@@ -440,14 +441,14 @@ export default function TimerTracker({
         <div>
           <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5 flex items-center gap-1.5">
             <FileText className="w-3.5 h-3.5 text-[#2F6798]" />
-            <span>Call Summary / Notes</span>
+            <span>Shift & Task Summary Notes</span>
           </label>
           <textarea
             required
             rows={3}
             value={summary}
             onChange={(e) => setSummary(e.target.value)}
-            placeholder="Document interaction highlights, customer inquiry resolution, plan details, or next steps..."
+            placeholder="Document shift progress, training milestones, coaching notes, or task completion details..."
             className="w-full p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs text-slate-800 dark:text-slate-200 placeholder-slate-400 focus:ring-2 focus:ring-[#2F6798]/30 outline-none resize-none"
           />
         </div>
@@ -460,7 +461,7 @@ export default function TimerTracker({
             className="px-6 py-3 rounded-xl bg-[#2F6798] hover:bg-[#235179] active:bg-[#1c4366] text-white font-bold text-xs sm:text-sm shadow-md shadow-[#2F6798]/20 transition-all flex items-center gap-2 cursor-pointer disabled:opacity-50"
           >
             <Save className="w-4 h-4" />
-            <span>{isSubmitting ? 'Saving Call Record...' : 'Save Time Entry to Database'}</span>
+            <span>{isSubmitting ? 'Saving Activity Record...' : 'Save Activity Entry to Database'}</span>
           </button>
         </div>
 

@@ -1,0 +1,154 @@
+export type SystemActivityCategory = 
+  | 'AUTH' 
+  | 'PUNCH' 
+  | 'TIME LOG' 
+  | 'ATTENDANCE' 
+  | 'TRAINEES' 
+  | 'TRAINERS' 
+  | 'REMARKS' 
+  | 'SYSTEM' 
+  | 'ALERT';
+
+export interface SystemActivityLog {
+  id: string;
+  title: string;
+  description: string;
+  timestamp: string; // ISO string
+  performedBy: string;
+  category: SystemActivityCategory;
+  type?: 'login' | 'punch' | 'timelog' | 'attendance' | 'trainee' | 'trainer' | 'remark' | 'system' | 'alert';
+  isRead?: boolean;
+  metadata?: Record<string, any>;
+}
+
+export const MAX_ACTIVITY_LOGS = 10;
+
+const STORAGE_KEY = 'ctnp_system_activity_logs';
+
+export function getActivityLogs(): SystemActivityLog[] {
+  if (typeof window === 'undefined') return [];
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed.slice(0, MAX_ACTIVITY_LOGS) : [];
+  } catch (e) {
+    return [];
+  }
+}
+
+export async function syncActivityLogsWithApi(): Promise<SystemActivityLog[]> {
+  try {
+    const res = await fetch(`/api/activity-logs?limit=${MAX_ACTIVITY_LOGS}`);
+    if (res.ok) {
+      const json = await res.json();
+      if (json.success && Array.isArray(json.data)) {
+        const localLogs = getActivityLogs();
+        const mergedMap = new Map<string, SystemActivityLog>();
+        
+        // Add backend logs
+        json.data.forEach((l: SystemActivityLog) => mergedMap.set(l.id, l));
+        // Add local logs
+        localLogs.forEach((l) => mergedMap.set(l.id, l));
+        
+        const combined = Array.from(mergedMap.values()).sort(
+          (a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
+        ).slice(0, MAX_ACTIVITY_LOGS);
+
+        if (typeof window !== 'undefined') {
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(combined));
+          window.dispatchEvent(new CustomEvent('system-activity-logged', { detail: { action: 'sync' } }));
+        }
+        return combined;
+      }
+    }
+  } catch (err) {
+    console.warn('API sync warning for activity logs:', err);
+  }
+  return getActivityLogs().slice(0, MAX_ACTIVITY_LOGS);
+}
+
+export function addActivityLog(
+  log: Omit<SystemActivityLog, 'id' | 'timestamp' | 'isRead'> & {
+    id?: string;
+    timestamp?: string;
+    isRead?: boolean;
+  }
+): SystemActivityLog {
+  const currentLogs = getActivityLogs();
+  const newLog: SystemActivityLog = {
+    id: log.id || `act-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
+    title: log.title,
+    description: log.description,
+    timestamp: log.timestamp || new Date().toISOString(),
+    performedBy: log.performedBy || 'System Auth',
+    category: log.category,
+    type: log.type || 'system',
+    isRead: log.isRead ?? false,
+    metadata: log.metadata,
+  };
+
+  const updated = [newLog, ...currentLogs.filter((l) => l.id !== newLog.id)].slice(0, MAX_ACTIVITY_LOGS);
+  if (typeof window !== 'undefined') {
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
+      window.dispatchEvent(new CustomEvent('system-activity-logged', { detail: newLog }));
+      
+      // Post to backend asynchronously
+      fetch('/api/activity-logs', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(newLog),
+      }).catch((e) => console.warn('Activity log backend POST skipped:', e));
+    } catch (e) {}
+  }
+  return newLog;
+}
+
+export function markAllNotificationsAsRead(): void {
+  if (typeof window === 'undefined') return;
+  const current = getActivityLogs();
+  const updated = current.map((item) => ({ ...item, isRead: true }));
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
+    window.dispatchEvent(new CustomEvent('system-activity-logged', { detail: { action: 'mark_all_read' } }));
+  } catch (e) {}
+}
+
+export function markNotificationAsRead(id: string): void {
+  if (typeof window === 'undefined') return;
+  const current = getActivityLogs();
+  const updated = current.map((item) => (item.id === id ? { ...item, isRead: true } : item));
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
+    window.dispatchEvent(new CustomEvent('system-activity-logged', { detail: { action: 'mark_read', id } }));
+  } catch (e) {}
+}
+
+export function clearActivityLogs(): void {
+  if (typeof window === 'undefined') return;
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify([]));
+    window.dispatchEvent(new CustomEvent('system-activity-logged', { detail: { action: 'clear' } }));
+    fetch('/api/activity-logs', { method: 'DELETE' }).catch(() => {});
+  } catch (e) {}
+}
+
+export function formatRelativeTime(isoString: string): string {
+  try {
+    const diffMs = Date.now() - new Date(isoString).getTime();
+    if (diffMs < 0) return 'Just now';
+    const mins = Math.floor(diffMs / 60000);
+    if (mins < 1) return 'Just now';
+    if (mins < 60) return `${mins}m ago`;
+    const hours = Math.floor(mins / 60);
+    if (hours < 24) return `${hours}h ago`;
+    const days = Math.floor(hours / 24);
+    if (days === 1) return 'Yesterday';
+    if (days < 30) return `${days} days ago`;
+    const months = Math.floor(days / 30);
+    return `${months}mo ago`;
+  } catch (e) {
+    return 'Recently';
+  }
+}

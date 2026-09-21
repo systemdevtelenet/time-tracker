@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { 
   ChevronLeft, 
   ChevronRight, 
@@ -13,23 +13,21 @@ import {
   Clock, 
   User, 
   Users, 
-  CheckSquare, 
-  Square, 
   X, 
-  Layers, 
   Sparkles, 
   ChevronDown,
-  List,
-  Grid,
-  Filter,
-  RefreshCw,
-  PhoneIncoming,
-  Utensils,
+  RotateCw,
+  ArrowLeft,
+  CalendarDays,
   Coffee,
-  GraduationCap
+  Utensils,
+  AlertTriangle,
+  CheckCircle2,
+  Filter
 } from 'lucide-react';
 import { PhoneTimeRecord } from '@/lib/types';
-import { ROSTER_PROFILES } from '@/lib/shiftCalendarHelper';
+import AttendanceDetailModal, { TeamMemberDayStatus } from './AttendanceDetailModal';
+import AttendanceCellPopover from './AttendanceCellPopover';
 
 interface AttendanceCalendarViewProps {
   employeeName?: string;
@@ -37,958 +35,766 @@ interface AttendanceCalendarViewProps {
   records?: PhoneTimeRecord[];
 }
 
-export interface CalendarEvent {
+export interface DayPunchItem {
   id: string;
-  title: string;
-  agent: string;
-  account: string;
-  category: 'calls' | 'training' | 'break' | 'coaching' | 'present' | 'late_ut';
-  dayIndex: number; // 0=Sun (13), 1=Mon (14), 2=Tue (15), 3=Wed (16), 4=Thu (17), 5=Fri (18), 6=Sat (19)
-  startHour: number; // e.g. 9 for 9:00 AM, 13 for 1:00 PM
-  durationHours: number; // e.g. 2 for 2 hours
+  type: string;
   timeLabel: string;
-  tagging?: string;
-  ticket?: string;
+  rawTimestamp: string;
+  duration?: string;
+  status?: string;
+  parsedDate: Date;
 }
 
-const INITIAL_EVENTS: CalendarEvent[] = [
-  // Sunday 13
-  {
-    id: 'ev-1',
-    title: 'Weekend On-Call DFT Coverage',
-    agent: 'Charles Espinosa',
-    account: 'DFT',
-    category: 'calls',
-    dayIndex: 0,
-    startHour: 9,
-    durationHours: 3,
-    timeLabel: '9:00 AM – 12:00 PM',
-    tagging: 'HOLD, Emergency Coverage',
-    ticket: 'DFT-9821',
-  },
-  // Monday 14
-  {
-    id: 'ev-2',
-    title: 'PST Training Batch 12 - Inhouse Wave',
-    agent: 'Badz',
-    account: 'Corporate',
-    category: 'training',
-    dayIndex: 1,
-    startHour: 8,
-    durationHours: 4,
-    timeLabel: '8:00 AM – 12:00 PM',
-    tagging: 'PST Foundation',
-  },
-  {
-    id: 'ev-3',
-    title: 'Scheduled Lunch Interval (60m)',
-    agent: 'Nissi-Jeh Reguero',
-    account: 'Corporate',
-    category: 'break',
-    dayIndex: 1,
-    startHour: 12,
-    durationHours: 1,
-    timeLabel: '12:00 PM – 1:00 PM',
-  },
-  {
-    id: 'ev-4',
-    title: 'RM Inbound Call Shift (On-Time Present)',
-    agent: 'Jeremy Rigodon',
-    account: 'RM',
-    category: 'present',
-    dayIndex: 1,
-    startHour: 13,
-    durationHours: 4,
-    timeLabel: '1:00 PM – 5:00 PM',
-    tagging: 'Requested Info, Past Due',
-    ticket: 'RM-3042',
-  },
-  // Tuesday 15 (Today)
-  {
-    id: 'ev-5',
-    title: 'DFT Call Shift & Queue Support (Late +14m)',
-    agent: 'Matt Riner Balaba',
-    account: 'DFT',
-    category: 'late_ut',
-    dayIndex: 2,
-    startHour: 9,
-    durationHours: 3.5,
-    timeLabel: '9:00 AM – 12:30 PM',
-    tagging: 'Best plan, HOLD',
-    ticket: 'f7efd2dd',
-  },
-  {
-    id: 'ev-6',
-    title: 'Team Scheduled Lunch & Break Interval',
-    agent: 'Nissi-Jeh Reguero',
-    account: 'Corporate',
-    category: 'break',
-    dayIndex: 2,
-    startHour: 13,
-    durationHours: 1,
-    timeLabel: '1:00 PM – 2:00 PM',
-  },
-  {
-    id: 'ev-7',
-    title: 'Operations Coaching with June Babe',
-    agent: 'Nissi-Jeh Reguero',
-    account: 'Corporate',
-    category: 'coaching',
-    dayIndex: 2,
-    startHour: 14,
-    durationHours: 2,
-    timeLabel: '2:00 PM – 4:00 PM',
-    tagging: 'Supervisor QA Calibration',
-  },
-  {
-    id: 'ev-8',
-    title: 'BF Account Escalation Handling (Present)',
-    agent: 'Charles Espinosa',
-    account: 'BF',
-    category: 'present',
-    dayIndex: 2,
-    startHour: 16,
-    durationHours: 3,
-    timeLabel: '4:00 PM – 7:00 PM',
-    tagging: 'Billing Issue, Escalation',
-    ticket: 'BF-8819',
-  },
-  // Wednesday 16
-  {
-    id: 'ev-9',
-    title: 'Weekly Call Calibration Session (Present)',
-    agent: 'Nissi-Jeh Reguero',
-    account: 'Corporate',
-    category: 'coaching',
-    dayIndex: 3,
-    startHour: 10,
-    durationHours: 2,
-    timeLabel: '10:00 AM – 12:00 PM',
-    tagging: 'AHT Optimization',
-  },
-  {
-    id: 'ev-10',
-    title: 'XPN Customer Inquiry Shift (Late +7m)',
-    agent: 'Matt Riner Balaba',
-    account: 'XPN',
-    category: 'late_ut',
-    dayIndex: 3,
-    startHour: 13,
-    durationHours: 4,
-    timeLabel: '1:00 PM – 5:00 PM',
-    tagging: 'Technical Support',
-    ticket: 'XPN-4120',
-  },
-  // Thursday 17
-  {
-    id: 'ev-11',
-    title: 'Fleet Coverage & Dispatch Shift (Present)',
-    agent: 'Charles Espinosa',
-    account: 'FLEET',
-    category: 'present',
-    dayIndex: 4,
-    startHour: 8,
-    durationHours: 5,
-    timeLabel: '8:00 AM – 1:00 PM',
-    tagging: 'Inhouse Coverage',
-    ticket: 'FLT-0912',
-  },
-  // Friday 18
-  {
-    id: 'ev-12',
-    title: 'Live Shift Performance Wrap-up',
-    agent: 'Nissi-Jeh Reguero',
-    account: 'Corporate',
-    category: 'coaching',
-    dayIndex: 5,
-    startHour: 9,
-    durationHours: 3,
-    timeLabel: '9:00 AM – 12:00 PM',
-    tagging: 'Weekly Attendance & Hours Audit',
-  },
-  {
-    id: 'ev-13',
-    title: 'DFT Evening Queue Support (Present)',
-    agent: 'Jeremy Rigodon',
-    account: 'DFT',
-    category: 'calls',
-    dayIndex: 5,
-    startHour: 14,
-    durationHours: 4,
-    timeLabel: '2:00 PM – 6:00 PM',
-    tagging: 'Customer Follow-up',
-    ticket: 'DFT-5541',
-  },
+export type DayAttendanceStatus = 'Present' | 'Late' | 'Undertime' | 'Late / UT' | 'Absent' | 'Rest Day' | null;
+
+const ALL_ROSTER_EMPLOYEES = [
+  { id: '1597', name: 'Nissi-Jeh Reguero', role: 'Head of Training', department: 'TQA', account: 'TRAINING' },
+  { id: '1108', name: 'Raymundo Alasagas III', role: 'Head of Quality', department: 'TQA', account: 'QUALITY' },
+  { id: '1772', name: 'Bianca Kaye Ernestine Colonia', role: 'Trainer', department: 'TQA', account: 'TRAINING' },
+  { id: '2385', name: 'Michelle Yncierto', role: 'Trainer', department: 'TQA', account: 'TRAINING' },
+  { id: '1035', name: 'Rommel Mendoza', role: 'Trainer', department: 'TQA', account: 'TRAINING' },
+  { id: '1820', name: 'Ronelyn Baguio', role: 'Trainer', department: 'TQA', account: 'TRAINING' },
+  { id: '836', name: 'Krisland Pepito', role: 'Trainer', department: 'TQA', account: 'TRAINING' },
+  { id: '1006', name: 'Niño Elijah R. Reyes', role: 'Trainer', department: 'TQA', account: 'TRAINING' },
+  { id: '1880', name: 'Kier Ariola', role: 'Trainer', department: 'TQA', account: 'TRAINING' },
+  { id: '946', name: 'Vincent Luis Celdran', role: 'Trainer', department: 'TQA', account: 'TRAINING' },
+  { id: '2298', name: 'Nina Joy Briones', role: 'Trainer', department: 'TQA', account: 'TRAINING' },
+  { id: '1954', name: 'Matt Riner Balaba', role: 'Trainer', department: 'TQA', account: 'TRAINING' },
+  { id: '2610', name: 'Maegan Marie Cabardo', role: 'Trainer', department: 'TQA', account: 'TRAINING' },
 ];
 
-const HOURS = [7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20];
+function assignShiftDay(date: Date): number {
+  const h = date.getHours();
+  // Early morning punches (midnight to 8:59 AM) belong to the shift that started the previous evening
+  if (h < 9) {
+    const prev = new Date(date);
+    prev.setDate(prev.getDate() - 1);
+    return prev.getDate();
+  }
+  return date.getDate();
+}
+
+function formatTime(d: Date): string {
+  return d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit', hour12: true });
+}
 
 export default function AttendanceCalendarView({
   employeeName = 'Nissi-Jeh Reguero',
   onBackToRoster,
   records = [],
 }: AttendanceCalendarViewProps) {
-  // Navigation & View State
-  const [viewMode, setViewMode] = useState<'Week' | 'Month' | 'Day' | 'Schedule'>('Week');
-  const [isViewDropdownOpen, setIsViewDropdownOpen] = useState(false);
-  const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(null);
-  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  // Active selected employee
+  const [selectedEmpName, setSelectedEmpName] = useState<string>(employeeName);
+  const [viewMode, setViewMode] = useState<'Month' | 'Week' | 'Day'>('Month');
+  const [currentMonthIndex, setCurrentMonthIndex] = useState(8); // September (0-indexed)
+  const [currentYear, setCurrentYear] = useState(2026);
   const [personSearch, setPersonSearch] = useState('');
+  const [isViewDropdownOpen, setIsViewDropdownOpen] = useState(false);
+  const [isEmpDropdownOpen, setIsEmpDropdownOpen] = useState(false);
+  const [isLoadingLogs, setIsLoadingLogs] = useState(false);
+  const [punchLogs, setPunchLogs] = useState<any[]>([]);
 
-  // Calendar filter checkboxes (keeping colors: Blue for Calls, Light Cyan for Training, Pink/Purple for Coaching, Green for Present, Orange for Late/UT)
-  const [filterCalls, setFilterCalls] = useState(true);
-  const [filterTraining, setFilterTraining] = useState(true);
-  const [filterBreaks, setFilterBreaks] = useState(true);
-  const [filterCoaching, setFilterCoaching] = useState(true);
-  const [filterPresent, setFilterPresent] = useState(true);
-  const [filterLateUT, setFilterLateUT] = useState(true);
-  const [filterHolidays, setFilterHolidays] = useState(true);
-
-  // New Event Form
-  const [newEventTitle, setNewEventTitle] = useState('');
-  const [newEventAgent, setNewEventAgent] = useState(employeeName);
-  const [newEventAccount, setNewEventAccount] = useState('DFT');
-  const [newEventCategory, setNewEventCategory] = useState<CalendarEvent['category']>('calls');
-  const [newEventDay, setNewEventDay] = useState(2); // Tuesday
-  const [newEventStartHour, setNewEventStartHour] = useState(9);
-  const [newEventDuration, setNewEventDuration] = useState(2);
-  const [eventsList, setEventsList] = useState<CalendarEvent[]>(INITIAL_EVENTS);
-
-  // Live database roster
-  const [dbRoster, setDbRoster] = useState<any[]>([]);
-
-  useEffect(() => {
-    async function loadDbRoster() {
+  // Local overrides & notes
+  const [attendanceOverrides, setAttendanceOverrides] = useState<Record<string, string>>(() => {
+    if (typeof window !== 'undefined') {
       try {
-        const res = await fetch('/api/team-roster');
-        const json = await res.json();
-        if (json.success && Array.isArray(json.data) && json.data.length > 0) {
-          setDbRoster(json.data);
-        }
-      } catch (err) {
-        console.error('Failed to load database roster in calendar:', err);
+        const saved = localStorage.getItem('attendance_overrides_v1');
+        return saved ? JSON.parse(saved) : {};
+      } catch (e) {
+        return {};
       }
     }
-    loadDbRoster();
-  }, []);
+    return {};
+  });
 
-  // Filtered Events
-  const filteredEvents = useMemo(() => {
-    return eventsList.filter((ev) => {
-      if (personSearch && !ev.agent.toLowerCase().includes(personSearch.toLowerCase()) && !ev.title.toLowerCase().includes(personSearch.toLowerCase())) {
-        return false;
+  // Cell Popover / Day Modal State
+  const [selectedDayDetail, setSelectedDayDetail] = useState<{
+    dayNumber: number;
+    status: DayAttendanceStatus;
+    punches: DayPunchItem[];
+  } | null>(null);
+
+  // Sync with prop change
+  useEffect(() => {
+    if (employeeName) {
+      setSelectedEmpName(employeeName);
+    }
+  }, [employeeName]);
+
+  // Find active employee record
+  const activeEmployee = useMemo(() => {
+    return (
+      ALL_ROSTER_EMPLOYEES.find(
+        (e) => e.name.toLowerCase() === selectedEmpName.toLowerCase() || e.id === selectedEmpName
+      ) || ALL_ROSTER_EMPLOYEES[0]
+    );
+  }, [selectedEmpName]);
+
+  // Fetch real punch logs for the selected employee from Supabase
+  const loadLogsForEmployee = async () => {
+    setIsLoadingLogs(true);
+    try {
+      const res = await fetch(`/api/punch-logs?empId=${activeEmployee.id}`);
+      const json = await res.json();
+      if (json.success && Array.isArray(json.data)) {
+        setPunchLogs(json.data);
       }
-      if (ev.category === 'calls' && !filterCalls) return false;
-      if (ev.category === 'training' && !filterTraining) return false;
-      if (ev.category === 'break' && !filterBreaks) return false;
-      if (ev.category === 'coaching' && !filterCoaching) return false;
-      if (ev.category === 'present' && !filterPresent) return false;
-      if (ev.category === 'late_ut' && !filterLateUT) return false;
-      return true;
-    });
-  }, [eventsList, personSearch, filterCalls, filterTraining, filterBreaks, filterCoaching, filterPresent, filterLateUT]);
-
-  const handleCreateEvent = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newEventTitle.trim()) return;
-
-    const startH = Number(newEventStartHour);
-    const durH = Number(newEventDuration);
-    const endH = startH + durH;
-    const formatH = (h: number) => {
-      const isPm = h >= 12;
-      const display = h > 12 ? h - 12 : h === 0 ? 12 : h;
-      return `${display}:00 ${isPm ? 'PM' : 'AM'}`;
-    };
-
-    const newEv: CalendarEvent = {
-      id: `ev-${Date.now()}`,
-      title: newEventTitle,
-      agent: newEventAgent,
-      account: newEventAccount,
-      category: newEventCategory,
-      dayIndex: Number(newEventDay),
-      startHour: startH,
-      durationHours: durH,
-      timeLabel: `${formatH(startH)} – ${formatH(endH)}`,
-    };
-
-    setEventsList((prev) => [newEv, ...prev]);
-    setIsCreateModalOpen(false);
-    setNewEventTitle('');
+    } catch (err) {
+      console.error('Failed to load employee punch logs in calendar:', err);
+    } finally {
+      setIsLoadingLogs(false);
+    }
   };
 
-  const getCategoryStyles = (category: CalendarEvent['category']) => {
-    switch (category) {
-      case 'calls':
+  useEffect(() => {
+    loadLogsForEmployee();
+  }, [activeEmployee.id]);
+
+  // Group punches by shift day for the selected month
+  const punchesByShiftDay = useMemo(() => {
+    const map: Record<number, DayPunchItem[]> = {};
+
+    punchLogs.forEach((log) => {
+      const rawTs = log.timestamp || log.TIMESTAMP;
+      if (!rawTs) return;
+      const d = new Date(rawTs);
+      if (isNaN(d.getTime())) return;
+
+      if (d.getFullYear() === currentYear && d.getMonth() === currentMonthIndex) {
+        const shiftDay = assignShiftDay(d);
+        if (!map[shiftDay]) map[shiftDay] = [];
+
+        map[shiftDay].push({
+          id: log.id || log['LOG ID'] || `punch-${Date.now()}-${Math.random()}`,
+          type: log.type || log.TYPE || log.punch_type || 'Shift Event',
+          timeLabel: formatTime(d),
+          rawTimestamp: rawTs,
+          duration: log.duration || log.DURATION,
+          status: log.status || log.STATUS,
+          parsedDate: d,
+        });
+      }
+    });
+
+    // Sort punches chronologically within each day
+    Object.keys(map).forEach((dayKey) => {
+      const numKey = Number(dayKey);
+      map[numKey].sort((a, b) => a.parsedDate.getTime() - b.parsedDate.getTime());
+    });
+
+    return map;
+  }, [punchLogs, currentYear, currentMonthIndex]);
+
+  // Calculate day attendance status for days 1–30
+  const dayStatusMap = useMemo(() => {
+    const statusMap: Record<number, DayAttendanceStatus> = {};
+    const empCode = activeEmployee.id;
+
+    for (let day = 1; day <= 30; day++) {
+      const dateObj = new Date(currentYear, currentMonthIndex, day);
+      const isWeekend = dateObj.getDay() === 0 || dateObj.getDay() === 6; // Sunday or Saturday
+
+      // 1. Check manual override
+      const overrideKey = `${empCode}-${day}`;
+      const nameKey = `${activeEmployee.name}-${day}`;
+      const manualTag = attendanceOverrides[overrideKey] || attendanceOverrides[nameKey];
+
+      if (manualTag) {
+        if (manualTag === 'P') statusMap[day] = 'Present';
+        else if (manualTag === 'L') statusMap[day] = 'Late';
+        else if (manualTag === 'U') statusMap[day] = 'Undertime';
+        else if (manualTag === 'A') statusMap[day] = 'Absent';
+        else if (manualTag === 'RD') statusMap[day] = 'Rest Day';
+        continue;
+      }
+
+      // 2. Check actual logs
+      const dayPunches = punchesByShiftDay[day] || [];
+      if (dayPunches.length > 0) {
+        const hasLate = dayPunches.some((p) => (p.status || '').toLowerCase() === 'late');
+        const hasUndertime = dayPunches.some((p) => (p.status || '').toLowerCase() === 'undertime');
+
+        if (hasLate && hasUndertime) {
+          statusMap[day] = 'Late / UT';
+        } else if (hasLate) {
+          statusMap[day] = 'Late';
+        } else if (hasUndertime) {
+          statusMap[day] = 'Undertime';
+        } else {
+          statusMap[day] = 'Present';
+        }
+      } else if (isWeekend) {
+        statusMap[day] = 'Rest Day';
+      } else if (day <= 22) {
+        statusMap[day] = 'Absent';
+      } else {
+        statusMap[day] = null;
+      }
+    }
+
+    return statusMap;
+  }, [punchesByShiftDay, activeEmployee, attendanceOverrides, currentYear, currentMonthIndex]);
+
+  // Month navigation
+  const handlePrevMonth = () => {
+    if (currentMonthIndex === 0) {
+      setCurrentMonthIndex(11);
+      setCurrentYear((y) => y - 1);
+    } else {
+      setCurrentMonthIndex((m) => m - 1);
+    }
+  };
+
+  const handleNextMonth = () => {
+    if (currentMonthIndex === 11) {
+      setCurrentMonthIndex(0);
+      setCurrentYear((y) => y + 1);
+    } else {
+      setCurrentMonthIndex((m) => m + 1);
+    }
+  };
+
+  const monthNames = [
+    'January', 'February', 'March', 'April', 'May', 'June',
+    'July', 'August', 'September', 'October', 'November', 'December'
+  ];
+
+  // Build calendar matrix (Sunday through Saturday grid)
+  const calendarGrid = useMemo(() => {
+    // 1st day of the selected month
+    const firstDay = new Date(currentYear, currentMonthIndex, 1).getDay(); // 0=Sun, 1=Mon, 2=Tue...
+    const totalDaysInMonth = new Date(currentYear, currentMonthIndex + 1, 0).getDate(); // 30 for Sep
+    const prevMonthDaysCount = new Date(currentYear, currentMonthIndex, 0).getDate();
+
+    const cells: {
+      dayNum: number;
+      isCurrentMonth: boolean;
+      status: DayAttendanceStatus;
+      punches: DayPunchItem[];
+      isToday: boolean;
+    }[] = [];
+
+    // Leading padding days from previous month
+    for (let i = firstDay - 1; i >= 0; i--) {
+      cells.push({
+        dayNum: prevMonthDaysCount - i,
+        isCurrentMonth: false,
+        status: null,
+        punches: [],
+        isToday: false,
+      });
+    }
+
+    // Days in active month (1 to totalDaysInMonth)
+    for (let d = 1; d <= totalDaysInMonth; d++) {
+      const isToday = currentYear === 2026 && currentMonthIndex === 8 && d === 22;
+      cells.push({
+        dayNum: d,
+        isCurrentMonth: true,
+        status: dayStatusMap[d] || null,
+        punches: punchesByShiftDay[d] || [],
+        isToday,
+      });
+    }
+
+    // Trailing padding days to fill 5 or 6 complete weeks
+    const remaining = (7 - (cells.length % 7)) % 7;
+    for (let i = 1; i <= remaining; i++) {
+      cells.push({
+        dayNum: i,
+        isCurrentMonth: false,
+        status: null,
+        punches: [],
+        isToday: false,
+      });
+    }
+
+    return cells;
+  }, [currentYear, currentMonthIndex, dayStatusMap, punchesByShiftDay]);
+
+  // Color styles helper for light/pastel aesthetic matching tables
+  const getStatusColorStyles = (status: DayAttendanceStatus) => {
+    switch (status) {
+      case 'Present':
         return {
-          bg: 'bg-[#5aa9e6] text-[#062640] hover:bg-[#499cdb]',
-          border: 'border-[#3587c8]',
-          badge: 'bg-[#5aa9e6]/20 text-[#062640]',
-          dot: 'bg-[#5aa9e6]',
-        };
-      case 'training':
-      case 'break':
-        return {
-          bg: 'bg-[#b3dee2] text-[#062d33] hover:bg-[#a1d3d8]',
-          border: 'border-[#80c5cb]',
-          badge: 'bg-[#b3dee2]/30 text-[#062d33]',
-          dot: 'bg-[#80c5cb]',
-        };
-      case 'coaching':
-        return {
-          bg: 'bg-[#cdb4db] text-[#341344] hover:bg-[#bda0cc]',
-          border: 'border-[#a983be]',
-          badge: 'bg-[#cdb4db]/30 text-[#341344]',
-          dot: 'bg-[#cdb4db]',
-        };
-      case 'present':
-        return {
-          bg: 'bg-[#10B981] text-white hover:bg-[#059669]',
-          border: 'border-[#059669]',
-          badge: 'bg-[#d1fae5] text-[#065f46]',
+          banner: 'bg-[#d1fae5] text-[#065f46] border border-emerald-300 dark:bg-emerald-950/70 dark:text-emerald-300 dark:border-emerald-700',
+          punchPill: 'bg-[#ecfdf5] text-[#065f46] border border-emerald-200/90 hover:bg-[#d1fae5] dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800/60',
           dot: 'bg-[#10B981]',
         };
-      case 'late_ut':
+      case 'Late':
         return {
-          bg: 'bg-[#E56A24] text-white hover:bg-[#c2410c]',
-          border: 'border-[#c2410c]',
-          badge: 'bg-[#ffedd5] text-[#9a3412]',
-          dot: 'bg-[#E56A24]',
+          banner: 'bg-[#fef3c7] text-[#92400e] border border-amber-300 dark:bg-amber-950/70 dark:text-amber-300 dark:border-amber-700',
+          punchPill: 'bg-[#fffbeb] text-[#92400e] border border-amber-200/90 hover:bg-[#fef3c7] dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-800/60',
+          dot: 'bg-[#F59E0B]',
+        };
+      case 'Undertime':
+      case 'Late / UT':
+        return {
+          banner: 'bg-[#ffedd5] text-[#9a3412] border border-orange-300 dark:bg-orange-950/70 dark:text-orange-300 dark:border-orange-700',
+          punchPill: 'bg-[#fff7ed] text-[#9a3412] border border-orange-200/90 hover:bg-[#ffedd5] dark:bg-orange-950/40 dark:text-orange-300 dark:border-orange-800/60',
+          dot: 'bg-[#EA580C]',
+        };
+      case 'Absent':
+        return {
+          banner: 'bg-[#ffe4e6] text-[#9f1239] border border-rose-300 dark:bg-rose-950/70 dark:text-rose-300 dark:border-rose-700',
+          punchPill: 'bg-[#fff1f2] text-[#9f1239] border border-rose-200/90 hover:bg-[#ffe4e6] dark:bg-rose-950/40 dark:text-rose-300 dark:border-rose-800/60',
+          dot: 'bg-[#F43F5E]',
+        };
+      case 'Rest Day':
+        return {
+          banner: 'bg-slate-100 text-slate-700 border border-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700',
+          punchPill: 'bg-slate-50 text-slate-600 border border-slate-200 dark:bg-slate-900/60 dark:text-slate-400 dark:border-slate-800',
+          dot: 'bg-slate-400',
         };
       default:
         return {
-          bg: 'bg-[#5aa9e6] text-[#062640]',
-          border: 'border-[#3587c8]',
-          badge: 'bg-blue-100 text-blue-800',
-          dot: 'bg-blue-500',
+          banner: 'bg-slate-100 text-slate-500 border border-slate-200',
+          punchPill: 'bg-slate-50 text-slate-600 border border-slate-200',
+          dot: 'bg-slate-300',
         };
     }
   };
 
-  const weekDays = [
-    { dayName: 'SUN', dayNum: 13, isToday: false },
-    { dayName: 'MON', dayNum: 14, isToday: false },
-    { dayName: 'TUE', dayNum: 15, isToday: true },
-    { dayName: 'WED', dayNum: 16, isToday: false },
-    { dayName: 'THU', dayNum: 17, isToday: false },
-    { dayName: 'FRI', dayNum: 18, isToday: false },
-    { dayName: 'SAT', dayNum: 19, isToday: false },
-  ];
+  // KPI Summary for the month
+  const totalPresent = Object.values(dayStatusMap).filter((s) => s === 'Present').length;
+  const totalLate = Object.values(dayStatusMap).filter((s) => s === 'Late').length;
+  const totalUndertime = Object.values(dayStatusMap).filter((s) => s === 'Undertime' || s === 'Late / UT').length;
+  const totalAbsent = Object.values(dayStatusMap).filter((s) => s === 'Absent').length;
+  const totalRestDays = Object.values(dayStatusMap).filter((s) => s === 'Rest Day').length;
 
   return (
-    <div className="flex flex-col xl:flex-row bg-white dark:bg-[#0E1B38] rounded-3xl border border-slate-200 dark:border-slate-800 shadow-xl overflow-hidden font-sans select-none min-h-[760px]">
+    <div className="bg-white dark:bg-[#0E1B38] rounded-3xl border border-slate-200 dark:border-slate-800 shadow-xl overflow-hidden font-sans select-none flex flex-col">
       
-      {/* ================= LEFT SIDEBAR (GOOGLE CALENDAR STYLE) ================= */}
-      <div className="w-full xl:w-64 border-b xl:border-b-0 xl:border-r border-slate-200 dark:border-slate-800 p-4 space-y-5 bg-white dark:bg-[#0E1B38] shrink-0">
+      {/* ================= TOP HEADER BAR ================= */}
+      <div className="p-4 sm:p-5 border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-[#0E1B38] flex flex-col lg:flex-row lg:items-center justify-between gap-4">
         
-        {/* Create Shift Entry Button */}
-        <button
-          type="button"
-          onClick={() => setIsCreateModalOpen(true)}
-          className="w-full py-2.5 px-4 rounded-full bg-white dark:bg-[#152347] border border-slate-200 dark:border-slate-700 shadow-md hover:shadow-lg text-slate-800 dark:text-slate-100 font-extrabold text-xs flex items-center justify-center gap-2 transition-all cursor-pointer hover:bg-slate-50 dark:hover:bg-[#1c2e5c]"
-        >
-          <div className="w-5 h-5 rounded-full bg-[#2F6798] text-white flex items-center justify-center font-bold">
-            <Plus className="w-3.5 h-3.5" />
-          </div>
-          <span>Create Shift Entry</span>
-        </button>
+        {/* Left Section: Back Button + Date Info + Employee Switcher */}
+        <div className="flex items-center gap-3 flex-wrap">
+          {onBackToRoster && (
+            <button
+              type="button"
+              onClick={onBackToRoster}
+              className="px-3 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-xs font-bold text-slate-700 dark:text-slate-200 transition-colors cursor-pointer flex items-center gap-1.5 border border-slate-200 dark:border-slate-700 shadow-2xs"
+            >
+              <ArrowLeft className="w-3.5 h-3.5" />
+              <span>Roster View</span>
+            </button>
+          )}
 
-        {/* Mini Calendar Date Picker */}
-        <div className="bg-slate-50/70 dark:bg-slate-900/40 p-3 rounded-2xl border border-slate-100 dark:border-slate-800/80">
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-xs font-black text-slate-800 dark:text-slate-200">
-              September 2026
-            </span>
-            <div className="flex items-center gap-1 text-slate-400">
-              <ChevronLeft className="w-3.5 h-3.5 cursor-pointer hover:text-slate-700" />
-              <ChevronRight className="w-3.5 h-3.5 cursor-pointer hover:text-slate-700" />
+          {/* Date Badge */}
+          <div className="flex items-center gap-2">
+            <div className="w-8 h-8 rounded-xl bg-[#2F6798] text-white flex flex-col items-center justify-center font-black shadow-xs shrink-0">
+              <span className="text-[7.5px] uppercase tracking-tighter leading-none opacity-85">
+                {monthNames[currentMonthIndex].slice(0, 3).toUpperCase()}
+              </span>
+              <span className="text-xs font-black leading-none mt-0.5">22</span>
+            </div>
+
+            {/* Employee Selector Dropdown */}
+            <div className="relative">
+              <button
+                type="button"
+                onClick={() => setIsEmpDropdownOpen(!isEmpDropdownOpen)}
+                className="px-3.5 py-1.5 rounded-xl bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 hover:border-[#2F6798] text-xs font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2 transition-all cursor-pointer shadow-2xs"
+              >
+                <div className="w-5 h-5 rounded-full bg-[#2F6798]/15 text-[#2F6798] dark:text-blue-300 font-extrabold text-[9px] flex items-center justify-center">
+                  {activeEmployee.name.split(' ').slice(0, 2).map((n) => n[0]).join('')}
+                </div>
+                <div className="text-left">
+                  <span className="block text-xs font-extrabold text-slate-900 dark:text-slate-100 leading-tight">
+                    {activeEmployee.name}
+                  </span>
+                  <span className="block text-[9.5px] font-semibold text-slate-400 leading-none">
+                    ID: {activeEmployee.id} • {activeEmployee.role}
+                  </span>
+                </div>
+                <ChevronDown className="w-3.5 h-3.5 text-slate-400 shrink-0 ml-1" />
+              </button>
+
+              {isEmpDropdownOpen && (
+                <div className="absolute left-0 top-full mt-1.5 w-64 bg-white dark:bg-[#101D3D] rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-700 p-1.5 z-50 animate-in fade-in zoom-in-95 duration-150 max-h-72 overflow-y-auto">
+                  <div className="px-2.5 py-1.5 text-[10px] font-bold text-slate-400 uppercase tracking-wider border-b border-slate-100 dark:border-slate-800 mb-1">
+                    Select Workforce Member (13)
+                  </div>
+                  {ALL_ROSTER_EMPLOYEES.map((emp) => {
+                    const isSelected = emp.id === activeEmployee.id;
+                    return (
+                      <button
+                        key={emp.id}
+                        type="button"
+                        onClick={() => {
+                          setSelectedEmpName(emp.name);
+                          setIsEmpDropdownOpen(false);
+                        }}
+                        className={`w-full px-3 py-2 rounded-xl text-xs flex items-center justify-between text-left transition-all cursor-pointer ${
+                          isSelected
+                            ? 'bg-[#2F6798]/10 text-[#2F6798] dark:bg-blue-950/60 dark:text-blue-300 font-extrabold'
+                            : 'text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800/60 font-semibold'
+                        }`}
+                      >
+                        <div>
+                          <span className="block">{emp.name}</span>
+                          <span className="text-[9.5px] opacity-70 block font-normal">ID: {emp.id} • {emp.role}</span>
+                        </div>
+                        {isSelected && <Check className="w-4 h-4 text-[#2F6798] stroke-[2.5]" />}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
             </div>
           </div>
+        </div>
 
-          <div className="grid grid-cols-7 text-center text-[10px] font-bold text-slate-400 mb-1.5">
-            <span>S</span><span>M</span><span>T</span><span>W</span><span>T</span><span>F</span><span>S</span>
-          </div>
+        {/* Right Section: Month Switcher + Refresh + View Controls */}
+        <div className="flex items-center gap-2.5 flex-wrap justify-end">
+          
+          {/* Quick Refresh Button */}
+          <button
+            type="button"
+            onClick={loadLogsForEmployee}
+            className="p-2 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 transition-colors cursor-pointer border border-slate-200 dark:border-slate-700 shadow-2xs"
+            title="Refresh database punch logs"
+          >
+            <RotateCw className={`w-3.5 h-3.5 ${isLoadingLogs ? 'animate-spin text-[#2F6798]' : ''}`} />
+          </button>
 
-          <div className="grid grid-cols-7 text-center text-[11px] font-semibold gap-y-1 text-slate-600 dark:text-slate-300">
-            <span className="text-slate-300 dark:text-slate-600">30</span>
-            <span className="text-slate-300 dark:text-slate-600">31</span>
-            <span>1</span><span>2</span><span>3</span><span>4</span><span>5</span>
-            <span>6</span><span>7</span><span>8</span><span>9</span><span>10</span><span>11</span><span>12</span>
-            <span>13</span><span>14</span>
-            <span className="w-5 h-5 rounded-full bg-[#2F6798] text-white font-bold flex items-center justify-center mx-auto shadow-2xs">
-              15
+          {/* Month Navigator */}
+          <div className="flex items-center gap-1.5 px-3 py-1 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs">
+            <button
+              type="button"
+              onClick={handlePrevMonth}
+              className="p-1 rounded-lg bg-white dark:bg-slate-700 hover:bg-slate-100 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 transition-colors cursor-pointer"
+            >
+              <ChevronLeft className="w-3.5 h-3.5" />
+            </button>
+
+            <span className="font-extrabold text-slate-900 dark:text-slate-100 px-2">
+              {monthNames[currentMonthIndex]} {currentYear}
             </span>
-            <span>16</span><span>17</span><span>18</span><span>19</span>
-            <span>20</span><span>21</span><span>22</span><span>23</span><span>24</span><span>25</span><span>26</span>
-            <span>27</span><span>28</span><span>29</span><span>30</span>
-            <span className="text-slate-300 dark:text-slate-600">1</span>
-            <span className="text-slate-300 dark:text-slate-600">2</span>
-            <span className="text-slate-300 dark:text-slate-600">3</span>
-          </div>
-        </div>
 
-        {/* Search For People Input */}
-        <div className="relative">
-          <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-2.5" />
-          <input
-            type="text"
-            placeholder="Search for people..."
-            value={personSearch}
-            onChange={(e) => setPersonSearch(e.target.value)}
-            className="w-full pl-8 pr-3 py-1.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl text-xs text-slate-900 dark:text-slate-100 placeholder:text-slate-400 focus:outline-none focus:border-[#2F6798]"
-          />
-        </div>
-
-        {/* My Calendars Filter Section */}
-        <div className="space-y-2">
-          <div className="flex items-center justify-between text-xs font-black text-slate-800 dark:text-slate-200 uppercase tracking-wider">
-            <span>My Calendars</span>
-            <ChevronDown className="w-3.5 h-3.5 text-slate-400" />
+            <button
+              type="button"
+              onClick={handleNextMonth}
+              className="p-1 rounded-lg bg-white dark:bg-slate-700 hover:bg-slate-100 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 transition-colors cursor-pointer"
+            >
+              <ChevronRight className="w-3.5 h-3.5" />
+            </button>
           </div>
 
-          <div className="space-y-1.5 text-xs text-slate-700 dark:text-slate-300 font-medium">
-            <label className="flex items-center gap-2 cursor-pointer hover:text-[#5aa9e6] transition-colors">
-              <input
-                type="checkbox"
-                checked={filterCalls}
-                onChange={(e) => setFilterCalls(e.target.checked)}
-                className="w-3.5 h-3.5 rounded text-[#5aa9e6] focus:ring-0 cursor-pointer accent-[#5aa9e6]"
-              />
-              <span className="w-2.5 h-2.5 rounded-full bg-[#5aa9e6] shrink-0" />
-              <span className="truncate">Call Shifts (DFT, RM, BF)</span>
-            </label>
+          {/* View Mode Toggle */}
+          <div className="relative">
+            <button
+              type="button"
+              onClick={() => setIsViewDropdownOpen(!isViewDropdownOpen)}
+              className="px-3.5 py-1.5 rounded-xl bg-white dark:bg-[#111C3D] border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-800 dark:text-slate-200 flex items-center gap-1.5 hover:bg-slate-50 dark:hover:bg-slate-800 transition-all cursor-pointer shadow-2xs"
+            >
+              <span>{viewMode}</span>
+              <ChevronDown className="w-3.5 h-3.5 text-slate-400" />
+            </button>
 
-            <label className="flex items-center gap-2 cursor-pointer hover:text-[#10B981] transition-colors">
-              <input
-                type="checkbox"
-                checked={filterPresent}
-                onChange={(e) => setFilterPresent(e.target.checked)}
-                className="w-3.5 h-3.5 rounded text-[#10B981] focus:ring-0 cursor-pointer accent-[#10B981]"
-              />
-              <span className="w-2.5 h-2.5 rounded-full bg-[#10B981] shrink-0" />
-              <span className="truncate">Present Shifts (On-Time)</span>
-            </label>
-
-            <label className="flex items-center gap-2 cursor-pointer hover:text-[#E56A24] transition-colors">
-              <input
-                type="checkbox"
-                checked={filterLateUT}
-                onChange={(e) => setFilterLateUT(e.target.checked)}
-                className="w-3.5 h-3.5 rounded text-[#E56A24] focus:ring-0 cursor-pointer accent-[#E56A24]"
-              />
-              <span className="w-2.5 h-2.5 rounded-full bg-[#E56A24] shrink-0" />
-              <span className="truncate">Late & Undertime</span>
-            </label>
-
-            <label className="flex items-center gap-2 cursor-pointer hover:text-[#80c5cb] transition-colors">
-              <input
-                type="checkbox"
-                checked={filterTraining}
-                onChange={(e) => setFilterTraining(e.target.checked)}
-                className="w-3.5 h-3.5 rounded text-[#80c5cb] focus:ring-0 cursor-pointer accent-[#80c5cb]"
-              />
-              <span className="w-2.5 h-2.5 rounded-full bg-[#80c5cb] shrink-0" />
-              <span className="truncate">PST & Inhouse Training</span>
-            </label>
-
-            <label className="flex items-center gap-2 cursor-pointer hover:text-[#80c5cb] transition-colors">
-              <input
-                type="checkbox"
-                checked={filterBreaks}
-                onChange={(e) => setFilterBreaks(e.target.checked)}
-                className="w-3.5 h-3.5 rounded text-[#80c5cb] focus:ring-0 cursor-pointer accent-[#80c5cb]"
-              />
-              <span className="w-2.5 h-2.5 rounded-full bg-[#80c5cb] shrink-0" />
-              <span className="truncate">Lunch & Break Intervals</span>
-            </label>
-
-            <label className="flex items-center gap-2 cursor-pointer hover:text-[#cdb4db] transition-colors">
-              <input
-                type="checkbox"
-                checked={filterCoaching}
-                onChange={(e) => setFilterCoaching(e.target.checked)}
-                className="w-3.5 h-3.5 rounded text-[#cdb4db] focus:ring-0 cursor-pointer accent-[#cdb4db]"
-              />
-              <span className="w-2.5 h-2.5 rounded-full bg-[#cdb4db] shrink-0" />
-              <span className="truncate">Supervisor Coaching & QA</span>
-            </label>
-          </div>
-        </div>
-
-        {/* Other Calendars Section */}
-        <div className="space-y-2 pt-2 border-t border-slate-100 dark:border-slate-800/80">
-          <div className="flex items-center justify-between text-xs font-black text-slate-800 dark:text-slate-200 uppercase tracking-wider">
-            <span>Other Calendars</span>
-            <ChevronDown className="w-3.5 h-3.5 text-slate-400" />
+            {isViewDropdownOpen && (
+              <div className="absolute right-0 top-full mt-1.5 w-32 bg-white dark:bg-[#101D3D] rounded-2xl shadow-xl border border-slate-200 dark:border-slate-700 p-1 z-50 animate-in fade-in zoom-in-95 duration-150">
+                {(['Month', 'Week', 'Day'] as const).map((vm) => (
+                  <button
+                    key={vm}
+                    type="button"
+                    onClick={() => {
+                      setViewMode(vm);
+                      setIsViewDropdownOpen(false);
+                    }}
+                    className={`w-full px-3 py-1.5 rounded-xl text-xs font-bold text-left transition-colors cursor-pointer ${
+                      viewMode === vm
+                        ? 'bg-[#2F6798]/10 text-[#2F6798] dark:bg-blue-950 dark:text-blue-300'
+                        : 'text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'
+                    }`}
+                  >
+                    {vm}
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
 
-          <div className="space-y-1.5 text-xs text-slate-700 dark:text-slate-300 font-medium">
-            <label className="flex items-center gap-2 cursor-pointer hover:text-emerald-600 transition-colors">
-              <input
-                type="checkbox"
-                checked={filterHolidays}
-                onChange={(e) => setFilterHolidays(e.target.checked)}
-                className="w-3.5 h-3.5 rounded text-emerald-600 focus:ring-0 cursor-pointer accent-emerald-600"
-              />
-              <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 shrink-0" />
-              <span className="truncate">PH & US Shift Holidays</span>
-            </label>
-          </div>
         </div>
 
       </div>
 
-      {/* ================= MAIN CALENDAR VIEW ================= */}
-      <div className="flex-1 flex flex-col min-w-0">
-        
-        {/* Top Header Bar */}
-        <div className="p-3 sm:p-4 border-b border-slate-200 dark:border-slate-800 flex flex-wrap items-center justify-between gap-3 bg-white dark:bg-[#0E1B38]">
-          
-          <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl bg-[#2F6798] text-white flex flex-col items-center justify-center font-bold shadow-sm shrink-0">
-              <span className="text-[8px] uppercase tracking-tighter opacity-80 leading-none">SEP</span>
-              <span className="text-sm font-black leading-none mt-0.5">15</span>
-            </div>
-
-            <h1 className="text-base sm:text-lg font-black text-slate-900 dark:text-slate-100 whitespace-nowrap">
-              Workforce Calendar
-            </h1>
-
-            <button
-              type="button"
-              className="px-3 py-1 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-xs font-bold text-slate-700 dark:text-slate-200 transition-colors cursor-pointer border border-slate-200 dark:border-slate-700 shadow-2xs"
-            >
-              Today
-            </button>
-
-            <div className="flex items-center gap-1 text-slate-600 dark:text-slate-300">
-              <button
-                type="button"
-                className="p-1 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
-              >
-                <ChevronLeft className="w-4 h-4" />
-              </button>
-              <button
-                type="button"
-                className="p-1 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
-              >
-                <ChevronRight className="w-4 h-4" />
-              </button>
-            </div>
-
-            <span className="text-sm sm:text-base font-bold text-slate-800 dark:text-slate-200 hidden md:inline ml-1">
-              September 2026
-            </span>
-          </div>
-
-          <div className="flex items-center gap-2.5">
-            <div className="relative hidden sm:block">
-              <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-2.5" />
-              <input
-                type="text"
-                placeholder="Search shifts, agents..."
-                value={personSearch}
-                onChange={(e) => setPersonSearch(e.target.value)}
-                className="pl-8 pr-3 py-1.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl text-xs text-slate-900 dark:text-slate-100 placeholder:text-slate-400 focus:outline-none focus:border-[#2F6798] w-48 lg:w-60"
-              />
-            </div>
-
-            <div className="relative">
-              <button
-                type="button"
-                onClick={() => setIsViewDropdownOpen(!isViewDropdownOpen)}
-                className="px-3.5 py-1.5 rounded-xl bg-white dark:bg-[#111C3D] border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-800 dark:text-slate-200 flex items-center gap-1.5 hover:bg-slate-50 dark:hover:bg-slate-800 transition-all cursor-pointer shadow-2xs"
-              >
-                <span>{viewMode}</span>
-                <ChevronDown className="w-3.5 h-3.5 text-slate-400" />
-              </button>
-
-              {isViewDropdownOpen && (
-                <div className="absolute right-0 top-full mt-1.5 w-32 bg-white dark:bg-[#101D3D] rounded-2xl shadow-xl border border-slate-200 dark:border-slate-700 p-1 z-50 animate-in fade-in zoom-in-95 duration-150">
-                  {(['Week', 'Month', 'Day', 'Schedule'] as const).map((vm) => (
-                    <button
-                      key={vm}
-                      type="button"
-                      onClick={() => {
-                        setViewMode(vm);
-                        setIsViewDropdownOpen(false);
-                      }}
-                      className={`w-full px-3 py-1.5 rounded-xl text-xs font-bold text-left transition-colors cursor-pointer ${
-                        viewMode === vm
-                          ? 'bg-[#2F6798]/10 text-[#2F6798] dark:bg-blue-950 dark:text-blue-300'
-                          : 'text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'
-                      }`}
-                    >
-                      {vm}
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
-
-          </div>
-
+      {/* ================= MONTH SUMMARY METRICS BAR ================= */}
+      <div className="px-4 py-2.5 bg-slate-50/70 dark:bg-slate-900/40 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between flex-wrap gap-3">
+        <div className="flex items-center gap-3 sm:gap-5 text-xs font-bold flex-wrap">
+          <span className="flex items-center gap-1.5 text-emerald-700 dark:text-emerald-400">
+            <span className="w-2.5 h-2.5 rounded-full bg-[#10B981]" />
+            <span>{totalPresent} Present</span>
+          </span>
+          <span className="flex items-center gap-1.5 text-amber-700 dark:text-amber-400">
+            <span className="w-2.5 h-2.5 rounded-full bg-[#F59E0B]" />
+            <span>{totalLate} Late</span>
+          </span>
+          <span className="flex items-center gap-1.5 text-orange-700 dark:text-orange-400">
+            <span className="w-2.5 h-2.5 rounded-full bg-[#EA580C]" />
+            <span>{totalUndertime} Undertime</span>
+          </span>
+          <span className="flex items-center gap-1.5 text-rose-700 dark:text-rose-400">
+            <span className="w-2.5 h-2.5 rounded-full bg-[#F43F5E]" />
+            <span>{totalAbsent} Absent</span>
+          </span>
+          <span className="flex items-center gap-1.5 text-slate-600 dark:text-slate-400">
+            <span className="w-2.5 h-2.5 rounded-full bg-slate-400" />
+            <span>{totalRestDays} Rest Days</span>
+          </span>
         </div>
 
-        {/* ================= 7-DAY GOOGLE CALENDAR TIME GRID ================= */}
-        <div className="flex-1 flex flex-col overflow-x-auto min-w-[760px]">
-          
-          {/* Header Row: Days with Circular Highlight on Today */}
-          <div className="grid grid-cols-[80px_repeat(7,1fr)] border-b border-slate-200 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-900/40 text-center py-2.5">
-            <div className="text-[11px] font-extrabold text-slate-400 flex items-center justify-center">
-              GMT+08
-            </div>
+        <div className="text-[11px] text-slate-500 dark:text-slate-400 font-semibold">
+          Showing verified punches from database for <span className="font-bold text-[#2F6798]">{activeEmployee.name}</span>
+        </div>
+      </div>
 
-            {weekDays.map((w) => (
-              <div key={w.dayNum} className="flex flex-col items-center justify-center">
-                <span className="text-[10px] font-bold text-slate-400 tracking-wider">
-                  {w.dayName}
-                </span>
-                <span className={`w-7 h-7 rounded-full text-xs font-black flex items-center justify-center mt-0.5 ${
-                  w.isToday
-                    ? 'bg-[#2F6798] text-white shadow-xs'
-                    : 'text-slate-800 dark:text-slate-100'
-                }`}>
-                  {w.dayNum}
-                </span>
+      {/* ================= 7-COLUMN MONTH CALENDAR GRID (CONNECTED TABLE STYLE) ================= */}
+      <div className="flex-1 overflow-x-auto bg-white dark:bg-[#0E1B38]">
+        <div className="min-w-[840px] border-t border-slate-200 dark:border-slate-800">
+          
+          {/* Days of Week Header Row - Connected Blue Grid Header with White Text */}
+          <div className="grid grid-cols-7 border-b border-[#24537C] bg-[#2F6798] text-white select-none">
+            {['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'].map((dw) => (
+              <div
+                key={dw}
+                className="text-center py-2.5 text-[11px] font-black uppercase tracking-wider border-r last:border-r-0 border-white/20"
+              >
+                {dw}
               </div>
             ))}
           </div>
 
-          {/* Time Grid Rows (7 AM to 8 PM) */}
-          <div className="flex-1 overflow-y-auto relative divide-y divide-slate-100 dark:divide-slate-800/60 max-h-[640px]">
-            
-            {/* Red Current Time Line on Active Day */}
-            <div 
-              className="absolute left-[80px] right-0 border-t-2 border-rose-500 z-20 pointer-events-none"
-              style={{ top: '35%' }}
-            >
-              <div className="w-2.5 h-2.5 rounded-full bg-rose-500 -mt-[5px] -ml-[5px]" />
-            </div>
+          {/* Month Day Cells Grid - Connected Grid with 1px borders, no gaps */}
+          <div className="grid grid-cols-7 border-collapse">
+            {calendarGrid.map((cell, idx) => {
+              const colIndex = idx % 7;
+              const isRightmost = colIndex === 6;
 
-            {HOURS.map((h) => {
-              const hourLabel = h > 12 ? `${h - 12} PM` : h === 12 ? '12 PM' : `${h} AM`;
+              if (!cell.isCurrentMonth) {
+                return (
+                  <div
+                    key={`pad-${idx}`}
+                    className={`min-h-[155px] bg-slate-50/50 dark:bg-slate-900/20 p-2 border-b border-r ${
+                      isRightmost ? 'border-r-0' : ''
+                    } border-slate-200 dark:border-slate-800 opacity-40 select-none flex flex-col justify-between`}
+                  >
+                    <div className="text-right">
+                      <span className="text-xs font-bold text-slate-400">
+                        {cell.dayNum}
+                      </span>
+                    </div>
+                  </div>
+                );
+              }
+
+              const styles = getStatusColorStyles(cell.status);
+              const hasPunches = cell.punches && cell.punches.length > 0;
 
               return (
-                <div key={h} className="grid grid-cols-[80px_repeat(7,1fr)] min-h-[58px] relative group">
-                  
-                  {/* Time Axis Column */}
-                  <div className="text-[10px] font-bold text-slate-400 dark:text-slate-500 p-2 text-right border-r border-slate-100 dark:border-slate-800/80 -mt-2.5 select-none">
-                    {hourLabel}
+                <div
+                  key={`day-${cell.dayNum}`}
+                  onClick={() => {
+                    setSelectedDayDetail({
+                      dayNumber: cell.dayNum,
+                      status: cell.status,
+                      punches: cell.punches,
+                    });
+                  }}
+                  className={`min-h-[160px] p-2 flex flex-col justify-start gap-1 border-b border-r ${
+                    isRightmost ? 'border-r-0' : ''
+                  } border-slate-200 dark:border-slate-800 bg-white dark:bg-[#0E1B38] hover:bg-blue-50/30 dark:hover:bg-slate-800/30 transition-colors cursor-pointer relative group ${
+                    cell.isToday ? 'bg-emerald-50/25 dark:bg-emerald-950/15' : ''
+                  }`}
+                >
+                  {/* Day Header with Day Number in Top Right */}
+                  <div className="flex items-center justify-between leading-none mb-0.5">
+                    {cell.isToday ? (
+                      <span className="text-[9px] font-black uppercase tracking-wider text-emerald-600 dark:text-emerald-400">
+                        Today
+                      </span>
+                    ) : (
+                      <span />
+                    )}
+                    <span
+                      className={`text-xs font-black transition-transform group-hover:scale-110 ${
+                        cell.isToday
+                          ? 'w-5 h-5 rounded-full bg-[#10B981] text-white flex items-center justify-center shadow-2xs'
+                          : 'text-slate-700 dark:text-slate-300'
+                      }`}
+                    >
+                      {cell.dayNum}
+                    </span>
                   </div>
 
-                  {/* 7 Day Column Slots */}
-                  {weekDays.map((w) => (
+                  {/* Top Status Badge (Light Pastel Background similar to tables) */}
+                  {cell.status && (
                     <div
-                      key={w.dayNum}
-                      className="border-r last:border-r-0 border-slate-100 dark:border-slate-800/50 hover:bg-blue-50/20 dark:hover:bg-slate-800/20 transition-colors relative"
-                    />
-                  ))}
+                      className={`w-full py-0.5 px-1.5 rounded-md font-extrabold text-[10.5px] text-center truncate shadow-2xs select-none ${styles.banner}`}
+                    >
+                      {cell.status}
+                    </div>
+                  )}
+
+                  {/* Stack of Punch Action Pills */}
+                  {hasPunches ? (
+                    <div className="flex flex-col gap-1 mt-0.5 overflow-y-auto max-h-[185px] pr-0.5 custom-scrollbar">
+                      {cell.punches.map((punch) => (
+                        <div
+                          key={punch.id}
+                          className={`px-1.5 py-0.5 rounded text-[9.5px] font-bold tracking-tight flex items-center justify-between transition-all shadow-2xs ${styles.punchPill}`}
+                          title={`${punch.timeLabel} • ${punch.type}${punch.status ? ` (${punch.status})` : ''}`}
+                        >
+                          <span className="truncate mr-1 shrink-0">{punch.timeLabel}</span>
+                          <span className="truncate opacity-95 text-[9px]">
+                            {punch.type}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  ) : cell.status === 'Absent' ? (
+                    <div className="flex-1 flex items-center justify-center p-1 text-center text-[10px] text-rose-500/80 font-bold">
+                      No time logs
+                    </div>
+                  ) : cell.status === 'Rest Day' ? (
+                    <div className="flex-1 flex items-center justify-center p-1 text-center text-[10px] text-slate-400 font-semibold">
+                      Scheduled Rest Day
+                    </div>
+                  ) : null}
+
                 </div>
               );
             })}
-
-            {/* Positioned Calendar Cards (Google Calendar Format) */}
-            <div className="absolute inset-0 pointer-events-none grid grid-cols-[80px_repeat(7,1fr)]">
-              <div /> {/* Time axis offset */}
-              
-              {weekDays.map((w, dayColIdx) => {
-                const dayEvents = filteredEvents.filter((ev) => ev.dayIndex === dayColIdx);
-
-                return (
-                  <div key={w.dayNum} className="relative h-full pointer-events-auto px-1">
-                    {dayEvents.map((ev) => {
-                      const style = getCategoryStyles(ev.category);
-                      const topOffset = ((ev.startHour - 7) / (HOURS.length)) * 100;
-                      const heightPercent = (ev.durationHours / (HOURS.length)) * 100;
-
-                      return (
-                        <div
-                          key={ev.id}
-                          onClick={() => setSelectedEvent(ev)}
-                          style={{
-                            top: `${Math.max(1, topOffset)}%`,
-                            height: `${Math.max(7, heightPercent)}%`,
-                          }}
-                          className={`absolute left-1 right-1 rounded-xl p-2.5 text-left cursor-pointer transition-all hover:scale-[1.02] shadow-sm flex flex-col justify-between overflow-hidden z-10 ${style.bg}`}
-                        >
-                          <div>
-                            <h4 className="font-extrabold text-[11px] leading-tight truncate">
-                              {ev.title}
-                            </h4>
-                            <p className="text-[10px] opacity-90 truncate mt-0.5">
-                              {ev.agent} {ev.account ? `• ${ev.account}` : ''}
-                            </p>
-                          </div>
-
-                          <div className="text-[9px] font-black opacity-90 mt-1">
-                            {ev.timeLabel}
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                );
-              })}
-            </div>
-
           </div>
 
         </div>
-
       </div>
 
-      {/* ================= EVENT DETAIL MODAL ================= */}
-      {selectedEvent && (
-        <div 
-          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-in fade-in duration-200"
-          onClick={() => setSelectedEvent(null)}
+      {/* ================= DAY DETAIL BREAKDOWN RIGHT PANEL ================= */}
+      {selectedDayDetail && (
+        <div
+          className="fixed inset-0 z-50 flex justify-end bg-black/45 backdrop-blur-[2px] animate-in fade-in duration-200"
+          onClick={() => setSelectedDayDetail(null)}
         >
-          <div 
-            className="w-full max-w-md bg-white dark:bg-[#101D3D] rounded-3xl shadow-2xl border border-slate-200 dark:border-slate-700 overflow-hidden flex flex-col"
+          <div
+            className="w-full max-w-md h-full bg-white dark:bg-[#101D3D] shadow-2xl border-l border-slate-200 dark:border-slate-700 flex flex-col animate-in slide-in-from-right duration-300 ease-out select-text"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="p-5 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between bg-slate-50/70 dark:bg-slate-900/40">
-              <div className="flex items-center gap-2.5">
-                <div className={`w-3.5 h-3.5 rounded-full ${getCategoryStyles(selectedEvent.category).dot}`} />
-                <h3 className="text-sm font-extrabold text-slate-900 dark:text-slate-100">
-                  {selectedEvent.title}
-                </h3>
+            {/* Panel Header */}
+            <div className="p-5 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between bg-slate-50/80 dark:bg-slate-900/50">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-2xl bg-[#2F6798] text-white flex flex-col items-center justify-center font-black shadow-sm shrink-0">
+                  <span className="text-[8px] uppercase tracking-tighter leading-none opacity-85">SEP</span>
+                  <span className="text-sm font-black leading-none mt-0.5">{selectedDayDetail.dayNumber}</span>
+                </div>
+                <div>
+                  <h3 className="text-sm font-extrabold text-slate-900 dark:text-slate-100 leading-tight">
+                    September {selectedDayDetail.dayNumber}, 2026
+                  </h3>
+                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                    Shift Breakdown — <span className="font-bold text-slate-800 dark:text-slate-200">{activeEmployee.name}</span>
+                  </p>
+                </div>
               </div>
               <button
-                onClick={() => setSelectedEvent(null)}
-                className="p-1.5 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500 cursor-pointer"
+                onClick={() => setSelectedDayDetail(null)}
+                className="p-2 rounded-xl hover:bg-slate-200/70 dark:hover:bg-slate-800 text-slate-500 cursor-pointer transition-colors"
+                title="Close panel"
               >
                 <X className="w-4 h-4" />
               </button>
             </div>
 
-            <div className="p-5 space-y-3 text-xs">
-              <div className="flex items-center justify-between p-3 rounded-2xl bg-slate-50 dark:bg-slate-900/60 border border-slate-200/80 dark:border-slate-800">
+            {/* Panel Body */}
+            <div className="p-5 space-y-4 overflow-y-auto flex-1">
+              
+              {/* Day Status Summary Card */}
+              <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-900/60 border border-slate-200/80 dark:border-slate-800 flex items-center justify-between shadow-2xs">
                 <div>
-                  <span className="text-[10px] font-bold text-slate-400 uppercase block">Assigned Agent</span>
-                  <span className="text-xs font-black text-slate-900 dark:text-slate-100">{selectedEvent.agent}</span>
+                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
+                    Attendance Status
+                  </span>
+                  <span className="text-xs font-black text-slate-900 dark:text-slate-100 mt-0.5 block">
+                    {selectedDayDetail.status || 'No Status Recorded'}
+                  </span>
                 </div>
-                <div className="text-right">
-                  <span className="text-[10px] font-bold text-slate-400 uppercase block">Time Interval</span>
-                  <span className="text-xs font-black text-[#2F6798] dark:text-blue-400">{selectedEvent.timeLabel}</span>
-                </div>
+                {selectedDayDetail.status && (
+                  <div
+                    className={`py-1 px-3 rounded-lg font-extrabold text-xs shadow-2xs ${
+                      getStatusColorStyles(selectedDayDetail.status).banner
+                    }`}
+                  >
+                    {selectedDayDetail.status}
+                  </div>
+                )}
               </div>
 
-              <div className="space-y-1.5 text-slate-600 dark:text-slate-300">
+              {/* Punches Timeline List */}
+              <div className="space-y-2.5">
                 <div className="flex items-center justify-between">
-                  <span className="font-semibold">Account Queue:</span>
-                  <span className="font-bold text-slate-900 dark:text-slate-100">{selectedEvent.account}</span>
-                </div>
-                {selectedEvent.ticket && (
-                  <div className="flex items-center justify-between">
-                    <span className="font-semibold">Ticket Reference:</span>
-                    <code className="text-[#2F6798] dark:text-blue-400 font-bold">{selectedEvent.ticket}</code>
-                  </div>
-                )}
-                {selectedEvent.tagging && (
-                  <div className="flex items-center justify-between">
-                    <span className="font-semibold">Call Tagging:</span>
-                    <span className="font-medium text-slate-700 dark:text-slate-300">{selectedEvent.tagging}</span>
-                  </div>
-                )}
-              </div>
-            </div>
-
-            <div className="p-4 border-t border-slate-100 dark:border-slate-800 bg-slate-50/60 dark:bg-slate-900/40 flex justify-end">
-              <button
-                onClick={() => setSelectedEvent(null)}
-                className="px-4 py-2 rounded-xl bg-[#2F6798] hover:bg-[#235179] text-white text-xs font-bold transition-all cursor-pointer shadow-xs"
-              >
-                Close Details
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* ================= CREATE SHIFT MODAL ================= */}
-      {isCreateModalOpen && (
-        <div 
-          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-in fade-in duration-200"
-          onClick={() => setIsCreateModalOpen(false)}
-        >
-          <form 
-            onSubmit={handleCreateEvent}
-            className="w-full max-w-lg bg-white dark:bg-[#101D3D] rounded-3xl shadow-2xl border border-slate-200 dark:border-slate-700 overflow-hidden p-5 space-y-4"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
-              <h3 className="text-sm font-extrabold text-slate-900 dark:text-slate-100">
-                Create Shift / Schedule Entry
-              </h3>
-              <button
-                type="button"
-                onClick={() => setIsCreateModalOpen(false)}
-                className="p-1.5 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500 cursor-pointer"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-
-            <div className="space-y-3 text-xs">
-              <div>
-                <label className="font-bold text-slate-500 block mb-1">Shift / Event Title</label>
-                <input
-                  type="text"
-                  required
-                  placeholder="e.g. DFT Inbound Support Shift"
-                  value={newEventTitle}
-                  onChange={(e) => setNewEventTitle(e.target.value)}
-                  className="w-full p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-slate-100 font-bold focus:outline-none focus:ring-2 focus:ring-[#2F6798]"
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="font-bold text-slate-500 block mb-1">Agent / Trainee</label>
-                  <input
-                    type="text"
-                    value={newEventAgent}
-                    onChange={(e) => setNewEventAgent(e.target.value)}
-                    className="w-full p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-slate-100 font-bold"
-                  />
+                  <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider block">
+                    Recorded Punch Timestamps
+                  </span>
+                  <span className="text-[10px] font-bold text-slate-500 bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded-full">
+                    {selectedDayDetail.punches.length} {selectedDayDetail.punches.length === 1 ? 'event' : 'events'}
+                  </span>
                 </div>
 
-                <div>
-                  <label className="font-bold text-slate-500 block mb-1">Account Queue</label>
-                  <select
-                    value={newEventAccount}
-                    onChange={(e) => setNewEventAccount(e.target.value)}
-                    className="w-full p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-slate-100 font-bold cursor-pointer"
-                  >
-                    <option value="DFT">DFT</option>
-                    <option value="RM">RM</option>
-                    <option value="BF">BF</option>
-                    <option value="XPN">XPN</option>
-                    <option value="Corporate">Corporate</option>
-                  </select>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-3 gap-3">
-                <div>
-                  <label className="font-bold text-slate-500 block mb-1">Day</label>
-                  <select
-                    value={newEventDay}
-                    onChange={(e) => setNewEventDay(Number(e.target.value))}
-                    className="w-full p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-slate-100 font-bold cursor-pointer"
-                  >
-                    <option value={0}>Sun 13</option>
-                    <option value={1}>Mon 14</option>
-                    <option value={2}>Tue 15 (Today)</option>
-                    <option value={3}>Wed 16</option>
-                    <option value={4}>Thu 17</option>
-                    <option value={5}>Fri 18</option>
-                    <option value={6}>Sat 19</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className="font-bold text-slate-500 block mb-1">Start Time</label>
-                  <select
-                    value={newEventStartHour}
-                    onChange={(e) => setNewEventStartHour(Number(e.target.value))}
-                    className="w-full p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-slate-100 font-bold cursor-pointer"
-                  >
-                    {HOURS.map((h) => (
-                      <option key={h} value={h}>
-                        {h > 12 ? `${h - 12} PM` : h === 12 ? '12 PM' : `${h} AM`}
-                      </option>
+                {selectedDayDetail.punches.length > 0 ? (
+                  <div className="divide-y divide-slate-100 dark:divide-slate-800/80 border border-slate-200/80 dark:border-slate-800 rounded-2xl overflow-hidden bg-white dark:bg-slate-900/40 shadow-2xs">
+                    {selectedDayDetail.punches.map((punch, pIdx) => (
+                      <div
+                        key={punch.id || pIdx}
+                        className="p-3.5 flex items-center justify-between text-xs hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors"
+                      >
+                        <div className="flex items-center gap-3">
+                          <div className="w-2.5 h-2.5 rounded-full bg-[#2F6798] shrink-0" />
+                          <div>
+                            <span className="font-extrabold text-slate-900 dark:text-slate-100 block">
+                              {punch.type}
+                            </span>
+                            <span className="text-[10.5px] text-slate-400 block font-medium mt-0.5">
+                              Raw: {punch.rawTimestamp}
+                            </span>
+                          </div>
+                        </div>
+                        <div className="text-right shrink-0">
+                          <span className="font-black text-[#2F6798] dark:text-blue-400 text-xs block">
+                            {punch.timeLabel}
+                          </span>
+                          {punch.duration && punch.duration !== 'N/A' && (
+                            <span className="text-[10px] font-bold text-amber-600 dark:text-amber-400 block mt-0.5">
+                              Duration: {punch.duration}m
+                            </span>
+                          )}
+                        </div>
+                      </div>
                     ))}
-                  </select>
-                </div>
-
-                <div>
-                  <label className="font-bold text-slate-500 block mb-1">Duration</label>
-                  <select
-                    value={newEventDuration}
-                    onChange={(e) => setNewEventDuration(Number(e.target.value))}
-                    className="w-full p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-slate-100 font-bold cursor-pointer"
-                  >
-                    <option value={1}>1 Hour</option>
-                    <option value={2}>2 Hours</option>
-                    <option value={3}>3 Hours</option>
-                    <option value={4}>4 Hours</option>
-                    <option value={8}>8 Hours</option>
-                  </select>
-                </div>
+                  </div>
+                ) : (
+                  <div className="p-6 rounded-2xl bg-slate-50 dark:bg-slate-900/40 border border-dashed border-slate-200 dark:border-slate-800 text-center text-xs text-slate-400">
+                    No punch timestamps recorded for this date.
+                  </div>
+                )}
               </div>
 
-              <div>
-                <label className="font-bold text-slate-500 block mb-1">Category Type</label>
-                <div className="grid grid-cols-2 gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setNewEventCategory('calls')}
-                    className={`p-2 rounded-xl border text-xs font-bold cursor-pointer transition-all ${
-                      newEventCategory === 'calls'
-                        ? 'bg-[#5aa9e6] text-[#062640] border-[#3587c8]'
-                        : 'bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700'
-                    }`}
-                  >
-                    📞 Call Shifts (DFT/RM)
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setNewEventCategory('training')}
-                    className={`p-2 rounded-xl border text-xs font-bold cursor-pointer transition-all ${
-                      newEventCategory === 'training'
-                        ? 'bg-[#b3dee2] text-[#062d33] border-[#80c5cb]'
-                        : 'bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700'
-                    }`}
-                  >
-                    🎓 PST & Inhouse
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setNewEventCategory('break')}
-                    className={`p-2 rounded-xl border text-xs font-bold cursor-pointer transition-all ${
-                      newEventCategory === 'break'
-                        ? 'bg-[#b3dee2] text-[#062d33] border-[#80c5cb]'
-                        : 'bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700'
-                    }`}
-                  >
-                    🍴 Lunch & Breaks
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setNewEventCategory('coaching')}
-                    className={`p-2 rounded-xl border text-xs font-bold cursor-pointer transition-all ${
-                      newEventCategory === 'coaching'
-                        ? 'bg-[#cdb4db] text-[#341344] border-[#a983be]'
-                        : 'bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700'
-                    }`}
-                  >
-                    ✨ Coaching & QA
-                  </button>
-                </div>
-              </div>
             </div>
 
-            <div className="pt-3 flex justify-end gap-2 border-t border-slate-100 dark:border-slate-800">
+            {/* Panel Footer */}
+            <div className="p-4 border-t border-slate-100 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-900/50 flex items-center justify-between">
+              <span className="text-[11px] text-slate-400 font-medium">
+                Verified with Supervisor Punch Logs
+              </span>
               <button
-                type="button"
-                onClick={() => setIsCreateModalOpen(false)}
-                className="px-4 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 text-slate-700 dark:text-slate-300 text-xs font-bold cursor-pointer"
+                onClick={() => setSelectedDayDetail(null)}
+                className="px-4 py-2 rounded-xl bg-[#2F6798] hover:bg-[#235179] text-white text-xs font-bold transition-all cursor-pointer shadow-xs active:scale-98"
               >
-                Cancel
-              </button>
-              <button
-                type="submit"
-                className="px-5 py-2 rounded-xl bg-[#2F6798] hover:bg-[#235179] text-white text-xs font-black shadow-sm cursor-pointer"
-              >
-                Save Entry
+                Close Panel
               </button>
             </div>
 
-          </form>
+          </div>
         </div>
       )}
 

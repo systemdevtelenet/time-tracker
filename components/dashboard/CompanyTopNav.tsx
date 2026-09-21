@@ -17,11 +17,23 @@ import {
   BarChart3, 
   CheckCircle2, 
   ArrowRight,
-  ShieldCheck
+  ShieldCheck,
+  LogIn,
+  FileText,
+  Utensils,
+  Coffee,
+  UserCheck
 } from 'lucide-react';
 
 import DatePickerPopover from './DatePickerPopover';
 import ConfirmActionModal from './ConfirmActionModal';
+import { 
+  getActivityLogs, 
+  syncActivityLogsWithApi,
+  markAllNotificationsAsRead, 
+  formatRelativeTime, 
+  SystemActivityLog 
+} from '@/lib/activityLogs';
 
 interface CompanyTopNavProps {
   title?: string;
@@ -50,21 +62,22 @@ const SEARCH_ITEMS: SearchItem[] = [
   // Pages
   { id: 'p1', title: 'Training Performance Hub', subtitle: 'Executive Dashboard & KPI Metrics', category: 'Page', tabId: 'dashboard', icon: LayoutDashboard },
   { id: 'p2', title: 'Workforce Portal Time Clock', subtitle: 'Live Shift Logging, Punch Times & Timelines', category: 'Page', tabId: 'tracker', icon: Clock },
-  { id: 'p3', title: 'Flow Hub Focus Studio', subtitle: 'Deep Work Pomodoro, Kanban Tasks & Weather', category: 'Page', tabId: 'flowhub', icon: Zap },
-  { id: 'p4', title: 'Attendance & Reliability Roster', subtitle: 'Live Attendance Matrix & Absence Summaries', category: 'Page', tabId: 'attendance', icon: Calendar },
-  { id: 'p5', title: 'Operations Analytics & Insights', subtitle: 'AHT Distribution, Heatmaps & Call Durations', category: 'Page', tabId: 'analytics', icon: BarChart3 },
-  { id: 'p6', title: 'Workforce Portal Settings', subtitle: 'Thresholds, Notifications & Configurations', category: 'Page', tabId: 'settings', icon: Settings },
+  { id: 'p3', title: 'System Activity & Audit Logs', subtitle: 'Live Audit Trail of Logins, Punches & Time Logs', category: 'Page', tabId: 'activity', icon: FileText },
+  { id: 'p4', title: 'Flow Hub Focus Studio', subtitle: 'Deep Work Pomodoro, Kanban Tasks & Weather', category: 'Page', tabId: 'flowhub', icon: Zap },
+  { id: 'p5', title: 'Attendance & Reliability Roster', subtitle: 'Live Attendance Matrix & Absence Summaries', category: 'Page', tabId: 'attendance', icon: Calendar },
+  { id: 'p6', title: 'Operations Analytics & Insights', subtitle: 'Punctuality, Shift Hours & Heatmaps', category: 'Page', tabId: 'analytics', icon: BarChart3 },
+  { id: 'p7', title: 'Workforce Portal Settings', subtitle: 'Thresholds, Notifications & Configurations', category: 'Page', tabId: 'settings', icon: Settings },
 
   // Team & Trainees
   { id: 't1', title: 'Reguero, Nissi-Jeh', subtitle: 'Head of Training • Batch 1 • Supervisor', category: 'Trainee', tabId: 'attendance', icon: User },
   { id: 't2', title: 'Caballes, June Babe', subtitle: 'Operations Manager • Executive Lead', category: 'Trainee', tabId: 'attendance', icon: User },
   { id: 't3', title: 'Carmelotes, Grachelle', subtitle: 'QA Lead • Batch 4 • Corporate Account', category: 'Trainee', tabId: 'attendance', icon: User },
-  { id: 't4', title: 'Santos, Maria', subtitle: 'Trainee • Batch 4 • Amazon Direct', category: 'Trainee', tabId: 'attendance', icon: User },
-  { id: 't5', title: 'Dela Cruz, Juan', subtitle: 'Trainee • Batch 5 • Verizon Care', category: 'Trainee', tabId: 'attendance', icon: User },
+  { id: 't4', title: 'Santos, Maria', subtitle: 'Trainee • Batch 4 • Corporate Account', category: 'Trainee', tabId: 'attendance', icon: User },
+  { id: 't5', title: 'Dela Cruz, Juan', subtitle: 'Trainee • Batch 5 • Corporate Account', category: 'Trainee', tabId: 'attendance', icon: User },
 
   // Quick Actions
   { id: 'a1', title: 'Start Focus Timer (Pomodoro)', subtitle: 'Launch 25m Deep Work Session', category: 'Action', tabId: 'flowhub', icon: Zap },
-  { id: 'a2', title: 'Add New Phone Time Entry', subtitle: 'Log Call Duration & Ticket Code', category: 'Action', tabId: 'tracker', icon: Clock },
+  { id: 'a2', title: 'Log Shift / Task Activity', subtitle: 'Record Task Duration & Activity Code', category: 'Action', tabId: 'tracker', icon: Clock },
   { id: 'a3', title: 'View Attendance Matrix', subtitle: 'Check Present, Late & Absent Logs', category: 'Action', tabId: 'attendance', icon: Calendar },
 ];
 
@@ -88,7 +101,28 @@ export default function CompanyTopNav({
 
   // Notifications State
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
+  const [notifications, setNotifications] = useState<SystemActivityLog[]>([]);
   const notifRef = useRef<HTMLDivElement>(null);
+
+  // Sync notifications
+  useEffect(() => {
+    setNotifications(getActivityLogs());
+    syncActivityLogsWithApi().then((logs) => setNotifications(logs));
+
+    const handleLogUpdate = () => {
+      setNotifications(getActivityLogs());
+    };
+    if (typeof window !== 'undefined') {
+      window.addEventListener('system-activity-logged', handleLogUpdate);
+    }
+    return () => {
+      if (typeof window !== 'undefined') {
+        window.removeEventListener('system-activity-logged', handleLogUpdate);
+      }
+    };
+  }, []);
+
+  const unreadCount = notifications.filter((n) => !n.isRead).length;
 
   // Logout Modal State
   const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false);
@@ -246,32 +280,110 @@ export default function CompanyTopNav({
               title="Notifications"
             >
               <Bell className="w-6 h-6 stroke-[1.5]" />
-              <span className="absolute -top-1.5 -right-1.5 min-w-4 h-4 px-1 rounded-full bg-rose-500 text-white text-[9px] font-black flex items-center justify-center shadow-xs">
-                10
-              </span>
+              {unreadCount > 0 && (
+                <span className="absolute -top-1.5 -right-1.5 min-w-4 h-4 px-1 rounded-full bg-rose-500 text-white text-[9px] font-black flex items-center justify-center shadow-xs">
+                  {unreadCount}
+                </span>
+              )}
             </button>
 
-            {/* Notification Popover Dropdown */}
+            {/* Notification Popover Dropdown matching reference image */}
             {isNotificationsOpen && (
-              <div className="absolute right-0 top-full mt-3 w-72 rounded-2xl bg-white dark:bg-[#101D3D] border border-slate-200 dark:border-slate-800 shadow-2xl p-3 space-y-2.5 z-50 animate-in fade-in zoom-in-95">
-                <div className="flex items-center justify-between pb-2 border-b border-slate-100 dark:border-slate-800">
-                  <h4 className="text-xs font-bold text-slate-900 dark:text-slate-100">
-                    Notifications (10 Unread)
-                  </h4>
-                  <span className="text-[10px] text-[#2F6798] font-bold cursor-pointer hover:underline">
-                    Mark all read
-                  </span>
-                </div>
-                <div className="space-y-1.5 max-h-60 overflow-y-auto text-xs">
-                  <div className="p-2 rounded-xl bg-blue-50/60 dark:bg-blue-950/40 border border-blue-100 dark:border-blue-900/40">
-                    <p className="font-bold text-[11px] text-slate-800 dark:text-slate-200">Shift Handover Received</p>
-                    <p className="text-[10px] text-slate-500">Night shift endorsement completed by June Babe.</p>
+              <div className="absolute right-0 top-full mt-3 w-80 sm:w-96 rounded-2xl bg-white dark:bg-[#101D3D] border border-slate-200 dark:border-slate-800 shadow-2xl z-50 animate-in fade-in zoom-in-95 overflow-hidden font-sans">
+                
+                {/* Header */}
+                <div className="px-4 py-3 border-b border-slate-100 dark:border-slate-800/80 flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <h4 className="font-extrabold text-sm text-slate-900 dark:text-slate-100">
+                      Notifications
+                    </h4>
+                    {unreadCount > 0 && (
+                      <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold uppercase tracking-wider bg-blue-100 dark:bg-blue-950 text-[#2F6798] dark:text-blue-300">
+                        {unreadCount} NEW
+                      </span>
+                    )}
                   </div>
-                  <div className="p-2 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-700/60">
-                    <p className="font-bold text-[11px] text-slate-800 dark:text-slate-200">Late Attendance Alert</p>
-                    <p className="text-[10px] text-slate-500">2 trainees clocked in after 9:15 PM.</p>
-                  </div>
+                  <button
+                    type="button"
+                    onClick={() => markAllNotificationsAsRead()}
+                    className="text-xs font-bold text-[#2F6798] dark:text-blue-400 hover:underline cursor-pointer"
+                  >
+                    Mark all as read
+                  </button>
                 </div>
+
+                {/* Notifications List */}
+                <div className="max-h-[380px] overflow-y-auto divide-y divide-slate-100 dark:divide-slate-800/60 custom-scrollbar">
+                  {notifications.length > 0 ? (
+                    notifications.map((item) => {
+                      const Icon = item.category === 'AUTH' 
+                        ? LogIn 
+                        : item.category === 'PUNCH' 
+                        ? Clock 
+                        : item.category === 'TIME LOG' 
+                        ? FileText 
+                        : item.category === 'ATTENDANCE' 
+                        ? UserCheck 
+                        : ShieldCheck;
+
+                      return (
+                        <div
+                          key={item.id}
+                          className={`p-3.5 flex items-start gap-3 hover:bg-slate-50/80 dark:hover:bg-slate-800/50 transition-colors ${
+                            !item.isRead ? 'bg-blue-50/30 dark:bg-blue-950/20' : ''
+                          }`}
+                        >
+                          {/* Circular Left Icon */}
+                          <div className="w-8 h-8 rounded-full bg-blue-50 dark:bg-blue-950/80 text-[#2F6798] dark:text-blue-400 flex items-center justify-center shrink-0 border border-blue-100 dark:border-blue-900/50 mt-0.5">
+                            <Icon className="w-4 h-4" />
+                          </div>
+
+                          {/* Content */}
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center justify-between gap-2">
+                              <h5 className="font-bold text-xs text-slate-900 dark:text-slate-100 truncate">
+                                {item.title}
+                              </h5>
+                              <span className="text-[10px] font-medium text-slate-400 shrink-0">
+                                {formatRelativeTime(item.timestamp)}
+                              </span>
+                            </div>
+
+                            <p className="text-[11.5px] text-slate-600 dark:text-slate-300 leading-snug mt-0.5 line-clamp-2">
+                              {item.description}
+                            </p>
+
+                            <div className="flex items-center justify-between gap-2 mt-2">
+                              <span className="text-[10px] text-slate-400">
+                                By <b className="text-slate-700 dark:text-slate-300 font-semibold">{item.performedBy}</b>
+                              </span>
+                              <span className="px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-wider bg-blue-50 text-[#2F6798] dark:bg-blue-950/80 dark:text-blue-300 border border-blue-200/50 dark:border-blue-900/40">
+                                {item.category}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })
+                  ) : (
+                    <div className="py-8 text-center text-xs text-slate-400">
+                      No notifications yet
+                    </div>
+                  )}
+                </div>
+
+                {/* Footer Link */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsNotificationsOpen(false);
+                    if (onSelectTab) onSelectTab('activity');
+                  }}
+                  className="w-full py-3 text-center text-xs font-bold text-slate-700 dark:text-slate-200 hover:text-[#2F6798] dark:hover:text-blue-400 bg-slate-50/50 dark:bg-slate-900/50 border-t border-slate-100 dark:border-slate-800 transition-colors cursor-pointer block"
+                >
+                  View All Activity Logs
+                </button>
+
               </div>
             )}
           </div>

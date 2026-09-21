@@ -33,7 +33,7 @@ export default function DepartmentalTrendsChart({ records = [] }: DepartmentalTr
             </h3>
             <p className="text-[10px] font-bold text-slate-400 tracking-wider uppercase mt-0.5">
               {metricMode === 'volume' 
-                ? 'WEEKLY SHIFT CALL VOLUME (LOGS RECORDED)' 
+                ? 'WEEKLY SHIFT ACTIVITY VOLUME (LOGS RECORDED)' 
                 : 'HOURLY SHIFT LOGGED TIME TRAJECTORY'}
             </p>
           </div>
@@ -49,7 +49,7 @@ export default function DepartmentalTrendsChart({ records = [] }: DepartmentalTr
               }`}
             >
               <BarChart3 className="w-3.5 h-3.5" />
-              <span>Call Volume</span>
+              <span>Activity Volume</span>
             </button>
             <button
               onClick={() => setMetricMode('duration')}

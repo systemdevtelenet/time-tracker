@@ -69,20 +69,6 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
-    // Optionally also mirror to relational phone_time_entries if needed
-    try {
-      await supabase.from('phone_time_entries').insert([
-        {
-          ticket_number: body.ticket_number,
-          tagging: body.tagging,
-          summary: body.summary,
-        },
-      ]);
-    } catch (mirrorErr) {
-      // Non-blocking mirror
-      console.warn('Mirror to phone_time_entries skipped:', mirrorErr);
-    }
-
     return NextResponse.json({ success: true, data: data?.[0] || body }, { status: 201 });
   } catch (err: any) {
     console.error('API Error in POST /api/time-entries:', err);

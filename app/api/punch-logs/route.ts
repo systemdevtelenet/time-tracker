@@ -1,17 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getSupabaseAdmin } from '@/lib/supabase/server';
 import { 
-  INITIAL_PUNCH_LOGS, 
-  PunchLogItem, 
-  computeEmployeePunchStatus, 
-  computeShiftMilestonesAndAudit,
-  getEmployeePunches 
-} from '@/lib/punchLogs';
+  getTimeTrackerLogsFromDb, 
+  insertTimeTrackerPunch, 
+  computeLiveStatusFromLogs,
+  NormalizedTimeTrackerLog 
+} from '@/lib/timeTrackerDb';
+import { PunchLogItem } from '@/lib/punchLogs';
 
 export const dynamic = 'force-dynamic';
-
-// In-memory runtime cache for seamless live punch actions across turns
-let memoryPunches: PunchLogItem[] = [...INITIAL_PUNCH_LOGS];
 
 export async function GET(request: NextRequest) {
   try {
@@ -19,57 +15,48 @@ export async function GET(request: NextRequest) {
     const empId = searchParams.get('empId') || '1597';
     const date = searchParams.get('date');
 
-    // 1. Try fetching from Supabase table attendance_logs if available
-    let dbPunches: PunchLogItem[] | null = null;
-    try {
-      const supabase = getSupabaseAdmin();
-      let query = supabase.from('attendance_logs').select('*').order('created_at', { ascending: false });
-      if (empId && empId !== 'ALL') {
-        query = query.eq('employee_id', empId);
-      }
-      const { data, error } = await query;
-      if (!error && data && data.length > 0) {
-        dbPunches = data.map((d: any) => ({
-          id: String(d.id),
-          empId: String(d.employee_id),
-          type: d.status || d.type || 'Punch',
-          timestamp: d.created_at || d.attendance_date,
-          duration: d.duration || 'N/A',
-          status: 'On Time',
-          overDuration: null
-        }));
-      }
-    } catch (dbErr) {
-      // Fallback to memoryPunches
-    }
+    // Fetch real normalized rows directly from Supabase time_tracker_logs
+    const dbLogs: NormalizedTimeTrackerLog[] = await getTimeTrackerLogsFromDb({
+      empId: empId !== 'ALL' ? empId : undefined,
+      date: date || undefined,
+      limit: 5000,
+    });
 
-    const sourceList = dbPunches && dbPunches.length > 0 ? [...dbPunches, ...memoryPunches] : memoryPunches;
-
-    // Filter by empId if provided
-    let filtered = sourceList;
-    if (empId && empId !== 'ALL') {
-      filtered = filtered.filter(p => String(p.empId) === String(empId));
-    }
-    if (date) {
-      filtered = filtered.filter(p => p.timestamp.includes(date));
-    }
-
-    // Compute status, milestones and audit history for the active employee
     const targetEmpId = empId && empId !== 'ALL' ? empId : '1597';
-    const computedStatus = computeEmployeePunchStatus(targetEmpId, sourceList);
-    const { milestones, auditHistory } = computeShiftMilestonesAndAudit(targetEmpId, sourceList);
+    const currentStatus = computeLiveStatusFromLogs(targetEmpId, dbLogs);
+
+    const formattedList: PunchLogItem[] = dbLogs.map((log) => ({
+      id: log.id,
+      empId: log.employee_id,
+      type: log.punch_type,
+      timestamp: log.timestamp,
+      duration: log.duration,
+      status: (log.status as any) || 'On Time',
+      overDuration: null,
+    }));
+
+    // Build audit history directly from real rows
+    const auditHistory = dbLogs
+      .filter((l) => l.employee_id === String(targetEmpId))
+      .slice(0, 8)
+      .map((l) => ({
+        id: l.id,
+        action: l.punch_type,
+        time: l.parsedDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
+        date: l.parsedDate.toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' }),
+        status: l.status,
+      }));
 
     return NextResponse.json({
       success: true,
-      data: filtered,
-      total: filtered.length,
-      currentStatus: computedStatus,
-      milestones,
+      data: formattedList,
+      total: formattedList.length,
+      currentStatus,
       auditHistory,
     });
   } catch (err: any) {
     console.error('Error in GET /api/punch-logs:', err);
-    return NextResponse.json({ error: err.message, data: memoryPunches }, { status: 500 });
+    return NextResponse.json({ error: err.message, data: [] }, { status: 500 });
   }
 }
 
@@ -82,48 +69,26 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'empId and type are required' }, { status: 400 });
     }
 
-    const now = new Date();
-    // Format timestamp like "9/17/2026 3:52:51"
-    const timestampStr = `${now.getMonth() + 1}/${now.getDate()}/${now.getFullYear()} ${now.getHours()}:${now.getMinutes().toString().padStart(2, '0')}:${now.getSeconds().toString().padStart(2, '0')}`;
-
-    const newPunch: PunchLogItem = {
-      id: `punch-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
-      empId: String(empId),
-      type,
-      timestamp: timestampStr,
-      duration: duration || 'N/A',
+    // Insert directly into Supabase table time_tracker_logs
+    const inserted = await insertTimeTrackerPunch({
+      empId,
+      punchType: type,
       status: status || 'On Time',
-      overDuration: body.overDuration || null,
-    };
+      duration: duration || 'N/A',
+    });
 
-    // Prepend to in-memory punches
-    memoryPunches = [newPunch, ...memoryPunches];
+    // Fetch fresh logs to recompute state
+    const freshLogs = await getTimeTrackerLogsFromDb({ empId: String(empId), limit: 100 });
+    const currentStatus = computeLiveStatusFromLogs(String(empId), freshLogs);
 
-    // Also attempt to save to Supabase attendance_logs
-    try {
-      const supabase = getSupabaseAdmin();
-      await supabase.from('attendance_logs').insert([
-        {
-          employee_id: empId,
-          attendance_date: now.toISOString().split('T')[0],
-          status: type,
-          created_at: now.toISOString(),
-        }
-      ]);
-    } catch (insertErr) {
-      // non-blocking
-    }
-
-    const updatedStatus = computeEmployeePunchStatus(String(empId), memoryPunches);
-    const { milestones, auditHistory } = computeShiftMilestonesAndAudit(String(empId), memoryPunches);
-
-    return NextResponse.json({ 
-      success: true, 
-      data: newPunch,
-      currentStatus: updatedStatus,
-      milestones,
-      auditHistory,
-    }, { status: 201 });
+    return NextResponse.json(
+      {
+        success: true,
+        data: inserted,
+        currentStatus,
+      },
+      { status: 201 }
+    );
   } catch (err: any) {
     console.error('Error in POST /api/punch-logs:', err);
     return NextResponse.json({ error: err.message }, { status: 500 });

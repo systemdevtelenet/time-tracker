@@ -212,9 +212,9 @@ export default function HoursReportTab({
       if (shiftStarts.length > 0) {
         shiftStarts.forEach((startP) => {
           const startTime = new Date(startP.timestamp).getTime();
-          // Find the corresponding or nearest shift end
+          // Find the corresponding or nearest shift end (support up to 36h for forgotten punch-outs)
           const matchingEnd = shiftEnds.find(
-            (endP) => new Date(endP.timestamp).getTime() >= startTime && new Date(endP.timestamp).getTime() - startTime < 14 * 3600 * 1000
+            (endP) => new Date(endP.timestamp).getTime() >= startTime && new Date(endP.timestamp).getTime() - startTime < 36 * 3600 * 1000
           );
 
           if (matchingEnd) {
@@ -222,14 +222,16 @@ export default function HoursReportTab({
             const grossDurationHours = (endTime - startTime) / (1000 * 3600);
             // Subtract lunch break (e.g. ~1 hour) if present
             const netDuration = Math.max(0, grossDurationHours - (totalBreakMins / 60));
-            computedWorkHours += netDuration;
+            // Cap regular shift hours to standard 8.0 hours max (avoids forgotten punch-outs becoming 19 hours)
+            const regularShiftHours = Math.min(8.0, netDuration);
+            computedWorkHours += regularShiftHours;
           } else {
-            // Active shift without end: calculate elapsed from start
+            // Active shift without end: calculate elapsed from start capped at 8.0 hours
             const now = new Date();
             const nowTime = now.getTime();
             const grossDurationHours = Math.min(8.0, Math.max(0, (nowTime - startTime) / (1000 * 3600)));
             const netDuration = Math.max(0, grossDurationHours - (totalBreakMins / 60));
-            computedWorkHours += netDuration;
+            computedWorkHours += Math.min(8.0, netDuration);
           }
         });
       }

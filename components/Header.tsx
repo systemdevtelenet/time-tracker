@@ -89,17 +89,17 @@ export default function Header({
               </span>
             </div>
             <p className="text-[11px] text-slate-500 dark:text-slate-400 font-medium hidden sm:block">
-              Phone & Shift Activity Tracking System
+              Workforce Shift & Attendance Tracking System
             </p>
           </div>
         </div>
 
-        {/* Live Active Call Indicator (if running) */}
+        {/* Live Active Task Indicator (if running) */}
         {isTracking && (
           <div className="flex items-center gap-2.5 px-3.5 py-1.5 rounded-full bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-300 dark:border-emerald-700 animate-pulse">
             <span className="h-2.5 w-2.5 rounded-full bg-emerald-500 animate-ping" />
             <span className="text-xs font-bold text-emerald-700 dark:text-emerald-300 tracking-wide">
-              CALL IN PROGRESS: {formatTimerMinSec(activeSeconds)}
+              TASK TIMER ACTIVE: {formatTimerMinSec(activeSeconds)}
             </span>
           </div>
         )}

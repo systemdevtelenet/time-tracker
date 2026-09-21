@@ -21,13 +21,15 @@ import SupervisorShiftCard from '@/components/dashboard/SupervisorShiftCard';
 import LiveShiftPunchTimeline from '@/components/dashboard/LiveShiftPunchTimeline';
 import SettingsView from '@/components/dashboard/SettingsView';
 import SettingsModal from '@/components/dashboard/SettingsModal';
+import ActivityLogsView from '@/components/dashboard/ActivityLogsView';
 import WeatherWidgetCard from '@/components/dashboard/WeatherWidgetCard';
 import FullScreenLoader from '@/components/dashboard/FullScreenLoader';
 import { AccountOption, EmployeeOption, PhoneTimeRecord, KpiSummaryStats } from '@/lib/types';
 import { parseDurationToSeconds, formatTotalDurationHuman } from '@/lib/utils';
+import { addActivityLog } from '@/lib/activityLogs';
 import { Plus, CheckCircle2, User, Sparkles } from 'lucide-react';
 
-const VALID_TABS = ['dashboard', 'tracker', 'flowhub', 'attendance', 'analytics', 'settings'] as const;
+const VALID_TABS = ['dashboard', 'tracker', 'activity', 'flowhub', 'attendance', 'analytics', 'settings'] as const;
 
 function HomePageContent() {
   const searchParams = useSearchParams();
@@ -240,6 +242,13 @@ function HomePageContent() {
   // Handlers
   const handleRecordAdded = (newRecord: PhoneTimeRecord) => {
     setRecords((prev) => [newRecord, ...prev]);
+    addActivityLog({
+      title: 'New Time Log Entry',
+      description: `Logged ${newRecord.total_minutes} for ${newRecord.account || 'Corporate'} (Ticket #${newRecord.ticket_number}).`,
+      performedBy: newRecord.name || supervisor.name,
+      category: 'TIME LOG',
+      type: 'timelog',
+    });
   };
 
   const handleDeleteRecord = async (ticketNumber: string) => {
@@ -252,6 +261,13 @@ function HomePageContent() {
       });
       if (res.ok) {
         setRecords((prev) => prev.filter((r) => r.ticket_number !== ticketNumber));
+        addActivityLog({
+          title: 'Call Log Deleted',
+          description: `Call log ticket #${ticketNumber} was removed from the database.`,
+          performedBy: supervisor.name,
+          category: 'SYSTEM',
+          type: 'system',
+        });
       } else {
         alert('Failed to delete record from database.');
       }
@@ -286,6 +302,7 @@ function HomePageContent() {
     switch (activeTab) {
       case 'dashboard': return 'Training Performance Hub';
       case 'tracker': return 'Workforce Portal';
+      case 'activity': return 'System Activity & Audit Logs';
       case 'flowhub': return 'Flow Hub Focus Studio';
       case 'attendance': return 'Attendance & Reliability Roster';
       case 'analytics': return 'Operations Analytics & Insights';
@@ -310,6 +327,13 @@ function HomePageContent() {
         onPunchAction={(act) => {
           setToastMsg(`Action recorded: ${act}`);
           setTimeout(() => setToastMsg(null), 2500);
+          addActivityLog({
+            title: `${act} Recorded`,
+            description: `${supervisor.name} performed shift punch action: ${act}.`,
+            performedBy: supervisor.name,
+            category: 'PUNCH',
+            type: 'punch',
+          });
         }}
       />
 
@@ -339,44 +363,22 @@ function HomePageContent() {
             <div className="space-y-4 animate-in fade-in">
               {/* Dashboard Top Header: Operations Shift Summary (Left) & Weather Widget (Right) */}
               <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 items-stretch">
-                <div className="lg:col-span-8 p-5 sm:p-6 rounded-3xl bg-white dark:bg-[#0E1B38] border border-slate-200/90 dark:border-slate-800 shadow-2xs flex flex-col justify-between space-y-4">
-                  <div className="space-y-1.5">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <span className="px-3 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-[#2F6798]/10 text-[#2F6798] dark:text-blue-300 border border-[#2F6798]/20">
-                        Cebu Tele-Net Operations Hub
-                      </span>
-                      <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 flex items-center gap-1.5">
-                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                        Shift Active (9:00 PM – 6:00 AM)
-                      </span>
-                    </div>
-                    <h2 className="text-xl sm:text-2xl font-bold text-slate-900 dark:text-slate-100 tracking-tight">
-                      Welcome back, <span className="text-[#2F6798] dark:text-blue-400 font-extrabold">{supervisor.name}</span>
-                    </h2>
-                    <p className="text-xs text-slate-500 dark:text-slate-400 font-normal max-w-2xl leading-relaxed">
-                      Real-time training analytics, phone duration tracking, and workforce attendance reliability across all active client accounts.
-                    </p>
+                <div className="lg:col-span-8 p-5 sm:p-6 rounded-3xl bg-white dark:bg-[#0E1B38] border border-slate-200/90 dark:border-slate-800 shadow-2xs flex flex-col justify-center space-y-2.5">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="px-3 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-[#2F6798]/10 text-[#2F6798] dark:text-blue-300 border border-[#2F6798]/20">
+                      Cebu Tele-Net Operations Hub
+                    </span>
+                    <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 flex items-center gap-1.5">
+                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                      Shift Active (9:00 PM – 6:00 AM)
+                    </span>
                   </div>
-
-                  {/* Operational Metrics Row */}
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 pt-3 border-t border-slate-100 dark:border-slate-800/80">
-                    <div className="p-2.5 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-700/60">
-                      <span className="text-[10px] font-bold text-slate-400 block uppercase">Total Logged Time</span>
-                      <span className="text-sm font-extrabold text-[#2F6798] dark:text-blue-300">{kpiStats.totalDurationFormatted}</span>
-                    </div>
-                    <div className="p-2.5 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-700/60">
-                      <span className="text-[10px] font-bold text-slate-400 block uppercase">Call Volume</span>
-                      <span className="text-sm font-extrabold text-slate-800 dark:text-slate-200">{records.length > 0 ? records.length : 31} Logs</span>
-                    </div>
-                    <div className="p-2.5 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-700/60">
-                      <span className="text-[10px] font-bold text-slate-400 block uppercase">Average AHT</span>
-                      <span className="text-sm font-extrabold text-emerald-600">{kpiStats.averageDurationFormatted}</span>
-                    </div>
-                    <div className="p-2.5 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-700/60">
-                      <span className="text-[10px] font-bold text-slate-400 block uppercase">Attendance</span>
-                      <span className="text-sm font-extrabold text-[#C8A54B]">96.8%</span>
-                    </div>
-                  </div>
+                  <h2 className="text-xl sm:text-2xl font-bold text-slate-900 dark:text-slate-100 tracking-tight">
+                    Welcome back, <span className="text-[#2F6798] dark:text-blue-400 font-extrabold">{supervisor.name}</span>
+                  </h2>
+                  <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 font-normal max-w-2xl leading-relaxed">
+                    Real-time training analytics, phone duration tracking, and workforce attendance reliability across all active client accounts.
+                  </p>
                 </div>
 
                 {/* Right: Weather Widget Card */}
@@ -456,6 +458,13 @@ function HomePageContent() {
                   onPunchAction={(act) => {
                     setToastMsg(`Action recorded: ${act}`);
                     setTimeout(() => setToastMsg(null), 2500);
+                    addActivityLog({
+                      title: `${act} Recorded`,
+                      description: `${supervisor.name} performed shift punch action: ${act}.`,
+                      performedBy: supervisor.name,
+                      category: 'PUNCH',
+                      type: 'punch',
+                    });
                   }}
                 />
 
@@ -470,7 +479,17 @@ function HomePageContent() {
             </div>
           )}
 
-          {/* TAB 3: FLOW HUB */}
+          {/* TAB 3: ACTIVITY LOGS */}
+          {activeTab === 'activity' && (
+            <div className="animate-in fade-in">
+              <ActivityLogsView
+                onBackToDashboard={() => handleSelectTab('dashboard')}
+                supervisorName={supervisor.name}
+              />
+            </div>
+          )}
+
+          {/* TAB 4: FLOW HUB */}
           {activeTab === 'flowhub' && (
             <div className="animate-in fade-in">
               <FlowHubView 
@@ -499,7 +518,7 @@ function HomePageContent() {
                   PERFORMANCE ANALYTICS
                 </span>
                 <h2 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-slate-50 tracking-tight mt-0.5">
-                  Operations & Call Handling Insights
+                  Operations &amp; Workforce Attendance Insights
                 </h2>
               </div>
 
@@ -509,8 +528,15 @@ function HomePageContent() {
               {/* Visual Breakdown Charts */}
               <AnalyticsCharts records={records} />
 
-              {/* Hours Report Tab */}
-              <HoursReportTab />
+              {/* Trends & Performance Overview Visualizations */}
+              <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+                <div className="lg:col-span-7">
+                  <ExecutivePerformanceOverview records={records} kpiStats={kpiStats} />
+                </div>
+                <div className="lg:col-span-5">
+                  <DepartmentalTrendsChart records={records} />
+                </div>
+              </div>
             </div>
           )}
 

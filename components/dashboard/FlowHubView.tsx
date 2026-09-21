@@ -224,7 +224,7 @@ export default function FlowHubView({ onBackToPortal, supervisorId = '1597' }: F
     },
     {
       id: 'h4',
-      name: 'Reconcile call logs & phone times',
+      name: 'Reconcile shift punch logs & attendance hours',
       category: 'tracker',
       categoryLabel: 'Time Tracker',
       duration: '15 min',

@@ -13,7 +13,8 @@ import {
   Menu,
   Utensils,
   Coffee,
-  LogIn
+  LogIn,
+  FileText
 } from 'lucide-react';
 import { PunchActionType } from '@/lib/punchLogs';
 import ConfirmActionModal from './ConfirmActionModal';
@@ -30,6 +31,7 @@ const NAV_ITEMS: NavItem[] = [
   { id: 'flowhub', label: 'Flow Hub', icon: Zap },
   { id: 'attendance', label: 'Attendance & Roster', icon: Calendar },
   { id: 'analytics', label: 'Analytics & Insights', icon: BarChart3 },
+  { id: 'activity', label: 'Activity Logs', icon: FileText },
 ];
 
 interface CompanySidebarProps {

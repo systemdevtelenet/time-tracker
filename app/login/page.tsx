@@ -4,6 +4,7 @@ import React, { useState, useEffect, useCallback, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Eye, EyeOff, Loader2, AlertCircle, CheckCircle2, ShieldAlert, X } from 'lucide-react';
 import { supabase } from '@/lib/supabase/client';
+import { addActivityLog } from '@/lib/activityLogs';
 
 function LoginFullScreenLoader() {
   return (
@@ -254,6 +255,14 @@ function LoginFormContent() {
         } else {
           localStorage.removeItem('ctnp_remembered_email');
         }
+
+        addActivityLog({
+          title: 'User Login',
+          description: `${email.trim()} successfully logged into the hub.`,
+          performedBy: data?.user?.name || 'System Auth',
+          category: 'AUTH',
+          type: 'login',
+        });
       }
 
       setIsRedirecting(true);

@@ -29,8 +29,8 @@ export default function HeroKpiCards({
 }: HeroKpiCardsProps) {
   const heroImageUrl = 'https://zhdmsmwrskxowvytedgh.supabase.co/storage/v1/object/public/Images/design%20(1).png';
 
-  // Calculate live dynamic metrics from call logs or kpiStats
-  const totalCallLogs = records.length > 0 ? records.length : (kpiStats?.totalRecords ?? 31);
+  // Calculate live dynamic metrics from activity logs or kpiStats
+  const totalActivityLogs = records.length > 0 ? records.length : (kpiStats?.totalRecords ?? 31);
   
   // Calculate total seconds
   const totalSeconds = kpiStats?.totalSeconds ?? records.reduce((acc, r) => {
@@ -43,25 +43,25 @@ export default function HeroKpiCards({
       : '34h 48m'
   );
 
-  const avgAhtFormatted = kpiStats?.averageDurationFormatted ?? '4m 12s';
+  const avgTaskDurationFormatted = kpiStats?.averageDurationFormatted ?? '15m 00s';
 
   const cards = [
     {
       id: 'logged_time',
-      title: 'TOTAL LOGGED PHONE TIME',
+      title: 'TOTAL LOGGED WORK TIME',
       value: formattedHours,
-      subtext: 'Shift Call Duration',
+      subtext: 'Standard 8.0h Shifts',
       valueColor: 'text-[#24537D] dark:text-blue-400',
       icon: Clock,
       iconBg: 'bg-blue-50 dark:bg-blue-950/50 text-[#24537D] dark:text-blue-300 border border-blue-100 dark:border-blue-900/40',
     },
     {
-      id: 'call_entries',
-      title: 'TOTAL CALL LOGS',
-      value: `${totalCallLogs} Calls`,
-      subtext: `Avg AHT: ${avgAhtFormatted}`,
+      id: 'activity_entries',
+      title: 'LOGGED TASK ACTIVITIES',
+      value: `${totalActivityLogs} Entries`,
+      subtext: `Avg Task Time: ${avgTaskDurationFormatted}`,
       valueColor: 'text-slate-900 dark:text-slate-100',
-      icon: PhoneCall,
+      icon: TrendingUp,
       iconBg: 'bg-indigo-50 dark:bg-indigo-950/50 text-indigo-600 dark:text-indigo-400 border border-indigo-100 dark:border-indigo-900/40',
     },
     {

@@ -112,7 +112,39 @@ interface AttendanceRosterHubProps {
 
 const INITIAL_ROSTER_EMPLOYEES: RosterEmployee[] = [
   {
-    id: 'emp-1',
+    id: 'emp-1597',
+    name: 'Nissi-Jeh Reguero',
+    employeeCode: '1597',
+    status: 'working',
+    statusLabel: 'Active (Working)',
+    totalHoursWorked: 8.0,
+    totalHoursFormatted: '8.00 hrs',
+    timeElapsed: '8h 00m 00s',
+    totalBreakMinutes: 15.0,
+    totalLunchMinutes: 60.0,
+    lastActive: '9/16/2026, 11:20:00 AM',
+    trafficLight: 'GREEN',
+    department: 'TQA',
+    account: 'TRAINING',
+  },
+  {
+    id: 'emp-1108',
+    name: 'Raymundo Alasagas III',
+    employeeCode: '1108',
+    status: 'offline',
+    statusLabel: 'Offline',
+    totalHoursWorked: 0.0,
+    totalHoursFormatted: '0.00 hrs',
+    timeElapsed: '0h 00m 00s',
+    totalBreakMinutes: 0.0,
+    totalLunchMinutes: 0.0,
+    lastActive: 'Ready to punch',
+    trafficLight: 'GREEN',
+    department: 'TQA',
+    account: 'QUALITY',
+  },
+  {
+    id: 'emp-1772',
     name: 'Bianca Kaye Ernestine Colonia',
     employeeCode: '1772',
     status: 'working',
@@ -124,11 +156,59 @@ const INITIAL_ROSTER_EMPLOYEES: RosterEmployee[] = [
     totalLunchMinutes: 0.0,
     lastActive: '9/15/2026, 11:20:04 PM',
     trafficLight: 'GREEN',
-    department: 'Corporate Training',
-    account: 'Corporate',
+    department: 'TQA',
+    account: 'TRAINING',
   },
   {
-    id: 'emp-2',
+    id: 'emp-2385',
+    name: 'Michelle Yncierto',
+    employeeCode: '2385',
+    status: 'working',
+    statusLabel: 'Active (Working)',
+    totalHoursWorked: 5.50,
+    totalHoursFormatted: '5.50 hrs',
+    timeElapsed: '5h 30m 00s',
+    totalBreakMinutes: 15.0,
+    totalLunchMinutes: 60.0,
+    lastActive: '9/16/2026, 1:45:12 AM',
+    trafficLight: 'GREEN',
+    department: 'TQA',
+    account: 'TRAINING',
+  },
+  {
+    id: 'emp-1035',
+    name: 'Rommel Mendoza',
+    employeeCode: '1035',
+    status: 'working',
+    statusLabel: 'Active (Working)',
+    totalHoursWorked: 6.00,
+    totalHoursFormatted: '6.00 hrs',
+    timeElapsed: '6h 00m 00s',
+    totalBreakMinutes: 15.0,
+    totalLunchMinutes: 60.0,
+    lastActive: '9/16/2026, 1:50:00 AM',
+    trafficLight: 'GREEN',
+    department: 'TQA',
+    account: 'TRAINING',
+  },
+  {
+    id: 'emp-1820',
+    name: 'Ronelyn Baguio',
+    employeeCode: '1820',
+    status: 'working',
+    statusLabel: 'Active (Working)',
+    totalHoursWorked: 5.80,
+    totalHoursFormatted: '5.80 hrs',
+    timeElapsed: '5h 48m 00s',
+    totalBreakMinutes: 15.0,
+    totalLunchMinutes: 60.0,
+    lastActive: '9/16/2026, 1:55:20 AM',
+    trafficLight: 'GREEN',
+    department: 'TQA',
+    account: 'TRAINING',
+  },
+  {
+    id: 'emp-836',
     name: 'Krisland Pepito',
     employeeCode: '836',
     status: 'working',
@@ -140,11 +220,27 @@ const INITIAL_ROSTER_EMPLOYEES: RosterEmployee[] = [
     totalLunchMinutes: 0.0,
     lastActive: '9/15/2026, 8:41:29 PM',
     trafficLight: 'GREEN',
-    department: 'QA & Training',
-    account: 'DFT',
+    department: 'TQA',
+    account: 'TRAINING',
   },
   {
-    id: 'emp-3',
+    id: 'emp-1006',
+    name: 'Niño Elijah R. Reyes',
+    employeeCode: '1006',
+    status: 'working',
+    statusLabel: 'Active (Working)',
+    totalHoursWorked: 5.40,
+    totalHoursFormatted: '5.40 hrs',
+    timeElapsed: '5h 24m 00s',
+    totalBreakMinutes: 15.0,
+    totalLunchMinutes: 60.0,
+    lastActive: '9/16/2026, 2:10:00 AM',
+    trafficLight: 'GREEN',
+    department: 'TQA',
+    account: 'TRAINING',
+  },
+  {
+    id: 'emp-1880',
     name: 'Kier Ariola',
     employeeCode: '1880',
     status: 'working',
@@ -156,15 +252,47 @@ const INITIAL_ROSTER_EMPLOYEES: RosterEmployee[] = [
     totalLunchMinutes: 47.0,
     lastActive: '9/16/2026, 1:52:08 AM',
     trafficLight: 'GREEN',
-    department: 'Voice Operations',
-    account: 'DFT',
+    department: 'TQA',
+    account: 'TRAINING',
   },
   {
-    id: 'emp-4',
+    id: 'emp-946',
+    name: 'Vincent Luis Celdran',
+    employeeCode: '946',
+    status: 'working',
+    statusLabel: 'Active (Working)',
+    totalHoursWorked: 5.50,
+    totalHoursFormatted: '5.50 hrs',
+    timeElapsed: '5h 30m 00s',
+    totalBreakMinutes: 15.0,
+    totalLunchMinutes: 60.0,
+    lastActive: '9/16/2026, 1:40:00 AM',
+    trafficLight: 'GREEN',
+    department: 'TQA',
+    account: 'TRAINING',
+  },
+  {
+    id: 'emp-2298',
+    name: 'Nina Joy Briones',
+    employeeCode: '2298',
+    status: 'working',
+    statusLabel: 'Active (Working)',
+    totalHoursWorked: 5.60,
+    totalHoursFormatted: '5.60 hrs',
+    timeElapsed: '5h 36m 00s',
+    totalBreakMinutes: 15.0,
+    totalLunchMinutes: 60.0,
+    lastActive: '9/16/2026, 1:30:00 AM',
+    trafficLight: 'GREEN',
+    department: 'TQA',
+    account: 'TRAINING',
+  },
+  {
+    id: 'emp-1954',
     name: 'Matt Riner Balaba',
-    employeeCode: '1598',
-    status: 'lunch',
-    statusLabel: 'On Lunch',
+    employeeCode: '1954',
+    status: 'working',
+    statusLabel: 'Active (Working)',
     totalHoursWorked: 4.50,
     totalHoursFormatted: '4.50 hrs',
     timeElapsed: '4h 30m 00s',
@@ -172,56 +300,24 @@ const INITIAL_ROSTER_EMPLOYEES: RosterEmployee[] = [
     totalLunchMinutes: 45.0,
     lastActive: '9/16/2026, 1:45:12 AM',
     trafficLight: 'GREEN',
-    department: 'Corporate Training',
-    account: 'Corporate',
+    department: 'TQA',
+    account: 'TRAINING',
   },
   {
-    id: 'emp-5',
-    name: 'Jeremy Rigodon',
-    employeeCode: '1602',
-    status: 'lunch',
-    statusLabel: 'On Lunch',
-    totalHoursWorked: 4.80,
-    totalHoursFormatted: '4.80 hrs',
-    timeElapsed: '4h 48m 15s',
-    totalBreakMinutes: 12.0,
-    totalLunchMinutes: 40.0,
-    lastActive: '9/16/2026, 1:50:00 AM',
-    trafficLight: 'GREEN',
-    department: 'Customer Support',
-    account: 'Care',
-  },
-  {
-    id: 'emp-6',
-    name: 'Grace Kelly Torralba',
-    employeeCode: '1615',
-    status: 'lunch',
-    statusLabel: 'On Lunch',
-    totalHoursWorked: 4.20,
-    totalHoursFormatted: '4.20 hrs',
-    timeElapsed: '4h 12m 30s',
-    totalBreakMinutes: 10.0,
-    totalLunchMinutes: 35.0,
-    lastActive: '9/16/2026, 1:55:20 AM',
-    trafficLight: 'GREEN',
-    department: 'QA & Training',
-    account: 'DFT',
-  },
-  {
-    id: 'emp-7',
-    name: 'Joshua Alcantara',
-    employeeCode: '1720',
+    id: 'emp-2610',
+    name: 'Maegan Marie Cabardo',
+    employeeCode: '2610',
     status: 'working',
     statusLabel: 'Active (Working)',
-    totalHoursWorked: 5.60,
-    totalHoursFormatted: '5.60 hrs',
-    timeElapsed: '5h 36m 00s',
-    totalBreakMinutes: 8.0,
-    totalLunchMinutes: 0.0,
-    lastActive: '9/16/2026, 2:10:00 AM',
-    trafficLight: 'YELLOW',
-    department: 'Voice Operations',
-    account: 'Billing',
+    totalHoursWorked: 5.75,
+    totalHoursFormatted: '5.75 hrs',
+    timeElapsed: '5h 45m 00s',
+    totalBreakMinutes: 15.0,
+    totalLunchMinutes: 60.0,
+    lastActive: '9/16/2026, 1:20:00 AM',
+    trafficLight: 'GREEN',
+    department: 'TQA',
+    account: 'TRAINING',
   },
 ];
 
@@ -230,47 +326,137 @@ export default function AttendanceRosterHub({
   supervisorName,
   initialEmployee,
 }: AttendanceRosterHubProps) {
-  const [activeSubTab, setActiveSubTab] = useState<'roster' | 'calendar' | 'hours' | 'details'>(
-    initialEmployee ? 'calendar' : 'roster'
-  );
+  const [activeSubTab, setActiveSubTabState] = useState<'roster' | 'calendar' | 'hours' | 'details'>(() => {
+    if (initialEmployee) return 'calendar';
+    if (typeof window !== 'undefined') {
+      try {
+        const saved = localStorage.getItem('attendance_active_subtab');
+        if (saved === 'roster' || saved === 'calendar' || saved === 'hours' || saved === 'details') {
+          return saved;
+        }
+      } catch (e) {}
+    }
+    return 'calendar'; // Default to calendar if no preference
+  });
+
+  const setActiveSubTab = (tab: 'roster' | 'calendar' | 'hours' | 'details') => {
+    setActiveSubTabState(tab);
+    if (typeof window !== 'undefined') {
+      try {
+        localStorage.setItem('attendance_active_subtab', tab);
+      } catch (e) {}
+    }
+  };
+
   const [selectedCalendarEmployee, setSelectedCalendarEmployee] = useState<string>(
     initialEmployee || supervisorName || 'Bianca Kaye Ernestine Colonia'
   );
   const [employeesList, setEmployeesList] = useState<RosterEmployee[]>(INITIAL_ROSTER_EMPLOYEES);
-  const [selectedDate, setSelectedDate] = useState<string>('2026-09-16');
+  const [selectedDate, setSelectedDate] = useState<string>('2026-09-22');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [searchTerm, setSearchTerm] = useState<string>('');
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [endShiftTarget, setEndShiftTarget] = useState<RosterEmployee | null>(null);
   const [toastMsg, setToastMsg] = useState<string | null>(null);
 
-  // Fetch actual live roster from Supabase database
+  // Fetch actual live roster and compute live punch metrics from time_tracker_logs
   const loadRosterFromDb = async () => {
     try {
-      const res = await fetch('/api/team-roster');
-      const json = await res.json();
-      if (json.success && Array.isArray(json.data) && json.data.length > 0) {
-        const mapped: RosterEmployee[] = json.data.map((r: any, idx: number) => {
-          const isWorking = idx % 3 === 0;
-          const isLunch = idx % 4 === 1;
-          const status = isWorking ? 'working' : isLunch ? 'lunch' : 'working';
-          const statusLabel = isWorking ? 'Active (Working)' : isLunch ? 'On Lunch' : 'Active (Working)';
+      const [rosterRes, punchRes] = await Promise.all([
+        fetch('/api/team-roster'),
+        fetch('/api/punch-logs?empId=ALL'),
+      ]);
+
+      const [rosterJson, punchJson] = await Promise.all([
+        rosterRes.json(),
+        punchRes.json(),
+      ]);
+
+      if (rosterJson.success && Array.isArray(rosterJson.data) && rosterJson.data.length > 0) {
+        const allLogs: any[] = punchJson.success && Array.isArray(punchJson.data) ? punchJson.data : [];
+
+        const mapped: RosterEmployee[] = rosterJson.data.map((r: any) => {
+          const empCode = String(r.employee_id || r.id).trim();
+          const empLogs = allLogs
+            .filter((l) => String(l.employee_id || l.empId || '').trim() === empCode)
+            .sort((a, b) => {
+              const da = a.parsedDate ? new Date(a.parsedDate).getTime() : new Date(a.timestamp || a.TIMESTAMP).getTime();
+              const db = b.parsedDate ? new Date(b.parsedDate).getTime() : new Date(b.timestamp || b.TIMESTAMP).getTime();
+              return db - da;
+            });
+          
+          let status: 'working' | 'lunch' | 'break_1' | 'break_2' | 'offline' = 'working';
+          let statusLabel = 'Active (Working)';
+          let lastActive = 'Never';
+          let totalBreakMinutes = 15.0;
+          let totalLunchMinutes = 60.0;
+          let totalHoursWorked = 8.0;
+
+          if (empLogs.length > 0) {
+            const latest = empLogs[0];
+            lastActive = latest.timestamp || new Date().toLocaleString();
+            const typeLower = (latest.type || latest.punch_type || '').toLowerCase();
+
+            if (typeLower.includes('shift end') || typeLower.includes('end shift')) {
+              status = 'offline';
+              statusLabel = 'Shift Ended';
+            } else if (typeLower.includes('start lunch') || typeLower === 'lunch') {
+              status = 'lunch';
+              statusLabel = 'On Lunch';
+            } else if (typeLower.includes('break 1 start') || typeLower.includes('start break')) {
+              status = 'break_1';
+              statusLabel = 'On Break 1';
+            } else if (typeLower.includes('break 2 start')) {
+              status = 'break_2';
+              statusLabel = 'On Break 2';
+            } else {
+              status = 'working';
+              statusLabel = 'Active (Working)';
+            }
+
+            // Sum actual break and lunch durations from the latest shift logs
+            let breakSecs = 0;
+            let lunchSecs = 0;
+            empLogs.slice(0, 8).forEach((l) => {
+              const pType = (l.type || l.punch_type || '').toLowerCase();
+              const durSecs = l.duration_seconds || (l.duration && l.duration !== 'N/A' ? Math.round(parseFloat(l.duration) * 60) : 0);
+              if (pType.includes('break') && durSecs) breakSecs += durSecs;
+              if (pType.includes('lunch') && durSecs) lunchSecs += durSecs;
+            });
+
+            totalBreakMinutes = breakSecs > 0 ? Math.round((breakSecs / 60) * 10) / 10 : 15.0;
+            totalLunchMinutes = lunchSecs > 0 ? Math.round((lunchSecs / 60) * 10) / 10 : (status === 'lunch' ? 45.0 : 0.0);
+            totalHoursWorked = Math.max(1.0, Math.min(8.0, 8.0 - (totalBreakMinutes + totalLunchMinutes) / 60));
+          } else {
+            // Employee with 0 existing logs (ready to punch)
+            status = 'offline';
+            statusLabel = 'Offline';
+            lastActive = 'Ready to punch';
+            totalHoursWorked = 0.0;
+            totalBreakMinutes = 0.0;
+            totalLunchMinutes = 0.0;
+          }
+
+          const hoursFormatted = `${totalHoursWorked.toFixed(2)} hrs`;
+          const wholeHours = Math.floor(totalHoursWorked);
+          const mins = Math.round((totalHoursWorked - wholeHours) * 60);
+          const timeElapsed = `${wholeHours}h ${mins.toString().padStart(2, '0')}m 00s`;
 
           return {
-            id: `emp-${r.id || r.employee_id}`,
+            id: `emp-${empCode}`,
             name: r.name,
-            employeeCode: String(r.employee_id),
-            status: status,
-            statusLabel: statusLabel,
-            totalHoursWorked: isWorking ? 5.28 : isLunch ? 4.50 : 6.00,
-            totalHoursFormatted: isWorking ? '5.28 hrs' : isLunch ? '4.50 hrs' : '6.00 hrs',
-            timeElapsed: isWorking ? '5h 16m 40s' : '4h 30m 00s',
-            totalBreakMinutes: 15.0,
-            totalLunchMinutes: isLunch ? 45.0 : 0.0,
-            lastActive: '9/16/2026, 11:20:04 PM',
+            employeeCode: empCode,
+            status,
+            statusLabel,
+            totalHoursWorked,
+            totalHoursFormatted: hoursFormatted,
+            timeElapsed,
+            totalBreakMinutes,
+            totalLunchMinutes,
+            lastActive,
             trafficLight: r.traffic_light_status || 'GREEN',
-            department: r.department || 'Corporate Training',
-            account: r.account || 'Corporate',
+            department: r.department || 'TQA',
+            account: r.account || 'TRAINING',
           };
         });
         setEmployeesList(mapped);

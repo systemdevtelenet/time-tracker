@@ -100,7 +100,7 @@ export default function ExecutivePerformanceOverview({
           <div className="flex items-center gap-2">
             <LayoutGrid className="w-4 h-4 text-[#2F6798]" />
             <h3 className="text-base font-extrabold text-slate-900 dark:text-slate-100">
-              Operations & Time Tracking Overview
+              Operations & Shift Tracking Overview
             </h3>
           </div>
           <span className="text-[10px] font-bold text-slate-400 dark:text-slate-400 uppercase tracking-wider">
@@ -123,20 +123,20 @@ export default function ExecutivePerformanceOverview({
 
           <div className="p-3.5 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-700/80 text-center">
             <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider block">
-              TOTAL CALLS
+              TOTAL ACTIVITIES
             </span>
             <div className="mt-1 flex items-center justify-center gap-1.5 text-base sm:text-lg font-black text-slate-900 dark:text-slate-100">
-              <PhoneIncoming className="w-4 h-4 text-emerald-500" />
+              <Activity className="w-4 h-4 text-emerald-500" />
               <span>{totalCalls} logs</span>
             </div>
           </div>
 
           <div className="p-3.5 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-700/80 text-center">
             <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider block">
-              AVG AHT
+              AVG TASK TIME
             </span>
             <div className="mt-1 flex items-center justify-center gap-1.5 text-base sm:text-lg font-black text-[#C8A54B]">
-              <Activity className="w-4 h-4 text-[#C8A54B]" />
+              <Clock className="w-4 h-4 text-[#C8A54B]" />
               <span className="truncate">{avgHandlingTime}</span>
             </div>
           </div>
@@ -147,7 +147,7 @@ export default function ExecutivePerformanceOverview({
         <div className="space-y-2.5">
           <div className="text-[11px] font-extrabold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
             <Layers className="w-3.5 h-3.5 text-[#2F6798]" />
-            <span>Account Queues Performance Breakdown</span>
+            <span>Account & Department Work Breakdown</span>
           </div>
 
           <div className="space-y-2 max-h-[220px] overflow-y-auto pr-1">
@@ -161,21 +161,21 @@ export default function ExecutivePerformanceOverview({
                     Account: {acc.account}
                   </span>
                   <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400">
-                    {acc.count} Call Entries ({acc.totalFormatted})
+                    {acc.count} Activity Entries ({acc.totalFormatted})
                   </span>
                 </div>
 
                 <div className="grid grid-cols-3 gap-2 text-center text-xs">
                   <div>
-                    <span className="text-[9px] text-slate-400 font-bold block">CALL LOGS</span>
+                    <span className="text-[9px] text-slate-400 font-bold block">LOG ENTRIES</span>
                     <span className="font-extrabold text-slate-800 dark:text-slate-200">{acc.count}</span>
                   </div>
                   <div>
-                    <span className="text-[9px] text-slate-400 font-bold block">AVG HANDLE</span>
+                    <span className="text-[9px] text-slate-400 font-bold block">AVG DURATION</span>
                     <span className="font-extrabold text-[#2F6798] dark:text-blue-300">{acc.avgFormatted}</span>
                   </div>
                   <div>
-                    <span className="text-[9px] text-slate-400 font-bold block">TOP TAG</span>
+                    <span className="text-[9px] text-slate-400 font-bold block">TOP CATEGORY</span>
                     <span className="font-bold text-slate-700 dark:text-slate-300 truncate block" title={acc.topTag}>
                       {acc.topTag}
                     </span>

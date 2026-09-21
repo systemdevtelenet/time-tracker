@@ -85,7 +85,7 @@ export default function AnalyticsCharts({ records }: AnalyticsChartsProps) {
                 <BarChart3 className="w-4 h-4" />
               </div>
               <h3 className="text-sm sm:text-base font-extrabold text-slate-900 dark:text-slate-100">
-                Calls & Volume by Account
+                Work Hours & Activity by Department
               </h3>
             </div>
             <span className="text-xs font-semibold text-slate-400">
@@ -105,7 +105,7 @@ export default function AnalyticsCharts({ records }: AnalyticsChartsProps) {
                     </span>
                     <div className="flex items-center gap-2">
                       <span className="font-bold text-[#2F6798] dark:text-blue-400">
-                        {item.count} calls
+                        {item.count} tasks
                       </span>
                       <span className="text-[11px] text-slate-400">
                         ({item.formattedTime})
@@ -145,18 +145,18 @@ export default function AnalyticsCharts({ records }: AnalyticsChartsProps) {
                 <PieChartIcon className="w-4 h-4" />
               </div>
               <h3 className="text-sm sm:text-base font-extrabold text-slate-900 dark:text-slate-100">
-                Top Call Reasons & Categories
+                Shift Activity & Task Categories
               </h3>
             </div>
             <span className="text-xs font-semibold text-slate-400">
-              Tag Frequency
+              Category Frequency
             </span>
           </div>
 
           <div className="space-y-3.5 mt-4">
             {tagStats.length === 0 ? (
               <p className="text-xs text-slate-400 italic py-6 text-center">
-                No tags recorded in the active call entries.
+                No categories recorded in active entries.
               </p>
             ) : (
               tagStats.map((item, idx) => {

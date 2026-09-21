@@ -20,6 +20,7 @@ import {
 } from 'lucide-react';
 import AttendanceCalendarView from './AttendanceCalendarView';
 import AttendanceDetailModal, { TeamMemberDayStatus } from './AttendanceDetailModal';
+import AttendanceCellPopover from './AttendanceCellPopover';
 import { PhoneTimeRecord } from '@/lib/types';
 
 interface AttendanceCalendarTabProps {
@@ -28,7 +29,7 @@ interface AttendanceCalendarTabProps {
   searchFilter?: string;
 }
 
-type AttendanceStatus = 'P' | 'L' | 'U' | 'A' | 'RD' | null;
+export type AttendanceStatus = 'P' | 'L' | 'U' | 'A' | 'RD' | null;
 
 interface EmployeeAttendanceRow {
   id: string;
@@ -224,8 +225,139 @@ export default function AttendanceCalendarTab({
   const [modalDayName, setModalDayName] = useState('Wednesday');
   const [modalSelectedEmployeeName, setModalSelectedEmployeeName] = useState<string | null>(null);
 
+  // Cell Popover State matching uploaded reference image
+  const [cellPopover, setCellPopover] = useState<{
+    isOpen: boolean;
+    employeeName: string;
+    employeeId?: string;
+    position?: string;
+    account?: string;
+    dayNumber: number;
+    currentStatus: AttendanceStatus;
+    currentNote?: string;
+  }>({
+    isOpen: false,
+    employeeName: '',
+    dayNumber: 22,
+    currentStatus: null,
+  });
+
+  const [attendanceOverrides, setAttendanceOverrides] = useState<Record<string, AttendanceStatus>>(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        const saved = localStorage.getItem('attendance_overrides_v1');
+        return saved ? JSON.parse(saved) : {};
+      } catch (e) {
+        return {};
+      }
+    }
+    return {};
+  });
+
+  const [attendanceNotes, setAttendanceNotes] = useState<Record<string, string>>(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        const saved = localStorage.getItem('attendance_notes_v1');
+        return saved ? JSON.parse(saved) : {};
+      } catch (e) {
+        return {};
+      }
+    }
+    return {};
+  });
+
+  const handleOpenCellPopover = (emp: EmployeeAttendanceRow, dayNum: number) => {
+    const key = `${emp.name}-${dayNum}`;
+    const empCode = emp.id.replace(/^emp-/, '');
+    const overrideKey = `${empCode}-${dayNum}`;
+    const currentNote = attendanceNotes[key] || attendanceNotes[overrideKey] || '';
+    
+    setCellPopover({
+      isOpen: true,
+      employeeName: emp.name,
+      employeeId: emp.id,
+      position: emp.position,
+      account: 'TRAINING',
+      dayNumber: dayNum,
+      currentStatus: emp.attendanceByDay[dayNum] || null,
+      currentNote,
+    });
+  };
+
+  const handleSelectCellStatus = async (newStatus: AttendanceStatus, note?: string) => {
+    const { employeeName, dayNumber, employeeId } = cellPopover;
+    const nameKey = `${employeeName}-${dayNumber}`;
+    const cleanEmpId = (employeeId || '').replace(/^emp-/, '');
+    const idKey = `${cleanEmpId}-${dayNumber}`;
+
+    // 1. Update React state immediately
+    setAttendanceDataList((prev) =>
+      prev.map((emp) => {
+        if (emp.name === employeeName || emp.id === employeeId || emp.id === `emp-${cleanEmpId}`) {
+          return {
+            ...emp,
+            attendanceByDay: {
+              ...emp.attendanceByDay,
+              [dayNumber]: newStatus,
+            },
+          };
+        }
+        return emp;
+      })
+    );
+
+    // 2. Persist overrides to localStorage
+    const updatedOverrides = {
+      ...attendanceOverrides,
+      [nameKey]: newStatus,
+      [idKey]: newStatus,
+    };
+    setAttendanceOverrides(updatedOverrides);
+    if (typeof window !== 'undefined') {
+      try {
+        localStorage.setItem('attendance_overrides_v1', JSON.stringify(updatedOverrides));
+      } catch (e) {}
+    }
+
+    if (note !== undefined) {
+      const updatedNotes = {
+        ...attendanceNotes,
+        [nameKey]: note,
+        [idKey]: note,
+      };
+      setAttendanceNotes(updatedNotes);
+      if (typeof window !== 'undefined') {
+        try {
+          localStorage.setItem('attendance_notes_v1', JSON.stringify(updatedNotes));
+        } catch (e) {}
+      }
+    }
+
+    // 3. Persist to Supabase time_tracker_logs
+    if (cleanEmpId) {
+      try {
+        const punchType = newStatus === 'P' ? 'Shift Start' : newStatus === 'L' ? 'Shift Start' : newStatus === 'U' ? 'Shift End' : 'Attendance Override';
+        const statusStr = newStatus === 'P' ? 'On Time' : newStatus === 'L' ? 'Late' : newStatus === 'U' ? 'Undertime' : newStatus === 'A' ? 'Absent' : 'Rest Day';
+
+        await fetch('/api/punch-logs', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            empId: cleanEmpId,
+            type: punchType,
+            status: statusStr,
+            duration: 'N/A',
+            timestamp: `9/${dayNumber}/2026 8:00:00`,
+          }),
+        });
+      } catch (err) {
+        console.error('Error persisting attendance status to database:', err);
+      }
+    }
+  };
+
   const scrollContainerRef = useRef<HTMLDivElement>(null);
-  const activeDayNumber = 16;
+  const activeDayNumber = 22;
 
   const monthNames = [
     'January', 'February', 'March', 'April', 'May', 'June',
@@ -265,7 +397,7 @@ export default function AttendanceCalendarTab({
     });
   }, [attendanceDataList, modalDayNumber]);
 
-  // Jump to active day column (Sep 16)
+  // Jump to active day column (Sep 22)
   const handleJumpToToday = () => {
     if (scrollContainerRef.current) {
       const todayTh = scrollContainerRef.current.querySelector('[data-today-header="true"]');
@@ -307,8 +439,8 @@ export default function AttendanceCalendarTab({
       start = 16;
       end = 30;
     } else if (rangeView === 'current_week') {
-      start = 14;
-      end = 20;
+      start = 16;
+      end = 22;
     }
 
     for (let i = start; i <= end; i++) {
@@ -317,40 +449,79 @@ export default function AttendanceCalendarTab({
     return days;
   }, [rangeView]);
 
-  // Fetch actual live roster from Supabase database
+  // Fetch actual live roster & punch logs from database and compute attendance matrix
   useEffect(() => {
     async function loadDbTeam() {
       try {
-        const res = await fetch('/api/team-roster');
-        const json = await res.json();
-        if (json.success && Array.isArray(json.data) && json.data.length > 0) {
-          const mapped: EmployeeAttendanceRow[] = json.data.map((r: any, idx: number) => {
-            const existing = TEAM_ATTENDANCE_DATA.find((e) => e.name.toLowerCase() === r.name.toLowerCase());
-            const uniqueId = String(r.employee_id || (r.id ? `roster-${r.id}` : `emp-${idx}`));
-            if (existing) {
-              return {
-                ...existing,
-                id: uniqueId,
-                startDate: r.hire_date || existing.startDate,
-                position: r.position || existing.position,
-              };
-            }
+        const [rosterRes, punchRes] = await Promise.all([
+          fetch('/api/team-roster'),
+          fetch('/api/punch-logs?empId=ALL'),
+        ]);
 
-            // Generate attendance map for database member
+        const [rosterJson, punchJson] = await Promise.all([
+          rosterRes.json(),
+          punchRes.json(),
+        ]);
+
+        if (rosterJson.success && Array.isArray(rosterJson.data) && rosterJson.data.length > 0) {
+          const punchLogs: any[] = punchJson.success && Array.isArray(punchJson.data) ? punchJson.data : [];
+
+          // Load local overrides
+          let savedOverrides: Record<string, AttendanceStatus> = {};
+          if (typeof window !== 'undefined') {
+            try {
+              const saved = localStorage.getItem('attendance_overrides_v1');
+              if (saved) savedOverrides = JSON.parse(saved);
+            } catch (e) {}
+          }
+
+          const mapped: EmployeeAttendanceRow[] = rosterJson.data.map((r: any) => {
+            const empCode = String(r.employee_id || r.id).trim();
+            const empLogs = punchLogs.filter((l) => String(l.employee_id || l.empId || '').trim() === empCode);
+
+            // Compute exact daily attendance status for days 1 to 30
             const attendanceMap: Record<number, AttendanceStatus> = {};
             for (let d = 1; d <= 30; d++) {
               const isWeekend = d % 7 === 5 || d % 7 === 6;
-              if (isWeekend) attendanceMap[d] = 'RD';
-              else if (d === 1 || d === 8) attendanceMap[d] = 'L';
-              else if (d === 4 || d === 10) attendanceMap[d] = 'U';
-              else attendanceMap[d] = 'P';
+              const overrideKey = `${empCode}-${d}`;
+              const nameOverrideKey = `${r.name}-${d}`;
+              const manualOverride = savedOverrides[overrideKey] !== undefined ? savedOverrides[overrideKey] : savedOverrides[nameOverrideKey];
+
+              if (manualOverride !== undefined) {
+                attendanceMap[d] = manualOverride;
+                continue;
+              }
+
+              const dayLogs = empLogs.filter((l) => {
+                const ts = l.timestamp || l.TIMESTAMP;
+                const parsed = l.parsedDate ? new Date(l.parsedDate) : new Date(ts);
+                return parsed.getMonth() === 8 && parsed.getDate() === d;
+              });
+
+              if (dayLogs.length > 0) {
+                const hasLate = dayLogs.some((l) => {
+                  const s = (l.status || '').toLowerCase();
+                  const t = (l.type || l.punch_type || '').toLowerCase();
+                  return s === 'late' || t.includes('late');
+                });
+                const hasUndertime = dayLogs.some((l) => (l.status || '').toLowerCase() === 'undertime');
+                if (hasLate) attendanceMap[d] = 'L';
+                else if (hasUndertime) attendanceMap[d] = 'U';
+                else attendanceMap[d] = 'P';
+              } else if (isWeekend) {
+                attendanceMap[d] = 'RD';
+              } else if (d <= 22) {
+                attendanceMap[d] = 'A';
+              } else {
+                attendanceMap[d] = null;
+              }
             }
 
             return {
-              id: uniqueId,
+              id: `emp-${empCode}`,
+              name: r.name,
               startDate: r.hire_date || '1/3/2024',
               position: r.position || 'Trainer',
-              name: r.name,
               attendanceByDay: attendanceMap,
             };
           });
@@ -732,13 +903,13 @@ export default function AttendanceCalendarTab({
                         return (
                           <td
                             key={dayNum}
-                            onClick={() => handleOpenDayModal(dayNum, emp.name)}
-                            title={`Click to view Sep ${dayNum} detail for ${emp.name}`}
-                            className={`py-2 px-1 text-center border-r border-slate-100 dark:border-slate-800/60 cursor-pointer hover:bg-[#2F6798]/10 dark:hover:bg-blue-900/30 transition-colors ${
+                            onClick={() => handleOpenCellPopover(emp, dayNum)}
+                            title={`Click to set attendance tag for ${emp.name} on Sep ${dayNum}`}
+                            className={`py-2 px-1 text-center border-r border-slate-100 dark:border-slate-800/60 cursor-pointer hover:bg-[#2F6798]/15 dark:hover:bg-blue-900/40 transition-all ${
                               isToday ? 'bg-emerald-50/40 dark:bg-emerald-950/20 ring-1 ring-emerald-500/20' : ''
                             }`}
                           >
-                            <div className="flex items-center justify-center transform group-hover:scale-105 transition-transform">
+                            <div className="flex items-center justify-center transform hover:scale-110 transition-transform">
                               {getStatusBadge(status)}
                             </div>
                           </td>
@@ -770,22 +941,8 @@ export default function AttendanceCalendarTab({
 
         </div>
       ) : (
-        /* Detailed Google Calendar View for Selected Employee */
-        <div className="space-y-3 animate-in fade-in">
-          <div className="flex items-center justify-between bg-white dark:bg-[#0E1B38] p-3.5 rounded-2xl border border-slate-200 dark:border-slate-800">
-            <div className="flex items-center gap-2">
-              <span className="text-xs font-semibold text-slate-500">Selected Employee:</span>
-              <span className="text-xs font-bold text-[#2F6798]">{selectedIndividualEmployee}</span>
-            </div>
-            <button
-              type="button"
-              onClick={() => setViewFormat('matrix')}
-              className="text-xs font-semibold text-[#2F6798] hover:text-[#1d4b72] cursor-pointer"
-            >
-              ← Back to All Employees Matrix
-            </button>
-          </div>
-
+        /* Detailed Calendar View for Selected Employee */
+        <div className="animate-in fade-in">
           <AttendanceCalendarView
             employeeName={selectedIndividualEmployee}
             onBackToRoster={() => setViewFormat('matrix')}
@@ -804,6 +961,23 @@ export default function AttendanceCalendarTab({
         year={currentYear}
         teamMembers={teamMembersForModalDay}
         selectedEmployeeName={modalSelectedEmployeeName}
+      />
+
+      {/* Quick Attendance Cell Tagging Popover (Matching Screenshot) */}
+      <AttendanceCellPopover
+        isOpen={cellPopover.isOpen}
+        onClose={() => setCellPopover((prev) => ({ ...prev, isOpen: false }))}
+        employeeName={cellPopover.employeeName}
+        employeeId={cellPopover.employeeId}
+        position={cellPopover.position}
+        account={cellPopover.account}
+        dayNumber={cellPopover.dayNumber}
+        monthName={monthNames[currentMonthIndex]}
+        year={currentYear}
+        currentStatus={cellPopover.currentStatus}
+        currentNote={cellPopover.currentNote}
+        onSelectStatus={handleSelectCellStatus}
+        onOpenFullBreakdown={handleOpenDayModal}
       />
 
     </div>

@@ -110,10 +110,10 @@ export default function ManualEntryModal({
           </div>
           <div>
             <h3 className="text-lg font-black text-slate-900 dark:text-slate-100 tracking-tight">
-              Manual Phone / Shift Entry
+              Manual Shift & Task Entry
             </h3>
             <p className="text-xs text-slate-500 dark:text-slate-400">
-              Log an off-phone task, past call, or historical shift record.
+              Log an off-schedule task, training session, or historical shift record.
             </p>
           </div>
         </div>
@@ -137,16 +137,16 @@ export default function ManualEntryModal({
               />
             </div>
 
-            {/* Agent Name */}
+            {/* Employee Name */}
             <div>
               <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1">
-                Agent Name
+                Employee Name
               </label>
               <input
                 type="text"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                placeholder="Agent name"
+                placeholder="e.g. Matt Riner Balaba"
                 className="w-full h-10 px-3 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-semibold text-slate-800 dark:text-slate-200 focus:outline-none focus:border-[#2F6798]"
                 required
               />
@@ -154,52 +154,47 @@ export default function ManualEntryModal({
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
-            {/* Account */}
+            {/* Department / Account */}
             <div>
               <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1">
-                Client Account
+                Department / Account
               </label>
               <select
                 value={account}
                 onChange={(e) => setAccount(e.target.value)}
                 className="w-full h-10 px-3 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-semibold text-slate-800 dark:text-slate-200 focus:outline-none focus:border-[#2F6798]"
               >
-                {accounts && accounts.length > 0 ? (
-                  accounts.map((acc, idx) => (
-                    <option key={idx} value={acc.account_code}>
-                      {acc.account_name || acc.account_code}
+                {accounts.length > 0 ? (
+                  accounts.map((acc) => (
+                    <option key={acc.account_id || acc.account_code} value={acc.account_code}>
+                      {acc.account_name} ({acc.account_code})
                     </option>
                   ))
                 ) : (
-                  <>
-                    <option value="DFT">DFT</option>
-                    <option value="RM">RM</option>
-                    <option value="BF">BF</option>
-                    <option value="XPN">XPN</option>
-                  </>
+                  <option value="Corporate">Corporate Training</option>
                 )}
               </select>
             </div>
 
-            {/* Ticket # */}
+            {/* Task / Activity Code */}
             <div>
               <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1">
-                Ticket #
+                Task / Activity Code
               </label>
               <input
                 type="text"
                 value={ticketNumber}
                 onChange={(e) => setTicketNumber(e.target.value)}
-                placeholder="e.g. 6d3741ea"
+                placeholder="e.g. act-84920"
                 className="w-full h-10 px-3 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-semibold font-mono text-slate-800 dark:text-slate-200 focus:outline-none focus:border-[#2F6798]"
               />
             </div>
           </div>
 
-          {/* Duration in Minutes & Seconds */}
+          {/* Task Duration */}
           <div>
             <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1">
-              Call Duration
+              Task Duration
             </label>
             <div className="flex items-center gap-3">
               <div className="flex-1 flex items-center gap-2">
@@ -227,16 +222,16 @@ export default function ManualEntryModal({
             </div>
           </div>
 
-          {/* Tagging */}
+          {/* Activity Categories / Tagging */}
           <div>
             <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1">
-              Tagging / Disposition
+              Activity Categories / Tagging
             </label>
             <input
               type="text"
               value={tagging}
               onChange={(e) => setTagging(e.target.value)}
-              placeholder="e.g. HOLD, Best plan, Past Due"
+              placeholder="e.g. Training Session, Coaching, Calibration"
               className="w-full h-10 px-3 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-semibold text-slate-800 dark:text-slate-200 focus:outline-none focus:border-[#2F6798]"
               required
             />
@@ -251,7 +246,7 @@ export default function ManualEntryModal({
               rows={3}
               value={summary}
               onChange={(e) => setSummary(e.target.value)}
-              placeholder="Enter call notes or task details..."
+              placeholder="Enter shift notes or task details..."
               className="w-full p-3 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-medium text-slate-800 dark:text-slate-200 focus:outline-none focus:border-[#2F6798] resize-none"
               required
             />

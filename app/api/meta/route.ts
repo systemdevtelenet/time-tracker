@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getSupabaseAdmin } from '@/lib/supabase/server';
 import { INITIAL_TEAM_ROSTER } from '@/lib/teamRoster';
+import { getTimeTrackerEmployeesFromDb } from '@/lib/timeTrackerDb';
 
 export const dynamic = 'force-dynamic';
 
@@ -14,50 +15,25 @@ export async function GET() {
       .select('account_id, account_code, account_name')
       .order('account_code');
 
-    // 1. Try to fetch from dedicated team_roster table
-    const { data: rosterData, error: rosterError } = await supabase
-      .from('team_roster')
-      .select('*')
-      .order('id');
+    // 1. Fetch from time_tracker_employees (or team_roster fallback)
+    const employees = await getTimeTrackerEmployeesFromDb();
 
-    let employees: any[] = [];
-
-    if (!rosterError && rosterData && rosterData.length > 0) {
-      employees = rosterData.map((m) => ({
-        id: m.employee_id,
-        name: m.name,
-        email: `${m.name.toLowerCase().replace(/\s+/g, '.')}@cebutele-net.ph`,
-        role: m.position || m.role || 'Agent',
-        userRole: m.role || 'User',
-        position: m.position || 'Agent',
-        shift: m.shift,
-        shift_type: m.shift_type,
-        account: m.account,
-        supervisor: m.supervisor,
-        department: m.department,
-        hire_date: m.hire_date,
-        tenure: m.tenure,
-        traffic_light_status: m.traffic_light_status,
-      }));
-    } else {
-      // 2. Fallback to INITIAL_TEAM_ROSTER with all 21 members
-      employees = INITIAL_TEAM_ROSTER.map((m) => ({
-        id: m.employee_id,
-        name: m.name,
-        email: `${m.name.toLowerCase().replace(/\s+/g, '.')}@cebutele-net.ph`,
-        role: m.position || m.role || 'Agent',
-        userRole: m.role || 'User',
-        position: m.position || 'Agent',
-        shift: m.shift,
-        shift_type: m.shift_type,
-        account: m.account,
-        supervisor: m.supervisor,
-        department: m.department,
-        hire_date: m.hire_date,
-        tenure: m.tenure,
-        traffic_light_status: m.traffic_light_status,
-      }));
-    }
+    const finalEmployees = employees.length > 0 ? employees : INITIAL_TEAM_ROSTER.map((m) => ({
+      id: m.employee_id,
+      name: m.name,
+      email: `${m.name.toLowerCase().replace(/\s+/g, '.')}@cebutele-net.ph`,
+      role: m.position || m.role || 'Agent',
+      userRole: m.role || 'User',
+      position: m.position || 'Agent',
+      shift: m.shift,
+      shift_type: m.shift_type,
+      account: m.account,
+      supervisor: m.supervisor,
+      department: m.department,
+      hire_date: m.hire_date,
+      tenure: m.tenure,
+      traffic_light_status: m.traffic_light_status,
+    }));
 
     // Fallback accounts if empty
     const accounts = accountsData && accountsData.length > 0 
@@ -74,8 +50,8 @@ export async function GET() {
 
     return NextResponse.json({
       accounts,
-      employees,
-      roster: rosterData && rosterData.length > 0 ? rosterData : INITIAL_TEAM_ROSTER,
+      employees: finalEmployees,
+      roster: finalEmployees,
     });
   } catch (err: any) {
     console.error('Error fetching meta info:', err);

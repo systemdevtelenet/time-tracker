@@ -8846,12 +8846,35 @@ export function computeShiftMilestonesAndAudit(
     ? new Date(shiftEndPunch.timestamp).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit', second: '2-digit', hour12: true })
     : 'Scheduled ~6:00 AM';
 
+  // Calculate shift duration capped at 8.0 regular work hours (9.0 hrs total shift span)
+  let shiftEndDuration = '9.0 hrs total shift';
+  if (hasShiftEnd) {
+    if (shiftStartPunch) {
+      const startMs = new Date(shiftStartPunch.timestamp).getTime();
+      const endMs = new Date(shiftEndPunch.timestamp).getTime();
+      if (!isNaN(startMs) && !isNaN(endMs) && endMs > startMs) {
+        const grossHours = (endMs - startMs) / (1000 * 3600);
+        if (grossHours > 9.5) {
+          // Forgotten punch-out auto-caps to regular 8.0 hours
+          shiftEndDuration = '8.0 hrs regular (Auto-Capped)';
+        } else {
+          const netHours = Math.min(8.0, Math.max(0, grossHours - 1.0));
+          shiftEndDuration = `${netHours.toFixed(1)} hrs completed`;
+        }
+      } else {
+        shiftEndDuration = '8.0 hrs completed';
+      }
+    } else {
+      shiftEndDuration = '8.0 hrs completed';
+    }
+  }
+
   const m5: ShiftMilestoneItem = {
     id: 'm5',
     type: 'punch_out',
     label: 'Shift End (Punch Out)',
     timeRange: shiftEndFormatted,
-    duration: hasShiftEnd ? '9.0 hrs completed' : '9.0 hrs total shift',
+    duration: shiftEndDuration,
     status: hasShiftEnd ? 'completed' : 'upcoming',
     iconName: 'LogOut',
     color: hasShiftEnd ? 'bg-emerald-500 text-white' : 'bg-slate-200 dark:bg-slate-700 text-slate-500 dark:text-slate-400',
