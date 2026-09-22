@@ -35,6 +35,8 @@ interface EmployeeDetailsTabProps {
   onViewCalendar?: (employee: RosterEmployee) => void;
   searchTerm?: string;
   filterAccount?: string;
+  isHeadOrAdmin?: boolean;
+  supervisorName?: string;
 }
 
 export default function EmployeeDetailsTab({
@@ -42,6 +44,8 @@ export default function EmployeeDetailsTab({
   onViewCalendar,
   searchTerm = '',
   filterAccount = 'all',
+  isHeadOrAdmin = true,
+  supervisorName,
 }: EmployeeDetailsTabProps) {
   const [dbEmployees, setDbEmployees] = useState<EmployeeDetailRecord[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -71,7 +75,14 @@ export default function EmployeeDetailsTab({
           startDate: r.hire_date || '1/3/2024',
           tenureMonths: Number(r.tenure) || 12,
         }));
-        setDbEmployees(mapped);
+
+        if (!isHeadOrAdmin && supervisorName) {
+          const sName = supervisorName.toLowerCase().trim();
+          const filtered = mapped.filter((r) => r.name.toLowerCase().trim().includes(sName) || sName.includes(r.name.toLowerCase().trim()));
+          setDbEmployees(filtered.length > 0 ? filtered : mapped.slice(0, 1));
+        } else {
+          setDbEmployees(mapped);
+        }
       }
     } catch (err) {
       console.error('Failed to load database roster:', err);
@@ -83,7 +94,7 @@ export default function EmployeeDetailsTab({
 
   useEffect(() => {
     fetchLiveRosterFromDb();
-  }, []);
+  }, [isHeadOrAdmin, supervisorName]);
 
   const handleRefresh = () => {
     setIsRefreshing(true);

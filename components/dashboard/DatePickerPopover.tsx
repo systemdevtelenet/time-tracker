@@ -185,31 +185,31 @@ export default function DatePickerPopover({
           setIsMonthDropdownOpen(false);
           setIsYearDropdownOpen(false);
         }}
-        className="flex items-center gap-2 px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700/60 text-slate-800 dark:text-slate-200 text-xs font-bold shadow-2xs transition-all cursor-pointer group"
+        className="flex items-center gap-2 px-3 py-1.5 rounded-xl border border-slate-200 dark:border-[#434142] bg-white dark:bg-[#363435] hover:bg-slate-50 dark:hover:bg-[#2C2A2B] text-slate-800 dark:text-[#F8F8F6] text-xs font-bold shadow-2xs transition-all cursor-pointer group"
       >
-        <div className="flex items-center gap-1.5 text-slate-700 dark:text-slate-300">
-          <CalendarIcon className="w-3.5 h-3.5 text-[#2F6798]" />
+        <div className="flex items-center gap-1.5 text-slate-700 dark:text-[#F8F8F6]">
+          <CalendarIcon className="w-3.5 h-3.5 text-[#3678B0]" />
           <span>
             {selectedDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
           </span>
         </div>
-        <span className="text-slate-300 dark:text-slate-600 font-normal">|</span>
-        <div className="flex items-center gap-1 text-[#2F6798] dark:text-blue-300 font-sans text-xs font-bold">
-          <Clock className="w-3.5 h-3.5 text-[#2F6798] dark:text-blue-300" />
+        <span className="text-slate-300 dark:text-[#434142] font-normal">|</span>
+        <div className="flex items-center gap-1 text-[#3678B0] dark:text-[#3678B0] font-sans text-xs font-bold">
+          <Clock className="w-3.5 h-3.5 text-[#3678B0] dark:text-[#3678B0]" />
           <span>{currentTime || '--:--:--'}</span>
         </div>
         <ChevronDown className={`w-3.5 h-3.5 text-slate-400 group-hover:text-slate-600 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
       </button>
 
-      {/* Popover Dropdown matching second image */}
+      {/* Popover Dropdown */}
       {isOpen && (
-        <div className="absolute right-0 top-full mt-2 z-50 w-[330px] p-5 rounded-3xl bg-white dark:bg-[#0E1B38] border border-slate-200 dark:border-slate-800 shadow-2xl animate-in fade-in zoom-in-95 duration-150">
+        <div className="absolute right-0 top-full mt-2 z-50 w-[330px] p-5 rounded-3xl bg-white dark:bg-[#363435] border border-slate-200 dark:border-[#434142] shadow-2xl animate-in fade-in zoom-in-95 duration-150">
           
           {/* Header Area */}
           <div className="flex items-start justify-between gap-3 mb-4">
             <div>
               {/* Bold Month and Day Title */}
-              <h3 className="text-xl font-black text-slate-900 dark:text-white tracking-tight leading-tight">
+              <h3 className="text-xl font-black text-slate-900 dark:text-[#F8F8F6] tracking-tight leading-tight">
                 {MONTH_NAMES[selectedDate.getMonth()]} {selectedDate.getDate()}
               </h3>
 
@@ -224,10 +224,10 @@ export default function DatePickerPopover({
                       setIsMonthDropdownOpen(!isMonthDropdownOpen);
                       setIsYearDropdownOpen(false);
                     }}
-                    className={`px-3 py-1 rounded-xl bg-slate-100 dark:bg-slate-800 text-xs font-bold text-slate-800 dark:text-slate-200 flex items-center gap-1.5 transition-all cursor-pointer border ${
+                    className={`px-3 py-1 rounded-xl bg-slate-100 dark:bg-[#272626] text-xs font-bold text-slate-800 dark:text-[#F8F8F6] flex items-center gap-1.5 transition-all cursor-pointer border ${
                       isMonthDropdownOpen
-                        ? 'border-slate-800 dark:border-slate-200 ring-1 ring-slate-800 dark:ring-slate-200'
-                        : 'border-transparent hover:border-slate-200 dark:hover:border-slate-700'
+                        ? 'border-slate-800 dark:border-[#434142] ring-1 ring-slate-800 dark:ring-[#434142]'
+                        : 'border-transparent hover:border-slate-200 dark:hover:border-[#434142]'
                     }`}
                   >
                     <span>{MONTH_NAMES[viewMonth]}</span>
@@ -236,7 +236,7 @@ export default function DatePickerPopover({
 
                   {/* Month Popup List */}
                   {isMonthDropdownOpen && (
-                    <div className="absolute left-0 top-full mt-1.5 z-60 w-36 py-2 px-1.5 rounded-2xl bg-white dark:bg-[#101D3D] border border-slate-100 dark:border-slate-800 shadow-2xl max-h-52 overflow-y-auto animate-in fade-in zoom-in-95">
+                    <div className="absolute left-0 top-full mt-1.5 z-60 w-36 py-2 px-1.5 rounded-2xl bg-white dark:bg-[#363435] border border-slate-100 dark:border-[#434142] shadow-2xl max-h-52 overflow-y-auto animate-in fade-in zoom-in-95">
                       {MONTH_NAMES.map((m, idx) => {
                         const isSelectedMonth = idx === viewMonth;
                         return (
@@ -249,8 +249,8 @@ export default function DatePickerPopover({
                             }}
                             className={`w-full text-left px-3 py-1.5 rounded-lg text-xs font-bold transition-colors cursor-pointer flex items-center justify-between ${
                               isSelectedMonth
-                                ? 'bg-blue-50 dark:bg-blue-900/40 text-[#2F6798] dark:text-blue-300 font-extrabold'
-                                : 'text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800/80 hover:text-[#2F6798]'
+                                ? 'bg-blue-50 dark:bg-[#1D2433] text-[#2F6798] dark:text-[#3678B0] font-extrabold'
+                                : 'text-slate-700 dark:text-[#F8F8F6] hover:bg-slate-100 dark:hover:bg-[#2C2A2B] hover:text-[#2F6798]'
                             }`}
                           >
                             <span>{m}</span>
@@ -261,7 +261,7 @@ export default function DatePickerPopover({
                   )}
                 </div>
 
-                {/* 2. Custom Year Dropdown (1990 to 2031 + 5 dynamic) */}
+                {/* 2. Custom Year Dropdown */}
                 <div className="relative" ref={yearDropdownRef}>
                   <button
                     type="button"
@@ -269,10 +269,10 @@ export default function DatePickerPopover({
                       setIsYearDropdownOpen(!isYearDropdownOpen);
                       setIsMonthDropdownOpen(false);
                     }}
-                    className={`px-3 py-1 rounded-xl bg-slate-100 dark:bg-slate-800 text-xs font-bold text-slate-800 dark:text-slate-200 flex items-center gap-1.5 transition-all cursor-pointer border ${
+                    className={`px-3 py-1 rounded-xl bg-slate-100 dark:bg-[#272626] text-xs font-bold text-slate-800 dark:text-[#F8F8F6] flex items-center gap-1.5 transition-all cursor-pointer border ${
                       isYearDropdownOpen
-                        ? 'border-slate-800 dark:border-slate-200 ring-1 ring-slate-800 dark:ring-slate-200'
-                        : 'border-transparent hover:border-slate-200 dark:hover:border-slate-700'
+                        ? 'border-slate-800 dark:border-[#434142] ring-1 ring-slate-800 dark:ring-[#434142]'
+                        : 'border-transparent hover:border-slate-200 dark:hover:border-[#434142]'
                     }`}
                   >
                     <span>{viewYear}</span>
@@ -283,7 +283,7 @@ export default function DatePickerPopover({
                   {isYearDropdownOpen && (
                     <div 
                       ref={yearListRef}
-                      className="absolute left-0 top-full mt-1.5 z-60 w-28 py-2 px-1.5 rounded-2xl bg-white dark:bg-[#101D3D] border border-slate-100 dark:border-slate-800 shadow-2xl max-h-52 overflow-y-auto animate-in fade-in zoom-in-95"
+                      className="absolute left-0 top-full mt-1.5 z-60 w-28 py-2 px-1.5 rounded-2xl bg-white dark:bg-[#363435] border border-slate-100 dark:border-[#434142] shadow-2xl max-h-52 overflow-y-auto animate-in fade-in zoom-in-95"
                     >
                       {years.map((y) => {
                         const isSelectedYear = y === viewYear;
@@ -298,8 +298,8 @@ export default function DatePickerPopover({
                             }}
                             className={`w-full text-left px-3 py-1.5 rounded-lg text-xs font-bold transition-colors cursor-pointer flex items-center justify-between ${
                               isSelectedYear
-                                ? 'bg-blue-50 dark:bg-blue-900/40 text-[#2F6798] dark:text-blue-300 font-extrabold'
-                                : 'text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800/80 hover:text-[#2F6798]'
+                                ? 'bg-blue-50 dark:bg-[#1D2433] text-[#2F6798] dark:text-[#3678B0] font-extrabold'
+                                : 'text-slate-700 dark:text-[#F8F8F6] hover:bg-slate-100 dark:hover:bg-[#2C2A2B] hover:text-[#2F6798]'
                             }`}
                           >
                             <span>{y}</span>
@@ -349,7 +349,7 @@ export default function DatePickerPopover({
                     key={idx}
                     type="button"
                     onClick={() => handleSelectDay(cell.date)}
-                    className="h-8 w-8 mx-auto flex items-center justify-center text-xs font-medium text-slate-300 dark:text-slate-600 hover:text-slate-500 transition-colors cursor-pointer"
+                    className="h-8 w-8 mx-auto flex items-center justify-center text-xs font-medium text-slate-300 dark:text-[#94A3B8]/40 hover:text-slate-500 transition-colors cursor-pointer"
                   >
                     {formattedDay}
                   </button>
@@ -362,7 +362,7 @@ export default function DatePickerPopover({
                     key={idx}
                     type="button"
                     onClick={() => handleSelectDay(cell.date)}
-                    className="h-8 w-8 mx-auto rounded-full bg-[#2F6798] text-white flex items-center justify-center text-xs font-black shadow-md cursor-pointer scale-105 transition-transform"
+                    className="h-8 w-8 mx-auto rounded-full bg-[#3678B0] text-white flex items-center justify-center text-xs font-black shadow-md cursor-pointer scale-105 transition-transform"
                   >
                     {formattedDay}
                   </button>
@@ -375,7 +375,7 @@ export default function DatePickerPopover({
                     key={idx}
                     type="button"
                     onClick={() => handleSelectDay(cell.date)}
-                    className="h-8 w-8 mx-auto rounded-full border-2 border-[#2F6798] text-[#2F6798] dark:text-blue-300 flex items-center justify-center text-xs font-black hover:bg-[#2F6798]/10 transition-colors cursor-pointer"
+                    className="h-8 w-8 mx-auto rounded-full border-2 border-[#3678B0] text-[#3678B0] dark:text-[#3678B0] flex items-center justify-center text-xs font-black hover:bg-[#3678B0]/10 transition-colors cursor-pointer"
                   >
                     {formattedDay}
                   </button>
@@ -387,7 +387,7 @@ export default function DatePickerPopover({
                   key={idx}
                   type="button"
                   onClick={() => handleSelectDay(cell.date)}
-                  className="h-8 w-8 mx-auto rounded-full text-xs font-bold text-slate-800 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+                  className="h-8 w-8 mx-auto rounded-full text-xs font-bold text-slate-800 dark:text-[#F8F8F6] hover:bg-slate-100 dark:hover:bg-[#2C2A2B] transition-colors cursor-pointer"
                 >
                   {formattedDay}
                 </button>
@@ -396,12 +396,12 @@ export default function DatePickerPopover({
           </div>
 
           {/* Live Actual Time Today Bar (Above Confirm Button) */}
-          <div className="mb-3 px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800/80 border border-slate-200/80 dark:border-slate-700/80 flex items-center justify-between">
-            <div className="flex items-center gap-1.5 text-slate-500 dark:text-slate-400 text-xs font-bold">
-              <Clock className="w-3.5 h-3.5 text-[#2F6798]" />
+          <div className="mb-3 px-3 py-2 rounded-xl bg-slate-50 dark:bg-[#272626] border border-slate-200/80 dark:border-[#434142] flex items-center justify-between">
+            <div className="flex items-center gap-1.5 text-slate-500 dark:text-[#94A3B8] text-xs font-bold">
+              <Clock className="w-3.5 h-3.5 text-[#3678B0]" />
               <span>Time Today</span>
             </div>
-            <span className="font-sans font-bold text-xs text-[#2F6798] dark:text-blue-300">
+            <span className="font-sans font-bold text-xs text-[#3678B0] dark:text-[#3678B0]">
               {currentTime || '--:--:--'}
             </span>
           </div>
@@ -410,7 +410,7 @@ export default function DatePickerPopover({
           <button
             type="button"
             onClick={handleConfirm}
-            className="w-full py-2.5 px-4 rounded-xl bg-[#2F6798] hover:bg-[#24537c] active:bg-[#1d4365] text-white text-xs font-black shadow-md transition-all cursor-pointer text-center"
+            className="w-full py-2.5 px-4 rounded-xl bg-[#3678B0] hover:bg-[#2b6290] active:bg-[#224e73] text-white text-xs font-black shadow-md transition-all cursor-pointer text-center"
           >
             Confirm
           </button>

@@ -5,7 +5,7 @@ import {
   computeLiveStatusFromLogs,
   NormalizedTimeTrackerLog 
 } from '@/lib/timeTrackerDb';
-import { PunchLogItem } from '@/lib/punchLogs';
+import { PunchLogItem, computeShiftMilestonesAndAudit } from '@/lib/punchLogs';
 
 export const dynamic = 'force-dynamic';
 
@@ -35,7 +35,13 @@ export async function GET(request: NextRequest) {
       overDuration: null,
     }));
 
-    // Build audit history directly from real rows
+    // Calculate dynamic shift milestones based on actual punches
+    const { milestones, auditHistory: computedMilestoneAudit } = computeShiftMilestonesAndAudit(
+      String(targetEmpId),
+      formattedList
+    );
+
+    // Build audit history directly from real rows (or fallback to computed milestone audit)
     const auditHistory = dbLogs
       .filter((l) => l.employee_id === String(targetEmpId))
       .slice(0, 8)
@@ -52,7 +58,8 @@ export async function GET(request: NextRequest) {
       data: formattedList,
       total: formattedList.length,
       currentStatus,
-      auditHistory,
+      milestones,
+      auditHistory: auditHistory.length > 0 ? auditHistory : computedMilestoneAudit,
     });
   } catch (err: any) {
     console.error('Error in GET /api/punch-logs:', err);

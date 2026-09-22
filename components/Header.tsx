@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { Clock, Sun, Moon, UserCircle2, Sparkles, PhoneCall, LogIn } from 'lucide-react';
+import { Clock, UserCircle2, Sparkles, PhoneCall, LogIn } from 'lucide-react';
 import { EmployeeOption } from '@/lib/types';
 
 interface HeaderProps {
@@ -134,14 +134,6 @@ export default function Header({
             </select>
           </div>
 
-          {/* Dark / Light Mode Button */}
-          <button
-            onClick={toggleDarkMode}
-            title={isDark ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
-            className="p-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors border border-slate-200 dark:border-slate-700 cursor-pointer"
-          >
-            {isDark ? <Sun className="w-4 h-4 text-amber-400" /> : <Moon className="w-4 h-4 text-slate-600" />}
-          </button>
 
           {/* Login Page Link */}
           <Link

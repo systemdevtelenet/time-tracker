@@ -1,36 +1,27 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 160" width="100%" height="100%">
-  <!-- BACK CLOUD (Dark Cyan/Navy) -->
-  <g fill="#1E3A8A">
-    <circle cx="58" cy="62" r="20" />
-    <circle cx="78" cy="50" r="22" />
-    <circle cx="102" cy="54" r="20" />
-    <circle cx="120" cy="68" r="18" />
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="100%" height="100%">
+  <!-- Sleek Storm Cloud -->
+  <g transform="translate(4, -6)">
+    <path 
+      d="M 28 65 
+         h 44 
+         a 14 14 0 0 0 12 -21 
+         a 17 17 0 0 0 -21 -13.5 
+         a 21 21 0 0 0 -31 10.5 
+         a 13 13 0 0 0 -13 12 
+         a 12 12 0 0 0 11 12 Z" 
+      fill="#64748B" 
+      stroke="#475569" 
+      stroke-width="1.5" 
+      stroke-linejoin="round"
+    />
   </g>
 
-  <!-- FRONT MAIN CLOUD (Slate/Navy) -->
-  <g>
-    <circle cx="64" cy="82" r="30" fill="#3B82F6" />
-    <circle cx="96" cy="64" r="34" fill="#3B82F6" />
-    <circle cx="132" cy="80" r="26" fill="#3B82F6" />
-    <rect x="42" y="78" width="108" height="34" fill="#3B82F6" />
-
-    <!-- Bottom Flat Horizontal Shadow Pill -->
-    <path d="M 46 112 
-             C 36 112, 34 106, 34 100 
-             C 34 96, 38 92, 48 92 
-             L 146 92 
-             C 154 92, 158 96, 158 100 
-             C 158 106, 154 112, 146 112 
-             Z" 
-          fill="#1D4ED8" />
-  </g>
-
-  <!-- GOLDEN LIGHTNING BOLT -->
-  <polygon
-    points="104,78 84,112 100,112 80,148 126,102 108,102"
-    fill="#FEE066"
-    stroke="#FDB813"
-    stroke-width="2"
-    stroke-linejoin="round"
+  <!-- Clean Lightning Bolt -->
+  <polygon 
+    points="52,56 38,74 48,74 42,94 64,68 54,68" 
+    fill="#FACC15" 
+    stroke="#EAB308" 
+    stroke-width="1.5" 
+    stroke-linejoin="round" 
   />
 </svg>

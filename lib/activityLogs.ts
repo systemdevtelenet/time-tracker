@@ -25,15 +25,95 @@ export const MAX_ACTIVITY_LOGS = 10;
 
 const STORAGE_KEY = 'ctnp_system_activity_logs';
 
+export const INITIAL_ACTIVITY_LOGS: SystemActivityLog[] = [
+  {
+    id: 'act-punch-1',
+    title: 'Break 2 End Recorded',
+    description: 'Nissi-Jeh Reguero performed shift punch action: Break 2 End.',
+    timestamp: new Date(Date.now() - 2 * 60 * 1000).toISOString(),
+    performedBy: 'Nissi-Jeh Reguero',
+    category: 'PUNCH',
+    type: 'punch',
+    isRead: true,
+  },
+  {
+    id: 'act-punch-2',
+    title: 'Break 2 Start Recorded',
+    description: 'Nissi-Jeh Reguero performed shift punch action: Break 2 Start.',
+    timestamp: new Date(Date.now() - 3 * 60 * 1000).toISOString(),
+    performedBy: 'Nissi-Jeh Reguero',
+    category: 'PUNCH',
+    type: 'punch',
+    isRead: true,
+  },
+  {
+    id: 'act-login-1',
+    title: 'User Login',
+    description: 'nreguero.telenet@gmail.com successfully logged into the hub.',
+    timestamp: new Date(Date.now() - 22 * 60 * 60 * 1000).toISOString(),
+    performedBy: 'System Auth',
+    category: 'AUTH',
+    type: 'login',
+    isRead: true,
+  },
+  {
+    id: 'act-timelog-1',
+    title: 'Task Activity Recorded',
+    description: 'Logged 37 minutes, 36 seconds for DFT (Ticket #068bf153).',
+    timestamp: new Date(Date.now() - 23 * 60 * 60 * 1000).toISOString(),
+    performedBy: 'Matt Riner Balaba',
+    category: 'TIME LOG',
+    type: 'timelog',
+    isRead: true,
+  },
+  {
+    id: 'act-timelog-2',
+    title: 'Task Activity Recorded',
+    description: 'Logged 8 hours for FLEET (Ticket #FLEET ).',
+    timestamp: new Date(Date.now() - 23 * 60 * 60 * 1000 - 5 * 60 * 1000).toISOString(),
+    performedBy: 'Charles Espinosa',
+    category: 'TIME LOG',
+    type: 'timelog',
+    isRead: true,
+  },
+  {
+    id: 'act-timelog-3',
+    title: 'Task Activity Recorded',
+    description: 'Logged 43 minutes, 6 seconds for DFT (Ticket #36e7ebf4).',
+    timestamp: new Date(Date.now() - 23 * 60 * 60 * 1000 - 15 * 60 * 1000).toISOString(),
+    performedBy: 'Matt Riner Balaba',
+    category: 'TIME LOG',
+    type: 'timelog',
+    isRead: true,
+  },
+  {
+    id: 'act-timelog-4',
+    title: 'Task Activity Recorded',
+    description: 'Logged 27 minutes, 11 seconds for DFT (Ticket #9cfd9194).',
+    timestamp: new Date(Date.now() - 23 * 60 * 60 * 1000 - 30 * 60 * 1000).toISOString(),
+    performedBy: 'Matt Riner Balaba',
+    category: 'TIME LOG',
+    type: 'timelog',
+    isRead: true,
+  },
+];
+
 export function getActivityLogs(): SystemActivityLog[] {
-  if (typeof window === 'undefined') return [];
+  if (typeof window === 'undefined') return INITIAL_ACTIVITY_LOGS;
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return [];
+    if (!raw) {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(INITIAL_ACTIVITY_LOGS));
+      return INITIAL_ACTIVITY_LOGS;
+    }
     const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? parsed.slice(0, MAX_ACTIVITY_LOGS) : [];
+    if (Array.isArray(parsed) && parsed.length > 0) {
+      return parsed.slice(0, MAX_ACTIVITY_LOGS);
+    }
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(INITIAL_ACTIVITY_LOGS));
+    return INITIAL_ACTIVITY_LOGS;
   } catch (e) {
-    return [];
+    return INITIAL_ACTIVITY_LOGS;
   }
 }
 
@@ -46,6 +126,8 @@ export async function syncActivityLogsWithApi(): Promise<SystemActivityLog[]> {
         const localLogs = getActivityLogs();
         const mergedMap = new Map<string, SystemActivityLog>();
         
+        // Add default/seed logs first
+        INITIAL_ACTIVITY_LOGS.forEach((l) => mergedMap.set(l.id, l));
         // Add backend logs
         json.data.forEach((l: SystemActivityLog) => mergedMap.set(l.id, l));
         // Add local logs
@@ -105,6 +187,16 @@ export function addActivityLog(
   return newLog;
 }
 
+export function logUserLogin(email: string, performedBy: string = 'System Auth'): SystemActivityLog {
+  return addActivityLog({
+    title: 'User Login',
+    description: `${email.trim()} successfully logged into the hub.`,
+    performedBy: performedBy || 'System Auth',
+    category: 'AUTH',
+    type: 'login',
+  });
+}
+
 export function markAllNotificationsAsRead(): void {
   if (typeof window === 'undefined') return;
   const current = getActivityLogs();
@@ -142,7 +234,8 @@ export function formatRelativeTime(isoString: string): string {
     if (mins < 1) return 'Just now';
     if (mins < 60) return `${mins}m ago`;
     const hours = Math.floor(mins / 60);
-    if (hours < 24) return `${hours}h ago`;
+    if (hours === 1) return '1 hour ago';
+    if (hours < 24) return `${hours} hours ago`;
     const days = Math.floor(hours / 24);
     if (days === 1) return 'Yesterday';
     if (days < 30) return `${days} days ago`;

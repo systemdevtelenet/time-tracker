@@ -1,8 +1,8 @@
 'use client';
 
 import React, { useState } from 'react';
-import { X, PlusCircle, Calendar, User, Building2, Ticket, Tag as TagIcon, FileText, CheckCircle2, AlertCircle } from 'lucide-react';
-import { AccountOption, EmployeeOption, PhoneTimeRecord } from '@/lib/types';
+import { X, PlusCircle } from 'lucide-react';
+import { AccountOption, PhoneTimeRecord } from '@/lib/types';
 import { getTodayFormatted } from '@/lib/utils';
 
 interface ManualEntryModalProps {
@@ -30,26 +30,39 @@ export default function ManualEntryModal({
   const [summary, setSummary] = useState<string>('');
   
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
-  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [summaryError, setSummaryError] = useState<string | null>(null);
+  const [durationError, setDurationError] = useState<string | null>(null);
+  const [nameError, setNameError] = useState<string | null>(null);
 
   if (!isOpen) return null;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setErrorMsg(null);
+    setSummaryError(null);
+    setDurationError(null);
+    setNameError(null);
+
+    let hasError = false;
+
+    if (!name.trim()) {
+      setNameError('Employee name is required.');
+      hasError = true;
+    }
 
     const minsNum = parseInt(minutes, 10) || 0;
     const secsNum = parseInt(seconds, 10) || 0;
 
     if (minsNum === 0 && secsNum === 0) {
-      setErrorMsg('Please enter a duration of at least 1 second.');
-      return;
+      setDurationError('Please enter a duration of at least 1 second.');
+      hasError = true;
     }
 
     if (!summary.trim()) {
-      setErrorMsg('Please enter a call / task summary.');
-      return;
+      setSummaryError('Summary and notes are required.');
+      hasError = true;
     }
+
+    if (hasError) return;
 
     setIsSubmitting(true);
 
@@ -60,10 +73,10 @@ export default function ManualEntryModal({
 
     const payload: PhoneTimeRecord = {
       date_of_shift: dateOfShift,
-      name: name || currentAgent || 'Anonymous Agent',
+      name: name.trim() || currentAgent || 'Anonymous Agent',
       account: account || 'DFT',
       total_minutes: totalMinutesFormatted,
-      ticket_number: ticketNumber || Math.random().toString(16).substring(2, 10),
+      ticket_number: ticketNumber.trim() || Math.random().toString(16).substring(2, 10),
       tagging: tagging.trim() || 'General',
       summary: summary.trim(),
     };
@@ -85,7 +98,7 @@ export default function ManualEntryModal({
       onClose();
     } catch (err: any) {
       console.error('Error saving manual entry:', err);
-      setErrorMsg(err.message || 'Error occurred while saving.');
+      setSummaryError(err.message || 'Error occurred while saving.');
     } finally {
       setIsSubmitting(false);
     }
@@ -110,7 +123,7 @@ export default function ManualEntryModal({
           </div>
           <div>
             <h3 className="text-lg font-black text-slate-900 dark:text-slate-100 tracking-tight">
-              Manual Shift & Task Entry
+              Manual Shift &amp; Task Entry
             </h3>
             <p className="text-xs text-slate-500 dark:text-slate-400">
               Log an off-schedule task, training session, or historical shift record.
@@ -119,7 +132,7 @@ export default function ManualEntryModal({
         </div>
 
         {/* Form */}
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={handleSubmit} className="space-y-4" noValidate>
           
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
             {/* Shift Date */}
@@ -145,11 +158,23 @@ export default function ManualEntryModal({
               <input
                 type="text"
                 value={name}
-                onChange={(e) => setName(e.target.value)}
+                onChange={(e) => {
+                  setName(e.target.value);
+                  if (nameError) setNameError(null);
+                }}
                 placeholder="e.g. Matt Riner Balaba"
-                className="w-full h-10 px-3 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-semibold text-slate-800 dark:text-slate-200 focus:outline-none focus:border-[#2F6798]"
+                className={`w-full h-10 px-3 rounded-xl bg-slate-50 dark:bg-slate-800 text-xs font-semibold text-slate-800 dark:text-slate-200 focus:outline-none ${
+                  nameError 
+                    ? 'border border-[#EF4444] text-[#EF4444]' 
+                    : 'border border-slate-200 dark:border-slate-700 focus:border-[#2F6798]'
+                }`}
                 required
               />
+              {nameError && (
+                <p className="text-xs text-[#EF4444] mt-1 font-normal">
+                  {nameError}
+                </p>
+              )}
             </div>
           </div>
 
@@ -203,8 +228,15 @@ export default function ManualEntryModal({
                   min="0"
                   max="480"
                   value={minutes}
-                  onChange={(e) => setMinutes(e.target.value)}
-                  className="w-full h-10 px-3 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-semibold text-slate-800 dark:text-slate-200 focus:outline-none focus:border-[#2F6798]"
+                  onChange={(e) => {
+                    setMinutes(e.target.value);
+                    if (durationError) setDurationError(null);
+                  }}
+                  className={`w-full h-10 px-3 rounded-xl bg-slate-50 dark:bg-slate-800 text-xs font-semibold text-slate-800 dark:text-slate-200 focus:outline-none ${
+                    durationError 
+                      ? 'border border-[#EF4444] text-[#EF4444]' 
+                      : 'border border-slate-200 dark:border-slate-700 focus:border-[#2F6798]'
+                  }`}
                 />
                 <span className="text-xs text-slate-500 font-medium">Minutes</span>
               </div>
@@ -214,12 +246,24 @@ export default function ManualEntryModal({
                   min="0"
                   max="59"
                   value={seconds}
-                  onChange={(e) => setSeconds(e.target.value)}
-                  className="w-full h-10 px-3 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-semibold text-slate-800 dark:text-slate-200 focus:outline-none focus:border-[#2F6798]"
+                  onChange={(e) => {
+                    setSeconds(e.target.value);
+                    if (durationError) setDurationError(null);
+                  }}
+                  className={`w-full h-10 px-3 rounded-xl bg-slate-50 dark:bg-slate-800 text-xs font-semibold text-slate-800 dark:text-slate-200 focus:outline-none ${
+                    durationError 
+                      ? 'border border-[#EF4444] text-[#EF4444]' 
+                      : 'border border-slate-200 dark:border-slate-700 focus:border-[#2F6798]'
+                  }`}
                 />
                 <span className="text-xs text-slate-500 font-medium">Seconds</span>
               </div>
             </div>
+            {durationError && (
+              <p className="text-xs text-[#EF4444] mt-1 font-normal">
+                {durationError}
+              </p>
+            )}
           </div>
 
           {/* Activity Categories / Tagging */}
@@ -240,25 +284,29 @@ export default function ManualEntryModal({
           {/* Summary */}
           <div>
             <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1">
-              Summary & Notes
+              Summary &amp; Notes
             </label>
             <textarea
               rows={3}
               value={summary}
-              onChange={(e) => setSummary(e.target.value)}
+              onChange={(e) => {
+                setSummary(e.target.value);
+                if (summaryError) setSummaryError(null);
+              }}
               placeholder="Enter shift notes or task details..."
-              className="w-full p-3 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-medium text-slate-800 dark:text-slate-200 focus:outline-none focus:border-[#2F6798] resize-none"
+              className={`w-full p-3 rounded-xl bg-slate-50 dark:bg-slate-800 text-xs font-medium text-slate-800 dark:text-slate-200 focus:outline-none resize-none ${
+                summaryError 
+                  ? 'border border-[#EF4444] text-[#EF4444]' 
+                  : 'border border-slate-200 dark:border-slate-700 focus:border-[#2F6798]'
+              }`}
               required
             />
+            {summaryError && (
+              <p className="text-xs text-[#EF4444] mt-1 font-normal">
+                {summaryError}
+              </p>
+            )}
           </div>
-
-          {/* Error Message */}
-          {errorMsg && (
-            <div className="p-3 rounded-xl bg-red-50 dark:bg-red-950/80 border border-red-200 dark:border-red-800 flex items-center gap-2 text-red-700 dark:text-red-300 text-xs">
-              <AlertCircle className="w-4 h-4 flex-shrink-0" />
-              <span>{errorMsg}</span>
-            </div>
-          )}
 
           {/* Actions */}
           <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-100 dark:border-slate-800">

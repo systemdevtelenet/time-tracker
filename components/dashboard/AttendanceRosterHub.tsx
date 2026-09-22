@@ -24,6 +24,7 @@ import HoursReportTab from './HoursReportTab';
 import EmployeeDetailsTab from './EmployeeDetailsTab';
 import EndShiftModal from './EndShiftModal';
 import { PhoneTimeRecord } from '@/lib/types';
+import { isHeadOrAdminUser } from './CompanySidebar';
 
 interface FilterDropdownProps {
   label: string;
@@ -60,15 +61,15 @@ function FilterDropdown({ label, icon, value, onChange, options }: FilterDropdow
       <button
         type="button"
         onClick={() => setIsOpen(!isOpen)}
-        className={`w-full px-3.5 py-2.5 rounded-xl bg-white dark:bg-[#101D3D] border text-xs font-bold text-slate-900 dark:text-slate-100 flex items-center justify-between transition-all cursor-pointer shadow-2xs ${
+        className={`w-full px-3.5 py-2.5 rounded-xl bg-white dark:bg-[#272626] border text-xs font-bold text-slate-900 dark:text-[#F8F8F6] flex items-center justify-between transition-all cursor-pointer shadow-2xs ${
           isOpen
-            ? 'border-[#2F6798] ring-2 ring-[#2F6798]/20 dark:ring-[#2F6798]/40 shadow-xs'
-            : 'border-slate-200/90 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600'
+            ? 'border-[#3678B0] ring-2 ring-[#3678B0]/20 dark:ring-[#3678B0]/40 shadow-xs'
+            : 'border-slate-200/90 dark:border-[#434142] hover:border-slate-300 dark:hover:border-slate-600'
         }`}
       >
         <span className="truncate">{selectedLabel}</span>
         <ChevronDown
-          className={`w-4 h-4 text-[#2F6798] transition-transform duration-200 shrink-0 ml-1.5 ${
+          className={`w-4 h-4 text-[#3678B0] transition-transform duration-200 shrink-0 ml-1.5 ${
             isOpen ? 'rotate-180' : ''
           }`}
         />
@@ -76,7 +77,7 @@ function FilterDropdown({ label, icon, value, onChange, options }: FilterDropdow
 
       {/* Dropdown Menu Popover */}
       {isOpen && (
-        <div className="absolute top-full left-0 right-0 mt-1.5 z-50 bg-white dark:bg-[#101D3D] rounded-2xl shadow-xl border border-slate-200/90 dark:border-slate-800 p-1.5 space-y-0.5 animate-in fade-in zoom-in-95 duration-150">
+        <div className="absolute top-full left-0 right-0 mt-1.5 z-50 bg-white dark:bg-[#363435] rounded-2xl shadow-xl border border-slate-200/90 dark:border-[#434142] p-1.5 space-y-0.5 animate-in fade-in zoom-in-95 duration-150">
           {options.map((opt) => {
             const isSelected = opt.value === value;
             return (
@@ -89,8 +90,8 @@ function FilterDropdown({ label, icon, value, onChange, options }: FilterDropdow
                 }}
                 className={`w-full px-3.5 py-2 rounded-xl text-xs flex items-center justify-between transition-all cursor-pointer text-left ${
                   isSelected
-                    ? 'bg-[#2F6798]/10 dark:bg-blue-950/60 text-[#2F6798] dark:text-blue-300 font-bold'
-                    : 'text-slate-700 dark:text-slate-200 font-semibold hover:bg-slate-50 dark:hover:bg-slate-800/60'
+                    ? 'bg-[#2F6798]/10 dark:bg-[#132247] text-[#2F6798] dark:text-blue-300 font-bold'
+                    : 'text-slate-700 dark:text-slate-200 font-semibold hover:bg-slate-50 dark:hover:bg-[#132247]/60'
                 }`}
               >
                 <span>{opt.label}</span>
@@ -107,6 +108,16 @@ function FilterDropdown({ label, icon, value, onChange, options }: FilterDropdow
 interface AttendanceRosterHubProps {
   records: PhoneTimeRecord[];
   supervisorName: string;
+  supervisorId?: string;
+  supervisorRole?: string;
+  supervisorPosition?: string;
+  supervisor?: {
+    name: string;
+    id: string;
+    role: string;
+    position: string;
+    avatarUrl?: string;
+  };
   initialEmployee?: string | null;
 }
 
@@ -324,20 +335,34 @@ const INITIAL_ROSTER_EMPLOYEES: RosterEmployee[] = [
 export default function AttendanceRosterHub({
   records,
   supervisorName,
+  supervisorId,
+  supervisorRole,
+  supervisorPosition,
+  supervisor,
   initialEmployee,
 }: AttendanceRosterHubProps) {
-  const [activeSubTab, setActiveSubTabState] = useState<'roster' | 'calendar' | 'hours' | 'details'>(() => {
-    if (initialEmployee) return 'calendar';
+  const isHeadOrAdmin = isHeadOrAdminUser(
+    supervisor || { name: supervisorName, id: supervisorId, role: supervisorRole, position: supervisorPosition }
+  );
+
+  const [activeSubTab, setActiveSubTabState] = useState<'roster' | 'calendar' | 'hours' | 'details'>(
+    initialEmployee ? 'calendar' : 'calendar'
+  );
+
+  useEffect(() => {
+    if (initialEmployee) {
+      setActiveSubTabState('calendar');
+      return;
+    }
     if (typeof window !== 'undefined') {
       try {
         const saved = localStorage.getItem('attendance_active_subtab');
         if (saved === 'roster' || saved === 'calendar' || saved === 'hours' || saved === 'details') {
-          return saved;
+          setActiveSubTabState(saved);
         }
       } catch (e) {}
     }
-    return 'calendar'; // Default to calendar if no preference
-  });
+  }, [initialEmployee]);
 
   const setActiveSubTab = (tab: 'roster' | 'calendar' | 'hours' | 'details') => {
     setActiveSubTabState(tab);
@@ -349,7 +374,7 @@ export default function AttendanceRosterHub({
   };
 
   const [selectedCalendarEmployee, setSelectedCalendarEmployee] = useState<string>(
-    initialEmployee || supervisorName || 'Bianca Kaye Ernestine Colonia'
+    initialEmployee || supervisorName || 'Nissi-Jeh Reguero'
   );
   const [employeesList, setEmployeesList] = useState<RosterEmployee[]>(INITIAL_ROSTER_EMPLOYEES);
   const [selectedDate, setSelectedDate] = useState<string>('2026-09-22');
@@ -459,7 +484,18 @@ export default function AttendanceRosterHub({
             account: r.account || 'TRAINING',
           };
         });
-        setEmployeesList(mapped);
+
+        if (!isHeadOrAdmin) {
+          const sName = (supervisorName || supervisor?.name || '').toLowerCase().trim();
+          const sId = supervisorId || supervisor?.id;
+          const filtered = mapped.filter((r) => {
+            const rName = (r.name || '').toLowerCase().trim();
+            return (sName && (rName === sName || rName.includes(sName) || sName.includes(rName))) || (sId && r.employeeCode === sId);
+          });
+          setEmployeesList(filtered.length > 0 ? filtered : mapped.slice(0, 1));
+        } else {
+          setEmployeesList(mapped);
+        }
       }
     } catch (err) {
       console.error('Failed to load roster from database:', err);
@@ -536,7 +572,7 @@ export default function AttendanceRosterHub({
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2.5 sm:gap-3 mt-1 mb-5">
         
         {/* 1. Total Employees */}
-        <div className="relative overflow-hidden p-3.5 rounded-2xl bg-white dark:bg-[#0E1B38] border border-slate-200/90 dark:border-slate-800 shadow-xs hover:shadow-md transition-all duration-200 flex items-center justify-between min-h-[82px] sm:min-h-[86px] group">
+        <div className="relative overflow-hidden p-3.5 rounded-2xl bg-white dark:bg-[#363435] border border-slate-200/90 dark:border-[#434142] shadow-xs hover:shadow-md transition-all duration-200 flex items-center justify-between min-h-[82px] sm:min-h-[86px] group">
           <div 
             className="absolute inset-0 w-full h-full bg-no-repeat bg-cover bg-center opacity-28 dark:opacity-18 pointer-events-none transform transition-transform group-hover:scale-105 duration-500"
             style={{ 
@@ -545,20 +581,20 @@ export default function AttendanceRosterHub({
             }}
           />
           <div className="relative z-10 flex flex-col justify-center">
-            <span className="text-[9.5px] font-bold text-slate-400 dark:text-slate-500 tracking-wider uppercase">
+            <span className="text-[9.5px] font-bold text-slate-400 dark:text-[#94A3B8] tracking-wider uppercase">
               TOTAL EMPLOYEES
             </span>
-            <span className="text-xl sm:text-2xl font-bold text-slate-900 dark:text-slate-50 tracking-tight mt-0.5">
+            <span className="text-xl sm:text-2xl font-bold text-slate-900 dark:text-[#F8F8F6] tracking-tight mt-0.5">
               {totalEmployees}
             </span>
           </div>
-          <div className="relative z-10 w-8.5 h-8.5 rounded-xl bg-blue-50 dark:bg-blue-950/40 text-[#2F6798] dark:text-blue-400 border border-blue-100 dark:border-blue-900/40 flex items-center justify-center shrink-0 shadow-2xs">
+          <div className="relative z-10 w-8.5 h-8.5 rounded-xl bg-blue-50 dark:bg-[#272626] text-[#3678B0] dark:text-[#3678B0] border border-blue-100 dark:border-[#434142] flex items-center justify-center shrink-0 shadow-2xs">
             <Users className="w-4.5 h-4.5 stroke-[2.2]" />
           </div>
         </div>
 
         {/* 2. Active */}
-        <div className="relative overflow-hidden p-3.5 rounded-2xl bg-white dark:bg-[#0E1B38] border border-slate-200/90 dark:border-slate-800 shadow-xs hover:shadow-md transition-all duration-200 flex items-center justify-between min-h-[82px] sm:min-h-[86px] group">
+        <div className="relative overflow-hidden p-3.5 rounded-2xl bg-white dark:bg-[#363435] border border-slate-200/90 dark:border-[#434142] shadow-xs hover:shadow-md transition-all duration-200 flex items-center justify-between min-h-[82px] sm:min-h-[86px] group">
           <div 
             className="absolute inset-0 w-full h-full bg-no-repeat bg-cover bg-center opacity-28 dark:opacity-18 pointer-events-none transform transition-transform group-hover:scale-105 duration-500"
             style={{ 
@@ -567,20 +603,20 @@ export default function AttendanceRosterHub({
             }}
           />
           <div className="relative z-10 flex flex-col justify-center">
-            <span className="text-[9.5px] font-bold text-slate-400 dark:text-slate-500 tracking-wider uppercase">
+            <span className="text-[9.5px] font-bold text-slate-400 dark:text-[#94A3B8] tracking-wider uppercase">
               ACTIVE
             </span>
             <span className="text-xl sm:text-2xl font-bold text-[#059669] dark:text-emerald-400 tracking-tight mt-0.5">
               {activeCount}
             </span>
           </div>
-          <div className="relative z-10 w-8.5 h-8.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 border border-emerald-100 dark:border-emerald-900/40 flex items-center justify-center shrink-0 shadow-2xs">
+          <div className="relative z-10 w-8.5 h-8.5 rounded-xl bg-emerald-50 dark:bg-[#272626] text-emerald-600 dark:text-emerald-400 border border-emerald-100 dark:border-[#434142] flex items-center justify-center shrink-0 shadow-2xs">
             <UserCheck className="w-4.5 h-4.5 stroke-[2.2]" />
           </div>
         </div>
 
         {/* 3. On Break */}
-        <div className="relative overflow-hidden p-3.5 rounded-2xl bg-white dark:bg-[#0E1B38] border border-slate-200/90 dark:border-slate-800 shadow-xs hover:shadow-md transition-all duration-200 flex items-center justify-between min-h-[82px] sm:min-h-[86px] group">
+        <div className="relative overflow-hidden p-3.5 rounded-2xl bg-white dark:bg-[#363435] border border-slate-200/90 dark:border-[#434142] shadow-xs hover:shadow-md transition-all duration-200 flex items-center justify-between min-h-[82px] sm:min-h-[86px] group">
           <div 
             className="absolute inset-0 w-full h-full bg-no-repeat bg-cover bg-center opacity-28 dark:opacity-18 pointer-events-none transform transition-transform group-hover:scale-105 duration-500"
             style={{ 
@@ -589,20 +625,20 @@ export default function AttendanceRosterHub({
             }}
           />
           <div className="relative z-10 flex flex-col justify-center">
-            <span className="text-[9.5px] font-bold text-slate-400 dark:text-slate-500 tracking-wider uppercase">
+            <span className="text-[9.5px] font-bold text-slate-400 dark:text-[#94A3B8] tracking-wider uppercase">
               ON BREAK
             </span>
             <span className="text-xl sm:text-2xl font-bold text-[#D97706] dark:text-amber-400 tracking-tight mt-0.5">
               {onBreakCount}
             </span>
           </div>
-          <div className="relative z-10 w-8.5 h-8.5 rounded-xl bg-amber-50 dark:bg-amber-950/40 text-amber-600 dark:text-amber-400 border border-amber-100 dark:border-amber-900/40 flex items-center justify-center shrink-0 shadow-2xs">
+          <div className="relative z-10 w-8.5 h-8.5 rounded-xl bg-amber-50 dark:bg-[#272626] text-amber-600 dark:text-amber-400 border border-amber-100 dark:border-[#434142] flex items-center justify-center shrink-0 shadow-2xs">
             <Coffee className="w-4.5 h-4.5 stroke-[2.2]" />
           </div>
         </div>
 
         {/* 4. On Lunch */}
-        <div className="relative overflow-hidden p-3.5 rounded-2xl bg-white dark:bg-[#0E1B38] border border-slate-200/90 dark:border-slate-800 shadow-xs hover:shadow-md transition-all duration-200 flex items-center justify-between min-h-[82px] sm:min-h-[86px] group">
+        <div className="relative overflow-hidden p-3.5 rounded-2xl bg-white dark:bg-[#363435] border border-slate-200/90 dark:border-[#434142] shadow-xs hover:shadow-md transition-all duration-200 flex items-center justify-between min-h-[82px] sm:min-h-[86px] group">
           <div 
             className="absolute inset-0 w-full h-full bg-no-repeat bg-cover bg-center opacity-28 dark:opacity-18 pointer-events-none transform transition-transform group-hover:scale-105 duration-500"
             style={{ 
@@ -611,20 +647,20 @@ export default function AttendanceRosterHub({
             }}
           />
           <div className="relative z-10 flex flex-col justify-center">
-            <span className="text-[9.5px] font-bold text-slate-400 dark:text-slate-500 tracking-wider uppercase">
+            <span className="text-[9.5px] font-bold text-slate-400 dark:text-[#94A3B8] tracking-wider uppercase">
               ON LUNCH
             </span>
             <span className="text-xl sm:text-2xl font-bold text-[#9333EA] dark:text-purple-400 tracking-tight mt-0.5">
               {onLunchCount}
             </span>
           </div>
-          <div className="relative z-10 w-8.5 h-8.5 rounded-xl bg-purple-50 dark:bg-purple-950/40 text-purple-600 dark:text-purple-400 border border-purple-100 dark:border-purple-900/40 flex items-center justify-center shrink-0 shadow-2xs">
+          <div className="relative z-10 w-8.5 h-8.5 rounded-xl bg-purple-50 dark:bg-[#272626] text-purple-600 dark:text-purple-400 border border-purple-100 dark:border-[#434142] flex items-center justify-center shrink-0 shadow-2xs">
             <Utensils className="w-4.5 h-4.5 stroke-[2.2]" />
           </div>
         </div>
 
         {/* 5. Late Arrivals */}
-        <div className="relative overflow-hidden p-3.5 rounded-2xl bg-white dark:bg-[#0E1B38] border border-slate-200/90 dark:border-slate-800 shadow-xs hover:shadow-md transition-all duration-200 flex items-center justify-between min-h-[82px] sm:min-h-[86px] group">
+        <div className="relative overflow-hidden p-3.5 rounded-2xl bg-white dark:bg-[#363435] border border-slate-200/90 dark:border-[#434142] shadow-xs hover:shadow-md transition-all duration-200 flex items-center justify-between min-h-[82px] sm:min-h-[86px] group">
           <div 
             className="absolute inset-0 w-full h-full bg-no-repeat bg-cover bg-center opacity-28 dark:opacity-18 pointer-events-none transform transition-transform group-hover:scale-105 duration-500"
             style={{ 
@@ -633,20 +669,20 @@ export default function AttendanceRosterHub({
             }}
           />
           <div className="relative z-10 flex flex-col justify-center">
-            <span className="text-[9.5px] font-bold text-slate-400 dark:text-slate-500 tracking-wider uppercase">
+            <span className="text-[9.5px] font-bold text-slate-400 dark:text-[#94A3B8] tracking-wider uppercase">
               LATE ARRIVALS
             </span>
             <span className="text-xl sm:text-2xl font-bold text-[#DC2626] dark:text-rose-400 tracking-tight mt-0.5">
               {lateArrivalsCount}
             </span>
           </div>
-          <div className="relative z-10 w-8.5 h-8.5 rounded-xl bg-rose-50 dark:bg-rose-950/40 text-rose-500 dark:text-rose-400 border border-rose-100 dark:border-rose-900/40 flex items-center justify-center shrink-0 shadow-2xs">
+          <div className="relative z-10 w-8.5 h-8.5 rounded-xl bg-rose-50 dark:bg-[#272626] text-rose-500 dark:text-rose-400 border border-rose-100 dark:border-[#434142] flex items-center justify-center shrink-0 shadow-2xs">
             <AlertTriangle className="w-4.5 h-4.5 stroke-[2.2]" />
           </div>
         </div>
 
         {/* 6. Undertime */}
-        <div className="relative overflow-hidden p-3.5 rounded-2xl bg-white dark:bg-[#0E1B38] border border-slate-200/90 dark:border-slate-800 shadow-xs hover:shadow-md transition-all duration-200 flex items-center justify-between min-h-[82px] sm:min-h-[86px] group">
+        <div className="relative overflow-hidden p-3.5 rounded-2xl bg-white dark:bg-[#363435] border border-slate-200/90 dark:border-[#434142] shadow-xs hover:shadow-md transition-all duration-200 flex items-center justify-between min-h-[82px] sm:min-h-[86px] group">
           <div 
             className="absolute inset-0 w-full h-full bg-no-repeat bg-cover bg-center opacity-28 dark:opacity-18 pointer-events-none transform transition-transform group-hover:scale-105 duration-500"
             style={{ 
@@ -655,14 +691,14 @@ export default function AttendanceRosterHub({
             }}
           />
           <div className="relative z-10 flex flex-col justify-center">
-            <span className="text-[9.5px] font-bold text-slate-400 dark:text-slate-500 tracking-wider uppercase">
+            <span className="text-[9.5px] font-bold text-slate-400 dark:text-[#94A3B8] tracking-wider uppercase">
               UNDERTIME
             </span>
             <span className="text-xl sm:text-2xl font-bold text-[#EA580C] dark:text-amber-400 tracking-tight mt-0.5">
               {undertimeCount}
             </span>
           </div>
-          <div className="relative z-10 w-8.5 h-8.5 rounded-xl bg-orange-50 dark:bg-orange-950/40 text-orange-600 dark:text-orange-400 border border-orange-100 dark:border-orange-900/40 flex items-center justify-center shrink-0 shadow-2xs">
+          <div className="relative z-10 w-8.5 h-8.5 rounded-xl bg-orange-50 dark:bg-[#272626] text-orange-600 dark:text-orange-400 border border-orange-100 dark:border-[#434142] flex items-center justify-center shrink-0 shadow-2xs">
             <Clock className="w-4.5 h-4.5 stroke-[2.2]" />
           </div>
         </div>
@@ -670,17 +706,17 @@ export default function AttendanceRosterHub({
       </div>
 
       {/* 3. ONE Unified External White Container for Filters, Tabs & Content */}
-      <div className="rounded-2xl bg-white dark:bg-[#0E1B38] border border-slate-200/90 dark:border-slate-800 shadow-xs overflow-visible">
+      <div className="rounded-2xl bg-white dark:bg-[#363435] border border-slate-200/90 dark:border-[#434142] shadow-xs overflow-visible">
         
         {/* Row A: Top Filters Bar (Dropdowns reduced by 2, search bar lengthened by 2 -> 2 + 2 + 3 + 5 cols) */}
-        <div className="p-4 sm:p-5 border-b border-slate-100 dark:border-slate-800">
+        <div className="p-4 sm:p-5 border-b border-slate-100 dark:border-[#434142]">
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-12 gap-3 sm:gap-4">
             
             {/* Quarter Filter (Span 2) */}
             <div className="md:col-span-2">
               <FilterDropdown
                 label="QUARTER"
-                icon={<Calendar className="w-3.5 h-3.5 text-[#2F6798]" />}
+                icon={<Calendar className="w-3.5 h-3.5 text-[#3678B0]" />}
                 value={filterQuarter}
                 onChange={setFilterQuarter}
                 options={[
@@ -697,7 +733,7 @@ export default function AttendanceRosterHub({
             <div className="md:col-span-2">
               <FilterDropdown
                 label="MONTH"
-                icon={<Calendar className="w-3.5 h-3.5 text-[#2F6798]" />}
+                icon={<Calendar className="w-3.5 h-3.5 text-[#3678B0]" />}
                 value={filterMonth}
                 onChange={setFilterMonth}
                 options={[
@@ -714,7 +750,7 @@ export default function AttendanceRosterHub({
             <div className="md:col-span-3">
               <FilterDropdown
                 label="CLIENT ACCOUNT"
-                icon={<Building2 className="w-3.5 h-3.5 text-[#2F6798]" />}
+                icon={<Building2 className="w-3.5 h-3.5 text-[#3678B0]" />}
                 value={filterAccount}
                 onChange={setFilterAccount}
                 options={[
@@ -729,8 +765,8 @@ export default function AttendanceRosterHub({
 
             {/* Search Employee / Trainee (Span 5 - lengthened by 2) */}
             <div className="md:col-span-5">
-              <label className="block text-[10px] font-extrabold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1.5 flex items-center gap-1.5 select-none">
-                <Search className="w-3.5 h-3.5 text-[#2F6798]" />
+              <label className="block text-[10px] font-extrabold text-slate-500 dark:text-[#94A3B8] uppercase tracking-wider mb-1.5 flex items-center gap-1.5 select-none">
+                <Search className="w-3.5 h-3.5 text-[#3678B0]" />
                 <span>SEARCH EMPLOYEE / TRAINEE</span>
               </label>
               <div className="relative">
@@ -739,7 +775,7 @@ export default function AttendanceRosterHub({
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   placeholder="Type name, role, or ID..."
-                  className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-medium text-slate-800 dark:text-slate-200 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-[#2F6798]/20 focus:border-[#2F6798]"
+                  className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-[#272626] border border-slate-200 dark:border-[#434142] text-xs font-medium text-slate-800 dark:text-[#F8F8F6] placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-[#3678B0]/20 focus:border-[#3678B0]"
                 />
                 {searchTerm && (
                   <button
@@ -757,7 +793,7 @@ export default function AttendanceRosterHub({
         </div>
 
         {/* Row B: Sub-Navigation Tabs Placed BELOW the Filters (font-semibold only) */}
-        <div className="px-4 sm:px-5 py-2.5 bg-slate-50/60 dark:bg-slate-900/40 border-b border-slate-100 dark:border-slate-800 flex items-center gap-2 overflow-x-auto">
+        <div className="px-4 sm:px-5 py-2.5 bg-slate-50/60 dark:bg-[#272626]/60 border-b border-slate-100 dark:border-[#434142] flex items-center gap-2 overflow-x-auto">
           
           {/* Tab 1: Roster */}
           <button
@@ -765,8 +801,8 @@ export default function AttendanceRosterHub({
             onClick={() => setActiveSubTab('roster')}
             className={`px-4 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
               activeSubTab === 'roster'
-                ? 'bg-[#2F6798] text-white shadow-xs'
-                : 'bg-white dark:bg-[#0E1B38] text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-800'
+                ? 'bg-[#3678B0] text-white shadow-xs'
+                : 'bg-white dark:bg-[#363435] text-slate-700 dark:text-[#F8F8F6] hover:bg-slate-100 dark:hover:bg-[#2C2A2B] border border-slate-200 dark:border-[#434142]'
             }`}
           >
             Roster
@@ -779,7 +815,7 @@ export default function AttendanceRosterHub({
             className={`px-4 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
               activeSubTab === 'calendar'
                 ? 'bg-[#2F6798] text-white shadow-xs'
-                : 'bg-white dark:bg-[#0E1B38] text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-800'
+                : 'bg-white dark:bg-[#0E1A38] text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-[#132247] border border-slate-200 dark:border-[#1E2E4E]'
             }`}
           >
             Attendance Calendar
@@ -792,7 +828,7 @@ export default function AttendanceRosterHub({
             className={`px-4 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
               activeSubTab === 'hours'
                 ? 'bg-[#2F6798] text-white shadow-xs'
-                : 'bg-white dark:bg-[#0E1B38] text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-800'
+                : 'bg-white dark:bg-[#0E1A38] text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-[#132247] border border-slate-200 dark:border-[#1E2E4E]'
             }`}
           >
             Hours Report
@@ -805,7 +841,7 @@ export default function AttendanceRosterHub({
             className={`px-4 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
               activeSubTab === 'details'
                 ? 'bg-[#2F6798] text-white shadow-xs'
-                : 'bg-white dark:bg-[#0E1B38] text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-800'
+                : 'bg-white dark:bg-[#0E1A38] text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-[#132247] border border-slate-200 dark:border-[#1E2E4E]'
             }`}
           >
             Employee Details
@@ -842,6 +878,9 @@ export default function AttendanceRosterHub({
               records={records}
               onBackToRoster={() => setActiveSubTab('roster')}
               searchFilter={searchTerm}
+              isHeadOrAdmin={isHeadOrAdmin}
+              supervisorName={supervisorName}
+              supervisorId={supervisorId}
             />
           </div>
         )}
@@ -853,6 +892,8 @@ export default function AttendanceRosterHub({
               searchTerm={searchTerm}
               filterAccount={filterAccount}
               onBackToRoster={() => setActiveSubTab('roster')}
+              isHeadOrAdmin={isHeadOrAdmin}
+              supervisorName={supervisorName}
             />
           </div>
         )}
@@ -864,6 +905,8 @@ export default function AttendanceRosterHub({
               onViewCalendar={handleViewCalendar}
               searchTerm={searchTerm}
               filterAccount={filterAccount}
+              isHeadOrAdmin={isHeadOrAdmin}
+              supervisorName={supervisorName}
             />
           </div>
         )}

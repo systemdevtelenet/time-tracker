@@ -45,12 +45,15 @@ export default function HeroKpiCards({
 
   const avgTaskDurationFormatted = kpiStats?.averageDurationFormatted ?? '15m 00s';
 
+  const totalAgents = stats?.totalEmployees ?? kpiStats?.uniqueAgentsCount ?? (new Set(records.map(r => r.name).filter(Boolean)).size || 13);
+  const totalAccounts = kpiStats?.uniqueAccountsCount ?? (new Set(records.map(r => r.account).filter(Boolean)).size || 7);
+
   const cards = [
     {
       id: 'logged_time',
       title: 'TOTAL LOGGED WORK TIME',
       value: formattedHours,
-      subtext: 'Standard 8.0h Shifts',
+      subtext: `${totalActivityLogs} Recorded Entries`,
       valueColor: 'text-[#24537D] dark:text-blue-400',
       icon: Clock,
       iconBg: 'bg-blue-50 dark:bg-blue-950/50 text-[#24537D] dark:text-blue-300 border border-blue-100 dark:border-blue-900/40',
@@ -65,19 +68,19 @@ export default function HeroKpiCards({
       iconBg: 'bg-indigo-50 dark:bg-indigo-950/50 text-indigo-600 dark:text-indigo-400 border border-indigo-100 dark:border-indigo-900/40',
     },
     {
-      id: 'attendance_rate',
-      title: 'SHIFT ATTENDANCE RATE',
-      value: '96.8%',
-      subtext: 'Present: 41 • Late: 2',
+      id: 'active_accounts',
+      title: 'ACTIVE CLIENT ACCOUNTS',
+      value: `${totalAccounts} Accounts`,
+      subtext: kpiStats?.topTag ? `Top Tag: ${kpiStats.topTag}` : 'Multi-Account Coverage',
       valueColor: 'text-emerald-600 dark:text-emerald-400',
       icon: UserCheck,
       iconBg: 'bg-emerald-50 dark:bg-emerald-950/50 text-emerald-600 dark:text-emerald-400 border border-emerald-100 dark:border-emerald-900/40',
     },
     {
       id: 'active_headcount',
-      title: 'ACTIVE TRAINEES HEADCOUNT',
-      value: `${stats?.activeCount ?? 43} Active`,
-      subtext: 'Batches 4 & 5 in Training',
+      title: 'WORKFORCE ROSTER',
+      value: `${totalAgents} Members`,
+      subtext: 'Operations & Training Staff',
       valueColor: 'text-[#C8A54B] dark:text-amber-400',
       icon: Users,
       iconBg: 'bg-amber-50 dark:bg-amber-950/50 text-[#C8A54B] dark:text-amber-300 border border-amber-100 dark:border-amber-900/40',

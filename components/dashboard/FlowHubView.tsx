@@ -1416,8 +1416,8 @@ export default function FlowHubView({ onBackToPortal, supervisorId = '1597' }: F
             </div>
           </div>
 
-          {/* Countdown Display Box: Styled in Solid Brand Blue */}
-          <div className="relative p-3 rounded-2xl bg-[#2F6798] dark:bg-[#1A4268] text-white border border-[#235179] dark:border-[#163654] flex flex-col items-center justify-center shadow-xs">
+          {/* Countdown Display Box: Styled for Crisp Dark / Light Mode */}
+          <div className="relative p-3 rounded-2xl bg-[#2F6798] dark:bg-[#272626] text-white border border-[#235179] dark:border-[#434142] flex flex-col items-center justify-center shadow-xs">
             
             {/* SVG Progress Gauge */}
             <div className="relative w-32 h-32 sm:w-36 sm:h-36 flex items-center justify-center">
@@ -1434,7 +1434,7 @@ export default function FlowHubView({ onBackToPortal, supervisorId = '1597' }: F
                   cx="50"
                   cy="50"
                   r="42"
-                  className="stroke-white/20"
+                  className="stroke-white/20 dark:stroke-white/10"
                   strokeWidth="5"
                   fill="transparent"
                 />
@@ -1464,12 +1464,12 @@ export default function FlowHubView({ onBackToPortal, supervisorId = '1597' }: F
 
               {/* Digital Time Centerpiece */}
               <div className="absolute inset-0 flex flex-col items-center justify-center text-center">
-                <span className="text-3xl sm:text-4xl font-mono font-black text-white tracking-tight drop-shadow-sm">
+                <span className="text-3xl sm:text-4xl font-mono font-black text-white dark:text-[#F8F8F6] tracking-tight drop-shadow-sm">
                   {formatTimerMinutes(timerSecondsLeft)}
                 </span>
                 
                 {/* Live Completion % tag */}
-                <span className="text-[10px] font-extrabold text-blue-100 mt-0.5">
+                <span className="text-[10px] font-extrabold text-blue-100 dark:text-slate-400 mt-0.5">
                   {Math.round(Math.min(100, Math.max(0, ((selectedDuration * 60 - timerSecondsLeft) / Math.max(1, selectedDuration * 60)) * 100)))}% Elapsed
                 </span>
               </div>
@@ -1480,14 +1480,14 @@ export default function FlowHubView({ onBackToPortal, supervisorId = '1597' }: F
               <button
                 type="button"
                 onClick={() => handleAdjustMinutes(-5)}
-                className="px-2 py-0.5 rounded-lg bg-white/15 hover:bg-white/25 border border-white/25 text-[10.5px] font-bold text-white transition-all cursor-pointer shadow-2xs"
+                className="px-2 py-0.5 rounded-lg bg-white/15 dark:bg-[#363435] hover:bg-white/25 dark:hover:bg-[#434142] border border-white/25 dark:border-[#434142] text-[10.5px] font-bold text-white dark:text-[#F8F8F6] transition-all cursor-pointer shadow-2xs"
                 title="Subtract 5 minutes"
               >
                 -5 min
               </button>
               
               {/* Session Capsule Indicators (0/4) */}
-              <div className="flex items-center gap-1 px-2.5 py-0.5 rounded-lg bg-white/15 border border-white/25 shadow-2xs">
+              <div className="flex items-center gap-1 px-2.5 py-0.5 rounded-lg bg-white/15 dark:bg-[#363435] border border-white/25 dark:border-[#434142] shadow-2xs">
                 {[0, 1, 2, 3].map((idx) => {
                   const isDone = (sessionsCompleted % 4) > idx || (sessionsCompleted > 0 && sessionsCompleted % 4 === 0);
                   const isCurrent = (sessionsCompleted % 4) === idx;
@@ -1498,14 +1498,14 @@ export default function FlowHubView({ onBackToPortal, supervisorId = '1597' }: F
                         isDone
                           ? 'bg-amber-300 shadow-xs scale-110'
                           : isCurrent
-                          ? 'bg-white ring-2 ring-white/50 animate-pulse'
-                          : 'bg-white/30'
+                          ? 'bg-white dark:bg-slate-200 ring-2 ring-white/50 dark:ring-white/30 animate-pulse'
+                          : 'bg-white/30 dark:bg-white/20'
                       }`}
                       title={`Session ${idx + 1}`}
                     />
                   );
                 })}
-                <span className="text-[9.5px] font-extrabold text-white ml-1 font-mono">
+                <span className="text-[9.5px] font-extrabold text-white dark:text-[#F8F8F6] ml-1 font-mono">
                   {sessionsCompleted % 4}/4
                 </span>
               </div>
@@ -1513,7 +1513,7 @@ export default function FlowHubView({ onBackToPortal, supervisorId = '1597' }: F
               <button
                 type="button"
                 onClick={() => handleAdjustMinutes(5)}
-                className="px-2 py-0.5 rounded-lg bg-white/15 hover:bg-white/25 border border-white/25 text-[10.5px] font-bold text-white transition-all cursor-pointer shadow-2xs"
+                className="px-2 py-0.5 rounded-lg bg-white/15 dark:bg-[#363435] hover:bg-white/25 dark:hover:bg-[#434142] border border-white/25 dark:border-[#434142] text-[10.5px] font-bold text-white dark:text-[#F8F8F6] transition-all cursor-pointer shadow-2xs"
                 title="Add 5 minutes"
               >
                 +5 min

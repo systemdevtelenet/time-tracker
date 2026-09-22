@@ -137,14 +137,14 @@ export default function AttendanceDetailModal({
     >
       {/* Right Slide-over Panel matching reference drawer style */}
       <div 
-        className="w-full max-w-md sm:max-w-lg h-full bg-white dark:bg-[#0E1B38] shadow-2xl flex flex-col animate-in slide-in-from-right duration-300 relative border-l border-slate-200 dark:border-slate-800"
+        className="w-full max-w-md sm:max-w-lg h-full bg-white dark:bg-[#363435] shadow-2xl flex flex-col animate-in slide-in-from-right duration-300 relative border-l border-slate-200 dark:border-[#434142]"
         onClick={(e) => e.stopPropagation()}
       >
         
         {/* 1. Solid Primary Blue Header Bar */}
-        <div className="bg-[#2F6798] px-5 py-3.5 flex items-center justify-between text-white shrink-0 shadow-xs">
+        <div className="bg-[#2F6798] dark:bg-[#1D2433] px-5 py-3.5 flex items-center justify-between text-white dark:text-[#F8F8F6] shrink-0 shadow-xs border-b dark:border-[#434142]">
           <div className="flex items-center gap-2">
-            <Calendar className="w-4 h-4 text-white" />
+            <Calendar className="w-4 h-4 text-white dark:text-[#C8A54B]" />
             <h3 className="text-xs sm:text-sm font-bold tracking-wider uppercase">
               ATTENDANCE DETAILS
             </h3>
@@ -152,7 +152,7 @@ export default function AttendanceDetailModal({
           <button
             type="button"
             onClick={onClose}
-            className="p-1 rounded-lg text-white/80 hover:text-white hover:bg-white/20 transition-colors cursor-pointer"
+            className="p-1 rounded-lg text-white/80 hover:text-white hover:bg-white/20 dark:hover:bg-white/10 transition-colors cursor-pointer"
             title="Close Panel"
           >
             <X className="w-5 h-5" />
@@ -160,67 +160,69 @@ export default function AttendanceDetailModal({
         </div>
 
         {/* 2. Sub-Header: Day & Date Information (Semi-bold) & Tab Controls */}
-        <div className="p-4 sm:p-5 border-b border-slate-100 dark:border-slate-800 bg-slate-50/60 dark:bg-slate-900/40 shrink-0 space-y-3">
+        <div className="p-4 sm:p-5 border-b border-slate-100 dark:border-[#434142] bg-slate-50/60 dark:bg-[#272626] shrink-0 space-y-3">
           
           <div className="flex items-center justify-between">
             <div>
-              <h2 className="text-xl sm:text-2xl font-semibold text-slate-900 dark:text-slate-100 tracking-tight">
+              <h2 className="text-xl sm:text-2xl font-semibold text-slate-900 dark:text-[#F8F8F6] tracking-tight">
                 {dayName}
               </h2>
-              <p className="text-xs font-semibold text-[#2F6798] dark:text-blue-300 mt-0.5">
-                {monthName} {dayNumber}, {year}
+              <p className="text-xs font-semibold text-[#2F6798] dark:text-[#3678B0] mt-0.5">
+                {monthName} {dayNumber}, {year} • Summary Breakdown
               </p>
             </div>
 
-            {/* Quick Summary Pill */}
-            <span className="px-3 py-1 rounded-full text-xs font-semibold bg-[#2F6798]/10 text-[#2F6798] dark:bg-blue-950/60 dark:text-blue-300 border border-[#2F6798]/20">
-              {teamMembers.length} Members
+            <span className="px-3 py-1 rounded-full text-xs font-bold bg-[#2F6798]/10 text-[#2F6798] dark:bg-[#1D2433] dark:text-[#3678B0] border border-[#2F6798]/20 dark:border-[#434142]">
+              Sep {dayNumber}
             </span>
           </div>
 
-          {/* View Tab Switcher using Primary Brand Blue */}
-          <div className="flex items-center p-1 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-semibold shadow-2xs">
+          {/* Tab Selector: Team Overview vs Individual Details */}
+          <div className="flex items-center p-1 rounded-xl bg-slate-100 dark:bg-[#363435] border border-slate-200 dark:border-[#434142] text-xs font-semibold">
             <button
               type="button"
               onClick={() => setActiveTab('team')}
-              className={`flex-1 py-1.5 rounded-lg transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
+              className={`flex-1 py-1.5 rounded-lg flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
                 activeTab === 'team'
-                  ? 'bg-[#2F6798] text-white shadow-xs font-semibold'
-                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900'
+                  ? 'bg-[#2F6798] dark:bg-[#3678B0] text-white shadow-xs font-bold'
+                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-[#F8F8F6]'
               }`}
             >
               <Users className="w-3.5 h-3.5" />
-              <span>Team Roster ({teamMembers.length})</span>
+              <span>Team Overview ({teamMembers.length})</span>
             </button>
-
             <button
               type="button"
               onClick={() => setActiveTab('individual')}
-              className={`flex-1 py-1.5 rounded-lg transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
+              className={`flex-1 py-1.5 rounded-lg flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
                 activeTab === 'individual'
-                  ? 'bg-[#2F6798] text-white shadow-xs font-semibold'
-                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900'
+                  ? 'bg-[#2F6798] dark:bg-[#3678B0] text-white shadow-xs font-bold'
+                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-[#F8F8F6]'
               }`}
             >
               <User className="w-3.5 h-3.5" />
-              <span>Employee Detail</span>
+              <span>Individual View</span>
             </button>
           </div>
 
         </div>
 
-        {/* 3. Panel Body Content */}
-        <div className="p-4 sm:p-5 overflow-y-auto flex-1 space-y-4">
+        {/* 3. Panel Content Area */}
+        <div className="flex-1 overflow-y-auto p-4 sm:p-5 space-y-4">
           
           {/* TAB A: TEAM ROSTER SUMMARY */}
           {activeTab === 'team' && (
-            <div className="space-y-3.5 animate-in fade-in">
+            <div className="space-y-4 animate-in fade-in">
               
-              {/* Daily Headcount Summary (Compact Spacing, Absent and Rest Day Centered in Row 2) */}
-              <div className="space-y-1.5">
-                {/* Row 1: Present, Late, Undertime (3 Equal Boxes) */}
-                <div className="grid grid-cols-3 gap-1.5">
-                  <div className="p-2 sm:p-2.5 rounded-xl bg-emerald-50/70 dark:bg-emerald-950/40 border border-emerald-200/80 dark:border-emerald-900/50 flex items-center gap-1.5 sm:gap-2">
+              {/* Daily Statistics KPI Row (Present, Late, Undertime, Absent, Rest Day) */}
+              <div className="p-3.5 rounded-2xl bg-slate-50/70 dark:bg-[#272626] border border-slate-200/80 dark:border-[#434142] space-y-2.5">
+                <div className="flex items-center justify-between text-xs font-bold text-slate-700 dark:text-[#F8F8F6]">
+                  <span>Daily Headcount Distribution</span>
+                  <span className="text-slate-400">{teamMembers.length} Members</span>
+                </div>
+
+                <div className="flex flex-wrap gap-1.5">
+                  <div className="w-[calc((100%-12px)/3)] p-2 sm:p-2.5 rounded-xl bg-emerald-50/70 dark:bg-emerald-950/40 border border-emerald-200/80 dark:border-emerald-900/50 flex items-center gap-1.5 sm:gap-2">
                     <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
                     <div>
                       <span className="text-[9.5px] sm:text-[10px] font-bold text-emerald-700 dark:text-emerald-300 block">PRESENT</span>
@@ -228,7 +230,7 @@ export default function AttendanceDetailModal({
                     </div>
                   </div>
 
-                  <div className="p-2 sm:p-2.5 rounded-xl bg-amber-50/70 dark:bg-amber-950/40 border border-amber-200/80 dark:border-amber-900/50 flex items-center gap-1.5 sm:gap-2">
+                  <div className="w-[calc((100%-12px)/3)] p-2 sm:p-2.5 rounded-xl bg-amber-50/70 dark:bg-amber-950/40 border border-amber-200/80 dark:border-amber-900/50 flex items-center gap-1.5 sm:gap-2">
                     <Clock className="w-3.5 h-3.5 text-amber-600 shrink-0" />
                     <div>
                       <span className="text-[9.5px] sm:text-[10px] font-bold text-amber-700 dark:text-amber-300 block">LATE</span>
@@ -236,17 +238,14 @@ export default function AttendanceDetailModal({
                     </div>
                   </div>
 
-                  <div className="p-2 sm:p-2.5 rounded-xl bg-orange-50/70 dark:bg-orange-950/40 border border-orange-200/80 dark:border-orange-900/50 flex items-center gap-1.5 sm:gap-2">
+                  <div className="w-[calc((100%-12px)/3)] p-2 sm:p-2.5 rounded-xl bg-orange-50/70 dark:bg-orange-950/40 border border-orange-200/80 dark:border-orange-900/50 flex items-center gap-1.5 sm:gap-2">
                     <AlertTriangle className="w-3.5 h-3.5 text-orange-600 shrink-0" />
                     <div>
                       <span className="text-[9.5px] sm:text-[10px] font-bold text-orange-700 dark:text-orange-300 block">UNDERTIME</span>
                       <span className="text-xs sm:text-sm font-semibold text-orange-800 dark:text-orange-200">{undertimeCount}</span>
                     </div>
                   </div>
-                </div>
 
-                {/* Row 2: Absent & Rest Day (Centered with Same Box Size) */}
-                <div className="flex items-center justify-center gap-1.5">
                   <div className="w-[calc((100%-12px)/3)] p-2 sm:p-2.5 rounded-xl bg-rose-50/70 dark:bg-rose-950/40 border border-rose-200/80 dark:border-rose-900/50 flex items-center gap-1.5 sm:gap-2">
                     <AlertCircle className="w-3.5 h-3.5 text-rose-600 shrink-0" />
                     <div>
@@ -255,7 +254,7 @@ export default function AttendanceDetailModal({
                     </div>
                   </div>
 
-                  <div className="w-[calc((100%-12px)/3)] p-2 sm:p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 flex items-center gap-1.5 sm:gap-2">
+                  <div className="w-[calc((100%-12px)/3)] p-2 sm:p-2.5 rounded-xl bg-slate-50 dark:bg-[#363435] border border-slate-200 dark:border-[#434142] flex items-center gap-1.5 sm:gap-2">
                     <CalendarDays className="w-3.5 h-3.5 text-slate-500 shrink-0" />
                     <div>
                       <span className="text-[9.5px] sm:text-[10px] font-bold text-slate-600 dark:text-slate-400 block">REST DAY</span>
@@ -266,7 +265,7 @@ export default function AttendanceDetailModal({
               </div>
 
               {/* Scrollable Employee List with Avatar Circle */}
-              <div className="divide-y divide-slate-100 dark:divide-slate-800/80 rounded-2xl border border-slate-200/90 dark:border-slate-800 overflow-hidden bg-white dark:bg-[#0E1B38]">
+              <div className="divide-y divide-slate-100 dark:divide-[#434142] rounded-2xl border border-slate-200/90 dark:border-[#434142] overflow-hidden bg-white dark:bg-[#363435]">
                 {teamMembers.map((emp, idx) => {
                   const statusInfo = getStatusLabelAndColor(emp.status);
                   const initials = emp.name.split(' ').map((n) => n[0]).slice(0, 2).join('');
@@ -278,15 +277,15 @@ export default function AttendanceDetailModal({
                         setActiveEmployeeName(emp.name);
                         setActiveTab('individual');
                       }}
-                      className="p-3.5 hover:bg-blue-50/40 dark:hover:bg-slate-800/60 transition-colors flex items-center justify-between gap-3 cursor-pointer group"
+                      className="p-3.5 hover:bg-blue-50/40 dark:hover:bg-[#272626] transition-colors flex items-center justify-between gap-3 cursor-pointer group"
                     >
                       <div className="flex items-center gap-3 min-w-0">
                         {/* Avatar Circle */}
-                        <div className="w-8 h-8 rounded-full bg-[#2F6798]/10 text-[#2F6798] dark:bg-blue-950/60 dark:text-blue-300 border border-[#2F6798]/20 font-bold text-xs flex items-center justify-center shrink-0">
+                        <div className="w-8 h-8 rounded-full bg-[#2F6798]/10 text-[#2F6798] dark:bg-[#1D2433] dark:text-[#F8F8F6] border border-[#2F6798]/20 dark:border-[#434142] font-bold text-xs flex items-center justify-center shrink-0">
                           {initials}
                         </div>
                         <div className="min-w-0">
-                          <h4 className="text-xs sm:text-sm font-semibold text-slate-900 dark:text-slate-100 group-hover:text-[#2F6798] dark:group-hover:text-blue-300 transition-colors truncate">
+                          <h4 className="text-xs font-bold text-slate-900 dark:text-[#F8F8F6] truncate group-hover:text-[#2F6798] dark:group-hover:text-[#3678B0] transition-colors">
                             {emp.name}
                           </h4>
                           <p className="text-[11px] text-slate-400 dark:text-slate-500 mt-0.5 truncate">
@@ -314,29 +313,29 @@ export default function AttendanceDetailModal({
               {/* Custom Customized Dropdown matching filters */}
               <div className="relative" ref={dropdownRef}>
                 <label className="block text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1.5 flex items-center gap-1.5 select-none">
-                  <User className="w-3.5 h-3.5 text-[#2F6798]" />
+                  <User className="w-3.5 h-3.5 text-[#2F6798] dark:text-[#3678B0]" />
                   <span>SELECT EMPLOYEE</span>
                 </label>
 
                 <button
                   type="button"
                   onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-                  className={`w-full px-3.5 py-2.5 rounded-xl bg-white dark:bg-[#101D3D] border text-xs font-semibold text-slate-900 dark:text-slate-100 flex items-center justify-between transition-all cursor-pointer shadow-2xs ${
+                  className={`w-full px-3.5 py-2.5 rounded-xl bg-white dark:bg-[#272626] border text-xs font-semibold text-slate-900 dark:text-[#F8F8F6] flex items-center justify-between transition-all cursor-pointer shadow-2xs ${
                     isDropdownOpen
-                      ? 'border-[#2F6798] ring-2 ring-[#2F6798]/20 dark:ring-[#2F6798]/40 shadow-xs'
-                      : 'border-slate-200/90 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600'
+                      ? 'border-[#2F6798] ring-2 ring-[#2F6798]/20 dark:ring-[#3678B0]/40 shadow-xs'
+                      : 'border-slate-200/90 dark:border-[#434142] hover:border-slate-300 dark:hover:border-slate-500'
                   }`}
                 >
                   <span className="truncate">{activeEmp.name} ({activeEmp.position})</span>
                   <ChevronDown
-                    className={`w-4 h-4 text-[#2F6798] transition-transform duration-200 shrink-0 ml-1.5 ${
+                    className={`w-4 h-4 text-[#2F6798] dark:text-[#3678B0] transition-transform duration-200 shrink-0 ml-1.5 ${
                       isDropdownOpen ? 'rotate-180' : ''
                     }`}
                   />
                 </button>
 
                 {isDropdownOpen && (
-                  <div className="absolute top-full left-0 right-0 mt-1.5 z-50 bg-white dark:bg-[#101D3D] rounded-2xl shadow-xl border border-slate-200/90 dark:border-slate-800 p-1.5 space-y-0.5 animate-in fade-in zoom-in-95 duration-150 max-h-60 overflow-y-auto">
+                  <div className="absolute top-full left-0 right-0 mt-1.5 z-50 bg-white dark:bg-[#272626] rounded-2xl shadow-xl border border-slate-200/90 dark:border-[#434142] p-1.5 space-y-0.5 animate-in fade-in zoom-in-95 duration-150 max-h-60 overflow-y-auto">
                     {teamMembers.map((m) => {
                       const isSelected = m.name === activeEmployeeName;
                       return (
@@ -349,12 +348,12 @@ export default function AttendanceDetailModal({
                           }}
                           className={`w-full px-3.5 py-2 rounded-xl text-xs flex items-center justify-between transition-all cursor-pointer text-left ${
                             isSelected
-                              ? 'bg-[#2F6798]/10 dark:bg-blue-950/60 text-[#2F6798] dark:text-blue-300 font-semibold'
-                              : 'text-slate-700 dark:text-slate-200 font-medium hover:bg-slate-50 dark:hover:bg-slate-800/60'
+                              ? 'bg-[#2F6798]/10 dark:bg-[#1D2433] text-[#2F6798] dark:text-[#3678B0] font-semibold'
+                              : 'text-slate-700 dark:text-slate-200 font-medium hover:bg-slate-50 dark:hover:bg-[#363435]'
                           }`}
                         >
                           <span className="truncate">{m.name} ({m.position})</span>
-                          {isSelected && <Check className="w-4 h-4 text-[#2F6798] dark:text-blue-400 stroke-[2.5] shrink-0" />}
+                          {isSelected && <Check className="w-4 h-4 text-[#2F6798] dark:text-[#3678B0] stroke-[2.5] shrink-0" />}
                         </button>
                       );
                     })}

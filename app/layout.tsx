@@ -28,8 +28,34 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en" className={`h-full antialiased ${poppins.variable}`}>
-      <body className={`${poppins.className} min-h-full flex flex-col bg-slate-50 dark:bg-[#0B0F17] text-slate-900 dark:text-slate-100 font-sans`}>
+    <html lang="en" className={`h-full antialiased ${poppins.variable}`} suppressHydrationWarning>
+      <head>
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+              (function() {
+                try {
+                  var mode = localStorage.getItem('theme_preference') || 'system';
+                  var isDark = false;
+                  if (mode === 'dark') {
+                    isDark = true;
+                  } else if (mode === 'light') {
+                    isDark = false;
+                  } else {
+                    isDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+                  }
+                  if (isDark) {
+                    document.documentElement.classList.add('dark');
+                  } else {
+                    document.documentElement.classList.remove('dark');
+                  }
+                } catch (e) {}
+              })();
+            `,
+          }}
+        />
+      </head>
+      <body className={`${poppins.className} min-h-full flex flex-col bg-[#F4F7FB] dark:bg-[#272626] text-slate-900 dark:text-[#F8F8F6] font-sans`}>
         {children}
       </body>
     </html>

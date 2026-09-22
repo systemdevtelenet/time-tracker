@@ -1,87 +1,46 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 160" width="100%" height="100%">
-  <defs>
-    <!-- Filter for ultra crisp rendering -->
-  </defs>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="100%" height="100%">
+  <!-- Sleek Modern Sun -->
+  <g transform="translate(10, -6)">
+    <!-- Sun Rays (Crisp, Elegant Rounded Dashes) -->
+    <g stroke="#F59E0B" stroke-width="3" stroke-linecap="round">
+      <line x1="62" y1="18" x2="62" y2="12" />
+      <line x1="77.6" y1="24.4" x2="81.8" y2="20.2" />
+      <line x1="84" y1="40" x2="90" y2="40" />
+      <line x1="77.6" y1="55.6" x2="81.8" y2="59.8" />
+      <line x1="46.4" y1="24.4" x2="42.2" y2="20.2" />
+    </g>
 
-  <!-- 1. SUN RAYS (Short rounded golden orange dashes) -->
-  <g fill="#FDB813">
-    <!-- Top-left ray -->
-    <rect x="66" y="24" width="5.5" height="16" rx="2.75" transform="rotate(-40 68.75 32)" />
-    <!-- Top-mid-left ray -->
-    <rect x="80" y="15" width="5.5" height="16" rx="2.75" transform="rotate(-20 82.75 23)" />
-    <!-- Top-mid ray -->
-    <rect x="97" y="12" width="5.5" height="16" rx="2.75" transform="rotate(0 99.75 20)" />
-    <!-- Top-mid-right ray -->
-    <rect x="114" y="15" width="5.5" height="16" rx="2.75" transform="rotate(20 116.75 23)" />
-    <!-- Top-right ray -->
-    <rect x="128" y="24" width="5.5" height="16" rx="2.75" transform="rotate(40 130.75 32)" />
-    <!-- Right-top ray -->
-    <rect x="138" y="38" width="5.5" height="16" rx="2.75" transform="rotate(65 140.75 46)" />
-    <!-- Right-mid ray -->
-    <rect x="140" y="55" width="5.5" height="16" rx="2.75" transform="rotate(90 142.75 63)" />
-    <!-- Right-bottom ray -->
-    <rect x="134" y="72" width="5.5" height="16" rx="2.75" transform="rotate(115 136.75 80)" />
+    <!-- Sun Disc (Vibrant Amber/Gold) -->
+    <circle cx="62" cy="40" r="16" fill="#FBBF24" stroke="#F59E0B" stroke-width="2" />
   </g>
 
-  <!-- 2. SUN BODY (Warm golden yellow with right-side shadow rim) -->
+  <!-- Sleek Modern Cloud (Smooth Minimalist Geometry) -->
   <g>
-    <!-- Sun shadow backing circle (Right side warmth) -->
-    <circle cx="107" cy="62" r="34" fill="#FDB813" />
-    <!-- Main Pastel Golden Sun -->
-    <circle cx="104" cy="59" r="33" fill="#FEE066" />
-  </g>
+    <!-- Soft Flat Shadow Base -->
+    <path 
+      d="M 28 80 
+         h 44 
+         a 15 15 0 0 0 13 -22.5 
+         a 18 18 0 0 0 -22 -14.5 
+         a 22 22 0 0 0 -33 11 
+         a 14 14 0 0 0 -14 13 
+         a 13 13 0 0 0 12 13 Z" 
+      fill="#E2E8F0" 
+    />
 
-  <!-- 3. BACK CLOUD (Top Left - Vibrant Cyan Azure Blue) -->
-  <g fill="#00B4FF">
-    <!-- Puffs of back cloud -->
-    <circle cx="48" cy="80" r="16" />
-    <circle cx="62" cy="70" r="18" />
-    <circle cx="78" cy="74" r="17" />
-    <circle cx="92" cy="84" r="14" />
-    <!-- Bottom fill -->
-    <rect x="34" y="80" width="68" height="16" />
-  </g>
-
-  <!-- 4. MIDDLE CLOUD (Right - Soft Sky Blue) -->
-  <g fill="#7CE0FF">
-    <circle cx="102" cy="74" r="23" />
-    <circle cx="122" cy="82" r="18" />
-    <circle cx="140" cy="94" r="17" />
-    <!-- Rounded base for middle cloud -->
-    <path d="M 86 96 C 86 84 94 74 106 74 C 112 74 117 76 122 80 C 126 76 132 74 138 76 C 148 79 156 87 156 98 C 156 109 147 118 136 118 L 86 118 Z" />
-    <!-- Bottom flat rounded shading on middle cloud -->
-    <path d="M 120 114 C 132 114 154 114 154 104 C 154 112 144 118 134 118 L 120 118 Z" fill="#58CCF0" />
-  </g>
-
-  <!-- 5. FRONT MAIN CLOUD (Foreground - Pale Baby Blue / White Cyan with bottom shadow pill) -->
-  <g>
-    <!-- Base Shape of Front Cloud -->
-    <path d="M 68 132 
-             C 44 132, 28 122, 28 106 
-             C 28 92, 38 82, 52 80 
-             C 56 65, 72 54, 90 54 
-             C 106 54, 120 63, 126 76 
-             C 132 72, 140 70, 148 74 
-             C 158 78, 166 88, 164 100 
-             C 172 104, 178 112, 178 120 
-             C 178 130, 168 138, 156 138 
-             L 68 138 
-             Z" 
-          fill="#E1F7FE" />
-
-    <!-- Organic round puffs for perfect smooth volume -->
-    <circle cx="68" cy="96" r="28" fill="#E1F7FE" />
-    <circle cx="92" cy="78" r="30" fill="#E1F7FE" />
-    <circle cx="122" cy="92" r="24" fill="#E1F7FE" />
-
-    <!-- Bottom Flat Horizontal Shadow Pill (matching screenshot exactly) -->
-    <path d="M 38 136 
-             C 30 136, 28 132, 28 126 
-             C 28 122, 32 118, 40 118 
-             L 156 118 
-             C 164 118, 168 122, 168 126 
-             C 168 132, 164 136, 156 136 
-             Z" 
-          fill="#7FE0FF" />
+    <!-- Pure White Front Cloud Surface -->
+    <path 
+      d="M 28 77 
+         h 44 
+         a 14 14 0 0 0 12 -21 
+         a 17 17 0 0 0 -21 -13.5 
+         a 21 21 0 0 0 -31 10.5 
+         a 13 13 0 0 0 -13 12 
+         a 12 12 0 0 0 11 12 Z" 
+      fill="#FFFFFF" 
+      stroke="#CBD5E1" 
+      stroke-width="1.5" 
+      stroke-linejoin="round"
+    />
   </g>
 </svg>

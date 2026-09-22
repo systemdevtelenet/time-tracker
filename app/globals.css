@@ -1,6 +1,8 @@
 @import url('https://fonts.googleapis.com/css2?family=Poppins:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,400;1,600;1,700&display=swap');
 @import "tailwindcss";
 
+@custom-variant dark (&:is(.dark, .dark *));
+
 @theme {
   --font-sans: 'Poppins', var(--font-poppins), -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   --font-poppins: 'Poppins', var(--font-poppins), sans-serif;
@@ -10,22 +12,44 @@
   --font-poppins: 'Poppins', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   --primary: #2F6798;
   --primary-hover: #235179;
+  --primary-foreground: #FFFFFF;
   --primary-light: #EBF3F9;
-  --accent: #ED1C25;
-  --background: #F8FAFC;
+  --secondary: #C8A54B;
+  --accent: #C8A54B;
+  --background: #F4F7FB;
   --foreground: #0F172A;
+  --card: #FFFFFF;
   --card-bg: #FFFFFF;
+  --card-foreground: #0F172A;
+  --popover: #FFFFFF;
+  --border: #E2E8F0;
   --card-border: #E2E8F0;
+  --input: #E2E8F0;
   --muted: #64748B;
+  --muted-foreground: #64748B;
+  --destructive: #ED1C25;
+  --ring: #2F6798;
 }
 
 .dark {
-  --background: #0B0F17;
-  --foreground: #F1F5F9;
-  --card-bg: #111827;
-  --card-border: #1F2937;
-  --muted: #94A3B8;
-  --primary-light: rgba(47, 103, 152, 0.15);
+  --background: #272626; /* hsl(330, 2%, 15%) - Dark Charcoal */
+  --card: #363435; /* hsl(330, 2%, 21%) - Muted Charcoal */
+  --popover: #363435;
+  --card-bg: #363435;
+  --foreground: #F8F8F6; /* hsl(60, 17%, 97%) - Warm Off-White */
+  --card-foreground: #F8F8F6;
+  --primary: #3678B0; /* hsl(208, 53%, 45%) - Lighter Indigo */
+  --primary-foreground: #F8F8F6;
+  --primary-light: rgba(54, 120, 176, 0.2);
+  --secondary: #C8A54B; /* hsl(43, 54%, 54%) - Burnished Gold */
+  --accent: #C8A54B;
+  --muted: #1D2433; /* hsl(217, 33%, 17%) - Dark Navy/Slate */
+  --muted-foreground: #94A3B8; /* hsl(215, 20%, 65%) */
+  --destructive: #ED1C25; /* hsl(357, 86%, 52%) - Muted Crimson */
+  --border: #434142; /* hsl(330, 2%, 26%) - Borders & Outlines */
+  --card-border: #434142;
+  --input: #434142;
+  --ring: #3678B0;
 }
 
 *, *::before, *::after, html, body, input, button, select, textarea, table, th, td, div, span, p, h1, h2, h3, h4, h5, h6 {
@@ -42,6 +66,16 @@ body {
   font-family: 'Poppins', var(--font-poppins), sans-serif;
 }
 
+/* Background Ambient Glow: Radial mesh gradient using hsla(208, 53%, 50%, 0.08) */
+.dark body,
+html.dark body {
+  background-color: #272626;
+  background-image: 
+    radial-gradient(circle at 100% 0%, hsla(208, 53%, 50%, 0.08) 0%, transparent 45%),
+    radial-gradient(circle at 0% 100%, hsla(208, 53%, 50%, 0.08) 0%, transparent 45%);
+  background-attachment: fixed;
+}
+
 /* Glassmorphism helpers */
 .glass-panel {
   background: rgba(255, 255, 255, 0.85);
@@ -51,13 +85,13 @@ body {
 }
 
 .dark .glass-panel {
-  background: rgba(17, 24, 39, 0.85);
+  background: rgba(54, 52, 53, 0.85);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
-  border: 1px solid rgba(31, 41, 55, 0.8);
+  border: 1px solid #434142;
 }
 
-/* Custom Scrollbar */
+/* Custom Scrollbars */
 ::-webkit-scrollbar {
   width: 6px;
   height: 6px;
@@ -71,6 +105,21 @@ body {
 }
 ::-webkit-scrollbar-thumb:hover {
   background: rgba(148, 163, 184, 0.7);
+}
+
+/* Dark Mode Scrollbars */
+.dark ::-webkit-scrollbar-track,
+html.dark ::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.05);
+}
+.dark ::-webkit-scrollbar-thumb,
+html.dark ::-webkit-scrollbar-thumb {
+  background: #475569;
+  border-radius: 9999px;
+}
+.dark ::-webkit-scrollbar-thumb:hover,
+html.dark ::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
 }
 
 /* Pulse Glow Animation */

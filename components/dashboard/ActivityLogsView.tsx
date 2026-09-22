@@ -239,45 +239,69 @@ export default function ActivityLogsView({
         </div>
 
         {/* 3. Items List matching screenshot */}
-        <div className="space-y-2.5 pt-1">
+        <div className="space-y-2 pt-1">
           {filteredLogs.length > 0 ? (
             filteredLogs.map((log) => {
               const Icon = getLogIcon(log);
+              const isAuth = log.category === 'AUTH' || log.type === 'login';
+
               return (
                 <div
                   key={log.id}
-                  className="p-3.5 sm:p-4 rounded-2xl border border-slate-200/80 dark:border-slate-800 bg-white dark:bg-[#0B142B] hover:border-blue-200 dark:hover:border-blue-800 transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-2xs"
+                  className="p-2.5 sm:p-3 rounded-xl sm:rounded-2xl border border-slate-200/90 dark:border-slate-800 bg-white dark:bg-[#0B1528] hover:border-blue-300/60 dark:hover:border-blue-900/60 transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 shadow-2xs group"
                 >
                   {/* Left Side: Icon + Title + Category Pill + Description */}
-                  <div className="flex items-center gap-3.5 min-w-0">
-                    {/* Light Blue Circle Icon */}
-                    <div className="w-9 h-9 rounded-full bg-blue-50 dark:bg-blue-950 text-[#2F6798] dark:text-blue-400 flex items-center justify-center shrink-0 border border-blue-100 dark:border-blue-900/40">
-                      <Icon className="w-4 h-4" />
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    {/* Circle Icon Badge */}
+                    <div
+                      className={`w-7.5 h-7.5 sm:w-8 sm:h-8 rounded-full flex items-center justify-center shrink-0 border transition-transform group-hover:scale-105 ${
+                        isAuth
+                          ? 'bg-blue-50 dark:bg-[#13233E] text-[#2F6798] dark:text-[#60A5FA] border-blue-200 dark:border-blue-500/20'
+                          : log.category === 'PUNCH'
+                          ? 'bg-sky-50 dark:bg-sky-950/60 text-sky-600 dark:text-sky-400 border-sky-200 dark:border-sky-900/40'
+                          : log.category === 'TIME LOG'
+                          ? 'bg-blue-50 dark:bg-blue-950/60 text-[#2F6798] dark:text-blue-400 border-blue-200 dark:border-blue-900/40'
+                          : log.category === 'ATTENDANCE'
+                          ? 'bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 border-emerald-200 dark:border-emerald-900/40'
+                          : 'bg-slate-50 dark:bg-slate-800/80 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-700'
+                      }`}
+                    >
+                      <Icon className="w-3.5 h-3.5" />
                     </div>
 
                     {/* Text Details */}
                     <div className="min-w-0">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <h4 className="font-extrabold text-xs sm:text-sm text-slate-900 dark:text-slate-100">
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <h4 className="font-bold text-xs sm:text-[13px] text-slate-900 dark:text-white tracking-tight">
                           {log.title}
                         </h4>
-                        <span className="px-2 py-0.5 rounded-full text-[9px] font-bold text-[#2F6798] dark:text-blue-300 bg-blue-50 dark:bg-blue-950/80 border border-blue-100 dark:border-blue-900/40 uppercase tracking-wider">
+                        <span
+                          className={`px-2 py-0.5 rounded-full text-[8.5px] font-bold uppercase tracking-wider border ${
+                            isAuth
+                              ? 'text-blue-600 dark:text-blue-300 bg-blue-50 dark:bg-blue-950/80 border-blue-200 dark:border-blue-800/50'
+                              : log.category === 'PUNCH'
+                              ? 'text-sky-600 dark:text-sky-300 bg-sky-50 dark:bg-sky-950/80 border-sky-200 dark:border-sky-800/50'
+                              : log.category === 'TIME LOG'
+                              ? 'text-[#2F6798] dark:text-blue-300 bg-blue-50 dark:bg-blue-950/80 border-blue-200 dark:border-blue-800/50'
+                              : 'text-slate-600 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 border-slate-200 dark:border-slate-700'
+                          }`}
+                        >
                           {log.category}
                         </span>
                       </div>
-                      <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5 font-normal">
+                      <p className="text-[11px] sm:text-xs text-slate-500 dark:text-slate-300 mt-0.5 font-normal leading-normal">
                         {log.description}
                       </p>
                     </div>
                   </div>
 
                   {/* Right Side: Timestamp + Performed By */}
-                  <div className="text-left sm:text-right shrink-0 pl-12 sm:pl-0">
-                    <div className="text-xs font-semibold text-slate-500 dark:text-slate-400">
+                  <div className="text-left sm:text-right shrink-0 pl-10 sm:pl-0">
+                    <div className="text-[11px] sm:text-xs font-semibold text-slate-500 dark:text-slate-300">
                       {formatRelativeTime(log.timestamp)}
                     </div>
-                    <div className="text-[11px] text-slate-400 dark:text-slate-500 mt-0.5">
-                      By <b className="text-slate-700 dark:text-slate-300 font-bold">{log.performedBy}</b>
+                    <div className="text-[10px] sm:text-[11px] text-slate-400 dark:text-slate-400 mt-0.5">
+                      By <b className="text-slate-800 dark:text-white font-bold">{log.performedBy}</b>
                     </div>
                   </div>
                 </div>

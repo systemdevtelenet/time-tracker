@@ -1,16 +1,31 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSupabaseAdmin } from '@/lib/supabase/server';
 import { PhoneTimeRecord } from '@/lib/types';
+import { getCachedData, setCachedData, invalidateCache } from '@/lib/serverCache';
 
 export const dynamic = 'force-dynamic';
 
+const TIME_ENTRIES_CACHE_PREFIX = 'api_time_entries_';
+
 export async function GET(request: NextRequest) {
   try {
-    const supabase = getSupabaseAdmin();
     const searchParams = request.nextUrl.searchParams;
-    const account = searchParams.get('account');
-    const agent = searchParams.get('agent');
+    const account = searchParams.get('account') || 'ALL';
+    const agent = searchParams.get('agent') || 'ALL';
     const limit = parseInt(searchParams.get('limit') || '1000', 10);
+
+    const cacheKey = `${TIME_ENTRIES_CACHE_PREFIX}${account}_${agent}_${limit}`;
+    const cached = getCachedData<any>(cacheKey);
+    if (cached) {
+      return NextResponse.json(cached, {
+        headers: {
+          'Cache-Control': 'public, s-maxage=15, stale-while-revalidate=60',
+          'X-Cache': 'HIT',
+        },
+      });
+    }
+
+    const supabase = getSupabaseAdmin();
 
     let query = supabase
       .from('phone_time_tracker')
@@ -32,7 +47,15 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: error.message, data: [] }, { status: 500 });
     }
 
-    return NextResponse.json({ data: data || [] });
+    const result = { data: data || [] };
+    setCachedData(cacheKey, result, 30); // 30 seconds TTL
+
+    return NextResponse.json(result, {
+      headers: {
+        'Cache-Control': 'public, s-maxage=15, stale-while-revalidate=60',
+        'X-Cache': 'MISS',
+      },
+    });
   } catch (err: any) {
     console.error('API Error in GET /api/time-entries:', err);
     return NextResponse.json({ error: err.message, data: [] }, { status: 500 });
@@ -69,6 +92,9 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
+    // Invalidate time-entries cache immediately on new entry
+    invalidateCache(TIME_ENTRIES_CACHE_PREFIX);
+
     return NextResponse.json({ success: true, data: data?.[0] || body }, { status: 201 });
   } catch (err: any) {
     console.error('API Error in POST /api/time-entries:', err);
@@ -96,6 +122,9 @@ export async function DELETE(request: NextRequest) {
       console.error('Supabase delete error:', error);
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
+
+    // Invalidate time-entries cache immediately on delete
+    invalidateCache(TIME_ENTRIES_CACHE_PREFIX);
 
     return NextResponse.json({ success: true });
   } catch (err: any) {

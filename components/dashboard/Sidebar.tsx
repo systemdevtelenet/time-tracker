@@ -27,7 +27,15 @@ export interface SupervisorProfile {
   tenure: string;
   directSupervisor: string;
   email?: string;
-  avatarUrl?: string;
+  avatarUrl?: string | null;
+  firstName?: string;
+  middleName?: string;
+  lastName?: string;
+  suffix?: string;
+  department?: string;
+  startDate?: string;
+  accounts?: string;
+  primaryTask?: string;
 }
 
 interface SidebarProps {

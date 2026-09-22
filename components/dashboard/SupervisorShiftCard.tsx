@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { 
   Clock, 
   Utensils, 
@@ -9,9 +9,15 @@ import {
   CheckCircle2, 
   LogIn, 
   LogOut,
+  BellRing,
+  Volume2,
+  VolumeX,
+  AlertTriangle,
+  Play
 } from 'lucide-react';
 import { PunchActionType, ShiftPunchesState } from '@/lib/punchLogs';
 import { addActivityLog } from '@/lib/activityLogs';
+import { playAlarmSound, getSelectedRingtone, RINGTONE_OPTIONS } from '@/lib/soundAlerts';
 
 export interface SupervisorShiftCardProps {
   supervisor?: {
@@ -58,6 +64,87 @@ export default function SupervisorShiftCard({
     hasShiftEnd: false,
   });
   const [isPunching, setIsPunching] = useState<boolean>(false);
+
+  // Break / Lunch Alarm Alert State
+  const [isAlarmRinging, setIsAlarmRinging] = useState<boolean>(false);
+  const [alarmType, setAlarmType] = useState<'nearly_up' | 'exceeded' | null>(null);
+  const [isMuted, setIsMuted] = useState<boolean>(false);
+  const lastAlertedStageRef = useRef<'none' | 'nearly_up' | 'exceeded'>('none');
+  const [currentRingtoneName, setCurrentRingtoneName] = useState<string>('Welcome to the Jungle (classic)');
+
+  // Sync current configured ringtone name
+  useEffect(() => {
+    const updateRingtoneName = () => {
+      const activeId = getSelectedRingtone();
+      const match = RINGTONE_OPTIONS.find((r) => r.id === activeId);
+      setCurrentRingtoneName(match ? match.name : 'Welcome to the Jungle (classic)');
+    };
+    updateRingtoneName();
+
+    if (typeof window !== 'undefined') {
+      window.addEventListener('alarm-ringtone-changed', updateRingtoneName);
+    }
+    return () => {
+      if (typeof window !== 'undefined') {
+        window.removeEventListener('alarm-ringtone-changed', updateRingtoneName);
+      }
+    };
+  }, []);
+
+  // Break limit calculation in seconds (15 mins for breaks, 60 mins for lunch)
+  const getBreakLimitSecs = (status: string) => {
+    if (status === 'break_1' || status === 'break_2') return 15 * 60; // 15 mins = 900s
+    if (status === 'lunch') return 60 * 60; // 60 mins = 3600s
+    return 0;
+  };
+
+  // Reset alert state when status or punch changes
+  useEffect(() => {
+    lastAlertedStageRef.current = 'none';
+    setIsAlarmRinging(false);
+    setAlarmType(null);
+    setIsMuted(false);
+  }, [currentStatus]);
+
+  // Break timer alarm check
+  useEffect(() => {
+    if (currentStatus !== 'break_1' && currentStatus !== 'break_2' && currentStatus !== 'lunch') {
+      return;
+    }
+    const limit = getBreakLimitSecs(currentStatus);
+    if (limit <= 0) return;
+
+    const remaining = limit - statusSeconds;
+
+    // 1. Limit Exceeded Alert (Overtime)
+    if (remaining < 0) {
+      if (lastAlertedStageRef.current !== 'exceeded') {
+        lastAlertedStageRef.current = 'exceeded';
+        setIsAlarmRinging(true);
+        setAlarmType('exceeded');
+        if (!isMuted) {
+          playAlarmSound(undefined, () => setIsAlarmRinging(false));
+        }
+      }
+    } 
+    // 2. Nearly Up Alert (<= 2 mins for break, <= 5 mins for lunch)
+    else if ((limit <= 900 && remaining <= 120) || (limit > 900 && remaining <= 300)) {
+      if (lastAlertedStageRef.current === 'none') {
+        lastAlertedStageRef.current = 'nearly_up';
+        setIsAlarmRinging(true);
+        setAlarmType('nearly_up');
+        if (!isMuted) {
+          playAlarmSound(undefined, () => setIsAlarmRinging(false));
+        }
+      }
+    }
+  }, [statusSeconds, currentStatus, isMuted]);
+
+  // Test ringtone playback
+  const handleTestAlarm = () => {
+    setIsAlarmRinging(true);
+    playAlarmSound(undefined, () => setIsAlarmRinging(false));
+  };
 
   // Fetch live punch status from API
   const fetchPunchStatus = useCallback(async () => {
@@ -300,6 +387,79 @@ export default function SupervisorShiftCard({
           )}
         </div>
       </div>
+
+      {/* Active Break / Lunch Alarm & Limit Warning Banner */}
+      {(currentStatus === 'break_1' || currentStatus === 'break_2' || currentStatus === 'lunch') && (
+        <div className={`p-3.5 sm:p-4 rounded-2xl border transition-all animate-in fade-in flex flex-col sm:flex-row sm:items-center justify-between gap-3 ${
+          alarmType === 'exceeded'
+            ? 'bg-rose-50 dark:bg-rose-950/60 border-rose-300 dark:border-rose-800 text-rose-900 dark:text-rose-200 ring-2 ring-rose-500/30 shadow-xs'
+            : alarmType === 'nearly_up'
+            ? 'bg-amber-50 dark:bg-amber-950/60 border-amber-300 dark:border-amber-800 text-amber-900 dark:text-amber-200 ring-2 ring-amber-500/30 shadow-xs'
+            : 'bg-blue-50/60 dark:bg-[#13233E]/80 border-blue-200/80 dark:border-blue-900/50 text-slate-800 dark:text-slate-200'
+        }`}>
+          <div className="flex items-center gap-3 min-w-0">
+            <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${
+              alarmType === 'exceeded'
+                ? 'bg-rose-500 text-white animate-bounce'
+                : alarmType === 'nearly_up'
+                ? 'bg-amber-500 text-white animate-pulse'
+                : 'bg-[#2F6798] text-white'
+            }`}>
+              <BellRing className="w-4 h-4" />
+            </div>
+
+            <div className="min-w-0">
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="font-extrabold text-xs sm:text-sm tracking-tight">
+                  {alarmType === 'exceeded'
+                    ? '⚠️ Break Limit Exceeded (Alarm Ringing!)'
+                    : alarmType === 'nearly_up'
+                    ? '⏰ Break Time Nearly Up!'
+                    : currentStatus === 'lunch'
+                    ? 'Lunch Break in Progress (60m Limit)'
+                    : 'Scheduled Break in Progress (15m Limit)'}
+                </span>
+
+                <span className="px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider bg-white/80 dark:bg-[#272626] border border-slate-200/60 dark:border-slate-700">
+                  Sound: {currentRingtoneName}
+                </span>
+              </div>
+
+              <p className="text-xs opacity-80 mt-0.5">
+                {alarmType === 'exceeded'
+                  ? `You have exceeded your ${currentStatus === 'lunch' ? '60-minute' : '15-minute'} limit by ${Math.abs(Math.floor((getBreakLimitSecs(currentStatus) - statusSeconds) / 60))}m ${Math.abs((getBreakLimitSecs(currentStatus) - statusSeconds) % 60)}s.`
+                  : `Remaining: ${Math.max(0, Math.floor((getBreakLimitSecs(currentStatus) - statusSeconds) / 60))}m ${Math.max(0, (getBreakLimitSecs(currentStatus) - statusSeconds) % 60)}s before alarm triggers.`}
+              </p>
+            </div>
+          </div>
+
+          {/* Action Buttons: Test Ring / Mute Alarm */}
+          <div className="flex items-center gap-2 shrink-0">
+            <button
+              type="button"
+              onClick={handleTestAlarm}
+              className="px-3 py-1.5 rounded-xl bg-white dark:bg-[#1E293B] border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 flex items-center gap-1.5 transition-all cursor-pointer shadow-2xs"
+            >
+              <Play className="w-3.5 h-3.5 text-[#2F6798] dark:text-[#60A5FA]" />
+              <span>Test Alarm</span>
+            </button>
+
+            {isAlarmRinging && (
+              <button
+                type="button"
+                onClick={() => {
+                  setIsMuted(true);
+                  setIsAlarmRinging(false);
+                }}
+                className="px-3 py-1.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer shadow-xs animate-pulse"
+              >
+                <VolumeX className="w-3.5 h-3.5 text-white" />
+                <span>Stop Ringing</span>
+              </button>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* 2. Main Horizontal Grid: Left (TIME CLOCK & PUNCH with 8-Action Grid) + Right (POSITION & ASSIGNMENT) */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">

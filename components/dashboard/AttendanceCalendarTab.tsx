@@ -27,6 +27,9 @@ interface AttendanceCalendarTabProps {
   records?: PhoneTimeRecord[];
   onBackToRoster?: () => void;
   searchFilter?: string;
+  isHeadOrAdmin?: boolean;
+  supervisorName?: string;
+  supervisorId?: string;
 }
 
 export type AttendanceStatus = 'P' | 'L' | 'U' | 'A' | 'RD' | null;
@@ -208,16 +211,30 @@ export default function AttendanceCalendarTab({
   records = [],
   onBackToRoster,
   searchFilter = '',
+  isHeadOrAdmin = true,
+  supervisorName,
+  supervisorId,
 }: AttendanceCalendarTabProps) {
   const [viewFormat, setViewFormat] = useState<'matrix' | 'google-calendar'>('matrix');
   const [rangeView, setRangeView] = useState<RangeViewOption>('all_30');
   const [currentMonthIndex, setCurrentMonthIndex] = useState(8); // September (0-indexed)
   const [currentYear, setCurrentYear] = useState(2026);
   const [selectedStatusFilter, setSelectedStatusFilter] = useState<string>('all');
-  const [selectedIndividualEmployee, setSelectedIndividualEmployee] = useState<string>('Nissi-Jeh Reguero');
+  const [selectedIndividualEmployee, setSelectedIndividualEmployee] = useState<string>(
+    supervisorName || 'Nissi-Jeh Reguero'
+  );
 
   // Dynamic Database Team Roster List
-  const [attendanceDataList, setAttendanceDataList] = useState<EmployeeAttendanceRow[]>(TEAM_ATTENDANCE_DATA);
+  const [attendanceDataList, setAttendanceDataList] = useState<EmployeeAttendanceRow[]>(() => {
+    if (!isHeadOrAdmin && supervisorName) {
+      const sName = supervisorName.toLowerCase().trim();
+      const filtered = TEAM_ATTENDANCE_DATA.filter(
+        (e) => (sName && (e.name.toLowerCase().trim().includes(sName) || sName.includes(e.name.toLowerCase().trim())))
+      );
+      return filtered.length > 0 ? filtered : TEAM_ATTENDANCE_DATA.slice(0, 1);
+    }
+    return TEAM_ATTENDANCE_DATA;
+  });
 
   // Detail Modal States
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
@@ -242,29 +259,21 @@ export default function AttendanceCalendarTab({
     currentStatus: null,
   });
 
-  const [attendanceOverrides, setAttendanceOverrides] = useState<Record<string, AttendanceStatus>>(() => {
+  const [attendanceOverrides, setAttendanceOverrides] = useState<Record<string, AttendanceStatus>>({});
+  const [attendanceNotes, setAttendanceNotes] = useState<Record<string, string>>({});
+
+  useEffect(() => {
     if (typeof window !== 'undefined') {
       try {
         const saved = localStorage.getItem('attendance_overrides_v1');
-        return saved ? JSON.parse(saved) : {};
-      } catch (e) {
-        return {};
-      }
-    }
-    return {};
-  });
-
-  const [attendanceNotes, setAttendanceNotes] = useState<Record<string, string>>(() => {
-    if (typeof window !== 'undefined') {
+        if (saved) setAttendanceOverrides(JSON.parse(saved));
+      } catch (e) {}
       try {
-        const saved = localStorage.getItem('attendance_notes_v1');
-        return saved ? JSON.parse(saved) : {};
-      } catch (e) {
-        return {};
-      }
+        const savedNotes = localStorage.getItem('attendance_notes_v1');
+        if (savedNotes) setAttendanceNotes(JSON.parse(savedNotes));
+      } catch (e) {}
     }
-    return {};
-  });
+  }, []);
 
   const handleOpenCellPopover = (emp: EmployeeAttendanceRow, dayNum: number) => {
     const key = `${emp.name}-${dayNum}`;
@@ -526,14 +535,23 @@ export default function AttendanceCalendarTab({
             };
           });
 
-          setAttendanceDataList(mapped);
+          if (!isHeadOrAdmin) {
+            const sName = (supervisorName || '').toLowerCase().trim();
+            const filtered = mapped.filter((r) => {
+              const rName = (r.name || '').toLowerCase().trim();
+              return (sName && (rName === sName || rName.includes(sName) || sName.includes(rName))) || (supervisorId && r.id === `emp-${supervisorId}`);
+            });
+            setAttendanceDataList(filtered.length > 0 ? filtered : mapped.slice(0, 1));
+          } else {
+            setAttendanceDataList(mapped);
+          }
         }
       } catch (err) {
         console.error('Failed to load database roster in calendar tab:', err);
       }
     }
     loadDbTeam();
-  }, []);
+  }, [isHeadOrAdmin, supervisorName, supervisorId]);
 
   // Filter employees with top search and status
   const filteredEmployees = useMemo(() => {
@@ -559,37 +577,37 @@ export default function AttendanceCalendarTab({
     switch (status) {
       case 'P':
         return (
-          <span className="w-5 h-5 sm:w-6 sm:h-6 rounded-md bg-[#d1fae5] text-[#065f46] dark:bg-emerald-950/70 dark:text-emerald-300 font-extrabold text-[10px] sm:text-[11px] flex items-center justify-center shadow-2xs">
+          <span className="w-5 h-5 sm:w-6 sm:h-6 rounded-md bg-[#d1fae5] text-[#065f46] dark:bg-emerald-950/80 dark:text-emerald-300 dark:border dark:border-emerald-800/60 font-extrabold text-[10px] sm:text-[11px] flex items-center justify-center shadow-2xs">
             P
           </span>
         );
       case 'L':
         return (
-          <span className="w-5 h-5 sm:w-6 sm:h-6 rounded-md bg-[#fef3c7] text-[#92400e] dark:bg-amber-950/70 dark:text-amber-300 font-extrabold text-[10px] sm:text-[11px] flex items-center justify-center shadow-2xs">
+          <span className="w-5 h-5 sm:w-6 sm:h-6 rounded-md bg-[#fef3c7] text-[#92400e] dark:bg-amber-950/80 dark:text-amber-300 dark:border dark:border-amber-800/60 font-extrabold text-[10px] sm:text-[11px] flex items-center justify-center shadow-2xs">
             L
           </span>
         );
       case 'U':
         return (
-          <span className="w-5 h-5 sm:w-6 sm:h-6 rounded-md bg-[#ffedd5] text-[#9a3412] dark:bg-orange-950/70 dark:text-orange-300 font-extrabold text-[10px] sm:text-[11px] flex items-center justify-center shadow-2xs">
+          <span className="w-5 h-5 sm:w-6 sm:h-6 rounded-md bg-[#ffedd5] text-[#9a3412] dark:bg-orange-950/80 dark:text-orange-300 dark:border dark:border-orange-800/60 font-extrabold text-[10px] sm:text-[11px] flex items-center justify-center shadow-2xs">
             U
           </span>
         );
       case 'A':
         return (
-          <span className="w-5 h-5 sm:w-6 sm:h-6 rounded-md bg-[#ffe4e6] text-[#9f1239] dark:bg-rose-950/70 dark:text-rose-300 font-extrabold text-[10px] sm:text-[11px] flex items-center justify-center shadow-2xs">
+          <span className="w-5 h-5 sm:w-6 sm:h-6 rounded-md bg-[#ffe4e6] text-[#9f1239] dark:bg-rose-950/80 dark:text-rose-300 dark:border dark:border-rose-800/60 font-extrabold text-[10px] sm:text-[11px] flex items-center justify-center shadow-2xs">
             A
           </span>
         );
       case 'RD':
         return (
-          <span className="w-5 h-5 sm:w-6 sm:h-6 rounded-md bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300 font-extrabold text-[9.5px] sm:text-[10px] flex items-center justify-center shadow-2xs">
+          <span className="w-5 h-5 sm:w-6 sm:h-6 rounded-md bg-slate-100 text-slate-600 dark:bg-[#272626] dark:text-slate-400 dark:border dark:border-[#434142] font-extrabold text-[9.5px] sm:text-[10px] flex items-center justify-center shadow-2xs">
             RD
           </span>
         );
       default:
         return (
-          <span className="w-5 h-5 sm:w-6 sm:h-6 text-slate-300 dark:text-slate-700 flex items-center justify-center text-xs">
+          <span className="w-5 h-5 sm:w-6 sm:h-6 text-slate-300 dark:text-slate-600 flex items-center justify-center text-xs">
             -
           </span>
         );
@@ -601,7 +619,7 @@ export default function AttendanceCalendarTab({
       
       {/* Unified White Container for Controls & Matrix Table */}
       {viewFormat === 'matrix' ? (
-        <div className="bg-white dark:bg-[#0E1B38] rounded-xl border border-slate-200/90 dark:border-slate-800 shadow-xs overflow-hidden">
+        <div className="bg-white dark:bg-[#363435] rounded-xl border border-slate-200/90 dark:border-[#434142] shadow-xs overflow-hidden">
           
           {/* Controls Area */}
           <div className="p-4 sm:p-5 space-y-4">
@@ -610,7 +628,7 @@ export default function AttendanceCalendarTab({
             <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
               
               <div>
-                <h3 className="text-sm sm:text-base font-bold text-slate-900 dark:text-slate-100 tracking-tight whitespace-nowrap font-sans">
+                <h3 className="text-sm sm:text-base font-bold text-slate-900 dark:text-[#F8F8F6] tracking-tight whitespace-nowrap font-sans">
                   Attendance Calendar (All Employees)
                 </h3>
                 <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
@@ -622,14 +640,14 @@ export default function AttendanceCalendarTab({
               <div className="flex items-center gap-2.5 flex-wrap justify-end">
                 
                 {/* View Format Toggle (Matrix vs Calendar) */}
-                <div className="flex items-center p-1 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-semibold">
+                <div className="flex items-center p-1 rounded-xl bg-slate-100 dark:bg-[#272626] border border-slate-200 dark:border-[#434142] text-xs font-semibold">
                   <button
                     type="button"
                     onClick={() => setViewFormat('matrix')}
                     className={`px-3 py-1.5 rounded-lg flex items-center gap-1.5 transition-all cursor-pointer ${
                       viewFormat === 'matrix'
-                        ? 'bg-[#2F6798] text-white shadow-xs font-semibold'
-                        : 'text-slate-600 dark:text-slate-400 hover:text-slate-900'
+                        ? 'bg-[#2F6798] dark:bg-[#3678B0] text-white shadow-xs font-semibold'
+                        : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-[#F8F8F6]'
                     }`}
                   >
                     <LayoutGrid className="w-3.5 h-3.5" />
@@ -640,8 +658,8 @@ export default function AttendanceCalendarTab({
                     onClick={() => setViewFormat('google-calendar')}
                     className={`px-3 py-1.5 rounded-lg flex items-center gap-1.5 transition-all cursor-pointer ${
                       (viewFormat as string) === 'google-calendar'
-                        ? 'bg-[#2F6798] text-white shadow-xs font-semibold'
-                        : 'text-slate-600 dark:text-slate-400 hover:text-slate-900'
+                        ? 'bg-[#2F6798] dark:bg-[#3678B0] text-white shadow-xs font-semibold'
+                        : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-[#F8F8F6]'
                     }`}
                   >
                     <CalendarDays className="w-3.5 h-3.5" />
@@ -650,24 +668,24 @@ export default function AttendanceCalendarTab({
                 </div>
 
                 {/* Month Navigator with Arrow Buttons & Bold Date */}
-                <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-sans">
+                <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-50 dark:bg-[#272626] border border-slate-200 dark:border-[#434142] text-xs font-sans">
                   <button
                     type="button"
                     onClick={handlePrevMonth}
-                    className="p-1.5 rounded-lg bg-white dark:bg-slate-700 hover:bg-slate-100 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 text-xs font-semibold shadow-2xs transition-colors cursor-pointer flex items-center justify-center"
+                    className="p-1.5 rounded-lg bg-white dark:bg-[#363435] hover:bg-slate-100 dark:hover:bg-[#434142] text-slate-700 dark:text-[#F8F8F6] text-xs font-semibold shadow-2xs transition-colors cursor-pointer flex items-center justify-center border border-slate-200/60 dark:border-[#434142]"
                     title="Previous Month"
                   >
                     <ChevronLeft className="w-3.5 h-3.5" />
                   </button>
 
-                  <span className="font-bold text-slate-900 dark:text-slate-100 px-2 text-xs">
+                  <span className="font-bold text-slate-900 dark:text-[#F8F8F6] px-2 text-xs">
                     {monthNames[currentMonthIndex]} {currentYear}
                   </span>
 
                   <button
                     type="button"
                     onClick={handleNextMonth}
-                    className="p-1.5 rounded-lg bg-white dark:bg-slate-700 hover:bg-slate-100 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 text-xs font-semibold shadow-2xs transition-colors cursor-pointer flex items-center justify-center"
+                    className="p-1.5 rounded-lg bg-white dark:bg-[#363435] hover:bg-slate-100 dark:hover:bg-[#434142] text-slate-700 dark:text-[#F8F8F6] text-xs font-semibold shadow-2xs transition-colors cursor-pointer flex items-center justify-center border border-slate-200/60 dark:border-[#434142]"
                     title="Next Month"
                   >
                     <ChevronRight className="w-3.5 h-3.5" />
@@ -679,11 +697,11 @@ export default function AttendanceCalendarTab({
             </div>
 
             {/* Range Switcher Row */}
-            <div className="p-2.5 rounded-xl bg-[#F4F7FB] dark:bg-[#070D1E] border border-slate-200/80 dark:border-slate-800 flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3">
+            <div className="p-2.5 rounded-xl bg-[#F4F7FB] dark:bg-[#272626] border border-slate-200/80 dark:border-[#434142] flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3">
               
               {/* Range Toggle Buttons */}
               <div className="flex items-center gap-1.5 overflow-x-auto">
-                <span className="text-[10px] font-bold uppercase text-slate-400 dark:text-slate-500 mr-1 shrink-0">
+                <span className="text-[10px] font-bold uppercase text-slate-400 dark:text-slate-400 mr-1 shrink-0">
                   Date Range:
                 </span>
                 
@@ -692,8 +710,8 @@ export default function AttendanceCalendarTab({
                   onClick={() => setRangeView('all_30')}
                   className={`px-3 py-1 rounded-lg text-xs font-semibold transition-all cursor-pointer shrink-0 ${
                     rangeView === 'all_30'
-                      ? 'bg-[#2F6798] text-white shadow-xs'
-                      : 'bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-100 border border-slate-200 dark:border-slate-700'
+                      ? 'bg-[#2F6798] dark:bg-[#3678B0] text-white shadow-xs'
+                      : 'bg-white dark:bg-[#363435] text-slate-700 dark:text-[#F8F8F6] hover:bg-slate-100 dark:hover:bg-[#434142] border border-slate-200 dark:border-[#434142]'
                   }`}
                 >
                   Full Month (1–30)
@@ -704,8 +722,8 @@ export default function AttendanceCalendarTab({
                   onClick={() => setRangeView('period_1')}
                   className={`px-3 py-1 rounded-lg text-xs font-semibold transition-all cursor-pointer shrink-0 ${
                     rangeView === 'period_1'
-                      ? 'bg-[#2F6798] text-white shadow-xs'
-                      : 'bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-100 border border-slate-200 dark:border-slate-700'
+                      ? 'bg-[#2F6798] dark:bg-[#3678B0] text-white shadow-xs'
+                      : 'bg-white dark:bg-[#363435] text-slate-700 dark:text-[#F8F8F6] hover:bg-slate-100 dark:hover:bg-[#434142] border border-slate-200 dark:border-[#434142]'
                   }`}
                 >
                   1st Pay Period (1–15)
@@ -716,8 +734,8 @@ export default function AttendanceCalendarTab({
                   onClick={() => setRangeView('period_2')}
                   className={`px-3 py-1 rounded-lg text-xs font-semibold transition-all cursor-pointer shrink-0 ${
                     rangeView === 'period_2'
-                      ? 'bg-[#2F6798] text-white shadow-xs'
-                      : 'bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-100 border border-slate-200 dark:border-slate-700'
+                      ? 'bg-[#2F6798] dark:bg-[#3678B0] text-white shadow-xs'
+                      : 'bg-white dark:bg-[#363435] text-slate-700 dark:text-[#F8F8F6] hover:bg-slate-100 dark:hover:bg-[#434142] border border-slate-200 dark:border-[#434142]'
                   }`}
                 >
                   2nd Pay Period (16–30)
@@ -728,8 +746,8 @@ export default function AttendanceCalendarTab({
                   onClick={() => setRangeView('current_week')}
                   className={`px-3 py-1 rounded-lg text-xs font-semibold transition-all cursor-pointer shrink-0 ${
                     rangeView === 'current_week'
-                      ? 'bg-[#2F6798] text-white shadow-xs'
-                      : 'bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-100 border border-slate-200 dark:border-slate-700'
+                      ? 'bg-[#2F6798] dark:bg-[#3678B0] text-white shadow-xs'
+                      : 'bg-white dark:bg-[#363435] text-slate-700 dark:text-[#F8F8F6] hover:bg-slate-100 dark:hover:bg-[#434142] border border-slate-200 dark:border-[#434142]'
                   }`}
                 >
                   Current Week (14–20)
@@ -740,9 +758,9 @@ export default function AttendanceCalendarTab({
               <button
                 type="button"
                 onClick={handleJumpToToday}
-                className="inline-flex items-center justify-center gap-1.5 px-3 py-1 rounded-lg bg-white dark:bg-slate-800 border border-[#2F6798]/30 hover:border-[#2F6798] text-[#2F6798] dark:text-blue-300 text-xs font-semibold shadow-2xs transition-all cursor-pointer shrink-0"
+                className="inline-flex items-center justify-center gap-1.5 px-3 py-1 rounded-lg bg-white dark:bg-[#363435] border border-[#2F6798]/30 dark:border-[#434142] hover:border-[#2F6798] dark:hover:border-[#C8A54B] text-[#2F6798] dark:text-[#C8A54B] text-xs font-semibold shadow-2xs transition-all cursor-pointer shrink-0"
               >
-                <Sparkles className="w-3.5 h-3.5 text-[#2F6798]" />
+                <Sparkles className="w-3.5 h-3.5 text-[#2F6798] dark:text-[#C8A54B]" />
                 <span>Jump to Today (Sep 16)</span>
               </button>
 
@@ -767,7 +785,7 @@ export default function AttendanceCalendarTab({
                 <span>A - Absent</span>
               </span>
               <span className="flex items-center gap-1.5 text-slate-600 dark:text-slate-400">
-                <span className="w-2.5 h-2.5 rounded-full bg-slate-400" />
+                <span className="w-2.5 h-2.5 rounded-full bg-slate-400 dark:bg-slate-500" />
                 <span>RD - Rest Day</span>
               </span>
             </div>
@@ -775,22 +793,22 @@ export default function AttendanceCalendarTab({
           </div>
 
           {/* Matrix Table inside the same container */}
-          <div className="overflow-x-auto relative border-t border-slate-100 dark:border-slate-800" ref={scrollContainerRef}>
+          <div className="overflow-x-auto relative border-t border-slate-100 dark:border-[#434142]" ref={scrollContainerRef}>
             <table className="w-full text-left text-xs border-collapse">
               
               {/* Vibrant Solid Blue Table Headers */}
               <thead>
                 {/* 1st Header Row: Days of the week in Primary Blue #2F6798 */}
-                <tr className="bg-[#2F6798] text-white select-none text-[10px] font-semibold">
+                <tr className="bg-[#2F6798] dark:bg-[#1D2433] text-white dark:text-[#F8F8F6] select-none text-[10px] font-semibold">
                   
                   {/* Sticky Frozen Columns on Left in Primary Blue */}
-                  <th className="sticky left-0 z-30 bg-[#2F6798] py-2.5 px-3 border-r border-white/15 uppercase tracking-wider min-w-[90px]">
+                  <th className="sticky left-0 z-30 bg-[#2F6798] dark:bg-[#1D2433] py-2.5 px-3 border-r border-white/15 dark:border-[#434142] uppercase tracking-wider min-w-[90px]">
                     START DATE
                   </th>
-                  <th className="sticky left-[90px] z-30 bg-[#2F6798] py-2.5 px-3 border-r border-white/15 uppercase tracking-wider min-w-[125px]">
+                  <th className="sticky left-[90px] z-30 bg-[#2F6798] dark:bg-[#1D2433] py-2.5 px-3 border-r border-white/15 dark:border-[#434142] uppercase tracking-wider min-w-[125px]">
                     POSITION
                   </th>
-                  <th className="sticky left-[215px] z-30 bg-[#2F6798] py-2.5 px-4 border-r border-white/25 uppercase tracking-wider min-w-[210px] shadow-[4px_0_8px_rgba(0,0,0,0.18)]">
+                  <th className="sticky left-[215px] z-30 bg-[#2F6798] dark:bg-[#1D2433] py-2.5 px-4 border-r border-white/25 dark:border-[#434142] uppercase tracking-wider min-w-[210px] shadow-[4px_0_8px_rgba(0,0,0,0.18)] dark:shadow-[4px_0_8px_rgba(0,0,0,0.5)]">
                     EMPLOYEE NAME
                   </th>
 
@@ -806,8 +824,8 @@ export default function AttendanceCalendarTab({
                         onClick={() => handleOpenDayModal(dayNum)}
                         title={`Click to view team summary for Sep ${dayNum}`}
                         data-today-header={isToday ? 'true' : undefined}
-                        className={`py-2 px-1 text-center font-semibold min-w-[42px] sm:min-w-[46px] border-r border-white/15 cursor-pointer hover:bg-white/20 transition-colors ${
-                          isToday ? 'bg-[#059669] text-white font-bold ring-1 ring-white/40' : ''
+                        className={`py-2 px-1 text-center font-semibold min-w-[42px] sm:min-w-[46px] border-r border-white/15 dark:border-[#434142]/60 cursor-pointer hover:bg-white/20 dark:hover:bg-white/10 transition-colors ${
+                          isToday ? 'bg-[#059669] dark:bg-[#059669] text-white font-bold ring-1 ring-white/40' : ''
                         }`}
                       >
                         {dayName}
@@ -816,16 +834,16 @@ export default function AttendanceCalendarTab({
                   })}
 
                   {/* Monthly Summary Header */}
-                  <th className="py-2.5 px-3 bg-[#24537C] text-white font-semibold text-center border-l border-white/20 uppercase tracking-wider min-w-[90px]">
+                  <th className="py-2.5 px-3 bg-[#24537C] dark:bg-[#161D2B] text-white dark:text-[#F8F8F6] font-semibold text-center border-l border-white/20 dark:border-[#434142] uppercase tracking-wider min-w-[90px]">
                     Monthly Totals
                   </th>
                 </tr>
 
                 {/* 2nd Header Row: Date numbers (SEP 1, SEP 2, ...) with Number Always on Next Line */}
-                <tr className="bg-[#24537C] text-white/95 select-none border-b border-white/20">
-                  <th className="sticky left-0 z-30 bg-[#24537C] py-1.5 px-3 border-r border-white/15"></th>
-                  <th className="sticky left-[90px] z-30 bg-[#24537C] py-1.5 px-3 border-r border-white/15"></th>
-                  <th className="sticky left-[215px] z-30 bg-[#24537C] py-1.5 px-4 border-r border-white/25 shadow-[4px_0_8px_rgba(0,0,0,0.18)]"></th>
+                <tr className="bg-[#24537C] dark:bg-[#161D2B] text-white/95 dark:text-slate-300 select-none border-b border-white/20 dark:border-[#434142]">
+                  <th className="sticky left-0 z-30 bg-[#24537C] dark:bg-[#161D2B] py-1.5 px-3 border-r border-white/15 dark:border-[#434142]"></th>
+                  <th className="sticky left-[90px] z-30 bg-[#24537C] dark:bg-[#161D2B] py-1.5 px-3 border-r border-white/15 dark:border-[#434142]"></th>
+                  <th className="sticky left-[215px] z-30 bg-[#24537C] dark:bg-[#161D2B] py-1.5 px-4 border-r border-white/25 dark:border-[#434142] shadow-[4px_0_8px_rgba(0,0,0,0.18)] dark:shadow-[4px_0_8px_rgba(0,0,0,0.5)]"></th>
 
                   {displayedDays.map((dayNum) => {
                     const isToday = dayNum === activeDayNumber;
@@ -835,7 +853,7 @@ export default function AttendanceCalendarTab({
                         key={dayNum}
                         onClick={() => handleOpenDayModal(dayNum)}
                         title={`Click to view team summary for Sep ${dayNum}`}
-                        className={`py-1 px-1 text-center border-r border-white/15 cursor-pointer hover:bg-white/20 transition-colors ${
+                        className={`py-1 px-1 text-center border-r border-white/15 dark:border-[#434142]/60 cursor-pointer hover:bg-white/20 dark:hover:bg-white/10 transition-colors ${
                           isToday ? 'bg-[#047857] text-white' : ''
                         }`}
                       >
@@ -847,14 +865,14 @@ export default function AttendanceCalendarTab({
                     );
                   })}
 
-                  <th className="py-1.5 px-3 bg-[#1D4568] text-white/80 text-[9px] font-semibold text-center uppercase tracking-wider">
+                  <th className="py-1.5 px-3 bg-[#1D4568] dark:bg-[#121722] text-white/80 dark:text-slate-400 text-[9px] font-semibold text-center uppercase tracking-wider">
                     P / L / A
                   </th>
                 </tr>
               </thead>
 
               {/* Table Body with Fixed Left Columns & Clean Matrix Cells */}
-              <tbody className="divide-y divide-slate-100 dark:divide-slate-800 text-slate-700 dark:text-slate-300 font-medium">
+              <tbody className="divide-y divide-slate-100 dark:divide-[#434142] text-slate-700 dark:text-slate-300 font-medium">
                 {filteredEmployees.map((emp, empIdx) => {
                   // Calculate monthly summary counts
                   const allStatuses = Object.values(emp.attendanceByDay);
@@ -866,15 +884,15 @@ export default function AttendanceCalendarTab({
                   return (
                     <tr 
                       key={emp.id ? `${emp.id}-${empIdx}` : `emp-${empIdx}`}
-                      className="hover:bg-blue-50/40 dark:hover:bg-slate-800/40 transition-colors group"
+                      className="hover:bg-blue-50/40 dark:hover:bg-[#272626] transition-colors group"
                     >
                       {/* Fixed Column 1: Start Date */}
-                      <td className="sticky left-0 z-20 bg-white dark:bg-[#0E1B38] group-hover:bg-blue-50/70 dark:group-hover:bg-slate-800/80 py-2.5 px-3 text-slate-500 dark:text-slate-400 font-sans font-medium text-[11px] border-r border-slate-100 dark:border-slate-800">
+                      <td className="sticky left-0 z-20 bg-white dark:bg-[#363435] group-hover:bg-blue-50/70 dark:group-hover:bg-[#272626] py-2.5 px-3 text-slate-500 dark:text-slate-400 font-sans font-medium text-[11px] border-r border-slate-100 dark:border-[#434142]">
                         {emp.startDate}
                       </td>
 
                       {/* Fixed Column 2: Position */}
-                      <td className="sticky left-[90px] z-20 bg-white dark:bg-[#0E1B38] group-hover:bg-blue-50/70 dark:group-hover:bg-slate-800/80 py-2.5 px-3 text-slate-500 dark:text-slate-400 font-medium text-xs border-r border-slate-100 dark:border-slate-800 truncate max-w-[125px]">
+                      <td className="sticky left-[90px] z-20 bg-white dark:bg-[#363435] group-hover:bg-blue-50/70 dark:group-hover:bg-[#272626] py-2.5 px-3 text-slate-500 dark:text-slate-400 font-medium text-xs border-r border-slate-100 dark:border-[#434142] truncate max-w-[125px]">
                         {emp.position}
                       </td>
 
@@ -884,11 +902,11 @@ export default function AttendanceCalendarTab({
                           setSelectedIndividualEmployee(emp.name);
                           setViewFormat('google-calendar');
                         }}
-                        className="sticky left-[215px] z-20 bg-white dark:bg-[#0E1B38] group-hover:bg-blue-50/70 dark:group-hover:bg-slate-800/80 py-2.5 px-4 font-bold text-slate-900 dark:text-slate-100 text-xs border-r border-slate-200 dark:border-slate-800 shadow-[4px_0_8px_rgba(0,0,0,0.08)] dark:shadow-[4px_0_8px_rgba(0,0,0,0.3)] cursor-pointer hover:text-[#2F6798]"
+                        className="sticky left-[215px] z-20 bg-white dark:bg-[#363435] group-hover:bg-blue-50/70 dark:group-hover:bg-[#272626] py-2.5 px-4 font-bold text-slate-900 dark:text-[#F8F8F6] text-xs border-r border-slate-200 dark:border-[#434142] shadow-[4px_0_8px_rgba(0,0,0,0.08)] dark:shadow-[4px_0_8px_rgba(0,0,0,0.4)] cursor-pointer hover:text-[#2F6798] dark:hover:text-[#3678B0]"
                         title="Click to view detailed individual calendar"
                       >
                         <div className="flex items-center gap-2">
-                          <div className="w-6 h-6 rounded-full bg-[#2F6798]/10 text-[#2F6798] dark:bg-blue-900/40 dark:text-blue-300 font-bold text-[10px] flex items-center justify-center shrink-0 border border-[#2F6798]/20">
+                          <div className="w-6 h-6 rounded-full bg-[#2F6798]/10 text-[#2F6798] dark:bg-[#1D2433] dark:text-[#F8F8F6] font-bold text-[10px] flex items-center justify-center shrink-0 border border-[#2F6798]/20 dark:border-[#434142]">
                             {initials}
                           </div>
                           <span className="whitespace-nowrap">{emp.name}</span>
@@ -905,7 +923,7 @@ export default function AttendanceCalendarTab({
                             key={dayNum}
                             onClick={() => handleOpenCellPopover(emp, dayNum)}
                             title={`Click to set attendance tag for ${emp.name} on Sep ${dayNum}`}
-                            className={`py-2 px-1 text-center border-r border-slate-100 dark:border-slate-800/60 cursor-pointer hover:bg-[#2F6798]/15 dark:hover:bg-blue-900/40 transition-all ${
+                            className={`py-2 px-1 text-center border-r border-slate-100 dark:border-[#434142]/60 cursor-pointer hover:bg-[#2F6798]/15 dark:hover:bg-[#1D2433] transition-all ${
                               isToday ? 'bg-emerald-50/40 dark:bg-emerald-950/20 ring-1 ring-emerald-500/20' : ''
                             }`}
                           >
@@ -917,12 +935,12 @@ export default function AttendanceCalendarTab({
                       })}
 
                       {/* Monthly Summary Column */}
-                      <td className="py-2.5 px-2.5 text-center font-bold text-[11px] bg-slate-50/60 dark:bg-slate-900/30 border-l border-slate-200 dark:border-slate-800 whitespace-nowrap">
-                        <span className="text-emerald-600 font-black">{countP}P</span>
-                        <span className="text-slate-300 mx-1">•</span>
-                        <span className="text-amber-600 font-black">{countL}L</span>
-                        <span className="text-slate-300 mx-1">•</span>
-                        <span className="text-rose-600 font-black">{countA}A</span>
+                      <td className="py-2.5 px-2.5 text-center font-bold text-[11px] bg-slate-50/60 dark:bg-[#272626] border-l border-slate-200 dark:border-[#434142] whitespace-nowrap">
+                        <span className="text-emerald-600 dark:text-emerald-400 font-black">{countP}P</span>
+                        <span className="text-slate-300 dark:text-slate-600 mx-1">•</span>
+                        <span className="text-amber-600 dark:text-amber-400 font-black">{countL}L</span>
+                        <span className="text-slate-300 dark:text-slate-600 mx-1">•</span>
+                        <span className="text-rose-600 dark:text-rose-400 font-black">{countA}A</span>
                       </td>
 
                     </tr>
@@ -934,7 +952,7 @@ export default function AttendanceCalendarTab({
           </div>
 
           {/* Footer Summary Bar with Light Gray Tip */}
-          <div className="p-3.5 border-t border-slate-100 dark:border-slate-800 bg-slate-50/60 dark:bg-slate-900/30 flex items-center justify-between text-xs text-slate-500 dark:text-slate-400 flex-wrap gap-2">
+          <div className="p-3.5 border-t border-slate-100 dark:border-[#434142] bg-slate-50/60 dark:bg-[#272626] flex items-center justify-between text-xs text-slate-500 dark:text-slate-400 flex-wrap gap-2">
             <span>Showing attendance for {filteredEmployees.length} workforce members ({displayedDays.length} days in view)</span>
             <span className="text-slate-400 dark:text-slate-500 font-normal">Tip: Click any cell or date header to view full team or individual breakdown</span>
           </div>

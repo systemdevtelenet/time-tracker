@@ -17,6 +17,8 @@ interface HoursReportTabProps {
   searchTerm?: string;
   filterAccount?: string;
   onBackToRoster?: () => void;
+  isHeadOrAdmin?: boolean;
+  supervisorName?: string;
 }
 
 interface TeamMemberHours {
@@ -39,6 +41,8 @@ export default function HoursReportTab({
   searchTerm = '',
   filterAccount = 'all',
   onBackToRoster,
+  isHeadOrAdmin = true,
+  supervisorName,
 }: HoursReportTabProps = {}) {
   const [viewMode, setViewMode] = useState<'Daily' | 'Weekly' | 'Monthly'>('Daily');
   const [selectedDate, setSelectedDate] = useState<string>('2026-09-16');
@@ -128,17 +132,7 @@ export default function HoursReportTab({
 
   // Compute calculated metrics for all team members from database records
   const calculatedReportData: TeamMemberHours[] = useMemo(() => {
-    // Determine the source roster list
-    const rosterSource = (dbEmployees && dbEmployees.length > 0)
-      ? dbEmployees.map((r: any) => ({
-          id: String(r.id || r.employee_id),
-          employeeCode: String(r.employee_id || r.id),
-          name: r.name,
-          position: r.position || 'Trainer',
-          department: r.department || 'Training',
-          account: r.account || 'Corporate',
-        }))
-      : (propEmployees && propEmployees.length > 0)
+    let rosterSource = (propEmployees && propEmployees.length > 0)
       ? propEmployees.map((e) => ({
           id: e.id,
           employeeCode: e.employeeCode,
@@ -147,7 +141,23 @@ export default function HoursReportTab({
           department: e.department || 'Training',
           account: e.account || 'Corporate',
         }))
+      : (dbEmployees && dbEmployees.length > 0)
+      ? dbEmployees.map((r: any) => ({
+          id: String(r.id || r.employee_id),
+          employeeCode: String(r.employee_id || r.id),
+          name: r.name,
+          position: r.position || 'Trainer',
+          department: r.department || 'Training',
+          account: r.account || 'Corporate',
+        }))
       : [];
+
+    if (!isHeadOrAdmin && supervisorName) {
+      const sName = supervisorName.toLowerCase().trim();
+      rosterSource = rosterSource.filter(
+        (e) => (sName && (e.name.toLowerCase().trim().includes(sName) || sName.includes(e.name.toLowerCase().trim())))
+      );
+    }
 
     if (rosterSource.length === 0) return [];
 

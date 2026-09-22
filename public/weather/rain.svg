@@ -1,34 +1,25 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 160" width="100%" height="100%">
-  <!-- BACK CLOUD (Azure Blue) -->
-  <g fill="#00B4FF">
-    <circle cx="58" cy="62" r="20" />
-    <circle cx="78" cy="50" r="22" />
-    <circle cx="102" cy="54" r="20" />
-    <circle cx="120" cy="68" r="18" />
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="100%" height="100%">
+  <!-- Sleek Modern Cloud -->
+  <g transform="translate(4, -4)">
+    <path 
+      d="M 28 65 
+         h 44 
+         a 14 14 0 0 0 12 -21 
+         a 17 17 0 0 0 -21 -13.5 
+         a 21 21 0 0 0 -31 10.5 
+         a 13 13 0 0 0 -13 12 
+         a 12 12 0 0 0 11 12 Z" 
+      fill="#F1F5F9" 
+      stroke="#94A3B8" 
+      stroke-width="1.5" 
+      stroke-linejoin="round"
+    />
   </g>
 
-  <!-- FRONT MAIN CLOUD (Pale Baby Blue with bottom shadow) -->
-  <g>
-    <circle cx="64" cy="82" r="30" fill="#E1F7FE" />
-    <circle cx="96" cy="64" r="34" fill="#E1F7FE" />
-    <circle cx="132" cy="80" r="26" fill="#E1F7FE" />
-    <rect x="42" y="78" width="108" height="34" fill="#E1F7FE" />
-
-    <!-- Bottom Flat Horizontal Shadow Pill -->
-    <path d="M 46 112 
-             C 36 112, 34 106, 34 100 
-             C 34 96, 38 92, 48 92 
-             L 146 92 
-             C 154 92, 158 96, 158 100 
-             C 158 106, 154 112, 146 112 
-             Z" 
-          fill="#7FE0FF" />
-  </g>
-
-  <!-- FLAT RAIN DROPS -->
-  <g fill="#00B4FF">
-    <path d="M 60 122 C 60 122 66 136 66 140 C 66 143.3 63.3 146 60 146 C 56.7 146 54 143.3 54 140 C 54 136 60 122 60 122 Z" />
-    <path d="M 94 120 C 94 120 100 134 100 138 C 100 141.3 97.3 144 94 144 C 90.7 144 88 141.3 88 138 C 88 134 94 120 94 120 Z" />
-    <path d="M 128 122 C 128 122 134 136 134 140 C 134 143.3 131.3 146 128 146 C 124.7 146 122 143.3 122 140 C 122 136 128 122 128 122 Z" />
+  <!-- Sleek Rain Streaks -->
+  <g stroke="#0284C7" stroke-width="2.5" stroke-linecap="round">
+    <line x1="36" y1="72" x2="31" y2="86" />
+    <line x1="52" y1="72" x2="47" y2="88" />
+    <line x1="68" y1="72" x2="63" y2="86" />
   </g>
 </svg>

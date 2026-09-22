@@ -17,7 +17,6 @@ import {
   Sparkles, 
   ChevronDown,
   RotateCw,
-  ArrowLeft,
   CalendarDays,
   Coffee,
   Utensils,
@@ -95,17 +94,16 @@ export default function AttendanceCalendarView({
   const [punchLogs, setPunchLogs] = useState<any[]>([]);
 
   // Local overrides & notes
-  const [attendanceOverrides, setAttendanceOverrides] = useState<Record<string, string>>(() => {
+  const [attendanceOverrides, setAttendanceOverrides] = useState<Record<string, string>>({});
+
+  useEffect(() => {
     if (typeof window !== 'undefined') {
       try {
         const saved = localStorage.getItem('attendance_overrides_v1');
-        return saved ? JSON.parse(saved) : {};
-      } catch (e) {
-        return {};
-      }
+        if (saved) setAttendanceOverrides(JSON.parse(saved));
+      } catch (e) {}
     }
-    return {};
-  });
+  }, []);
 
   // Cell Popover / Day Modal State
   const [selectedDayDetail, setSelectedDayDetail] = useState<{
@@ -368,19 +366,8 @@ export default function AttendanceCalendarView({
       {/* ================= TOP HEADER BAR ================= */}
       <div className="p-4 sm:p-5 border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-[#0E1B38] flex flex-col lg:flex-row lg:items-center justify-between gap-4">
         
-        {/* Left Section: Back Button + Date Info + Employee Switcher */}
+        {/* Left Section: Date Info + Employee Switcher */}
         <div className="flex items-center gap-3 flex-wrap">
-          {onBackToRoster && (
-            <button
-              type="button"
-              onClick={onBackToRoster}
-              className="px-3 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-xs font-bold text-slate-700 dark:text-slate-200 transition-colors cursor-pointer flex items-center gap-1.5 border border-slate-200 dark:border-slate-700 shadow-2xs"
-            >
-              <ArrowLeft className="w-3.5 h-3.5" />
-              <span>Roster View</span>
-            </button>
-          )}
-
           {/* Date Badge */}
           <div className="flex items-center gap-2">
             <div className="w-8 h-8 rounded-xl bg-[#2F6798] text-white flex flex-col items-center justify-center font-black shadow-xs shrink-0">

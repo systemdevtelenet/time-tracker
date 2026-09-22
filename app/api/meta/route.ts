@@ -2,11 +2,26 @@ import { NextResponse } from 'next/server';
 import { getSupabaseAdmin } from '@/lib/supabase/server';
 import { INITIAL_TEAM_ROSTER } from '@/lib/teamRoster';
 import { getTimeTrackerEmployeesFromDb } from '@/lib/timeTrackerDb';
+import { getCachedData, setCachedData } from '@/lib/serverCache';
 
 export const dynamic = 'force-dynamic';
 
+const META_CACHE_KEY = 'api_meta_data';
+const META_CACHE_TTL_SECONDS = 300; // 5 minutes
+
 export async function GET() {
   try {
+    // Check in-memory cache
+    const cached = getCachedData<any>(META_CACHE_KEY);
+    if (cached) {
+      return NextResponse.json(cached, {
+        headers: {
+          'Cache-Control': 'public, s-maxage=60, stale-while-revalidate=300',
+          'X-Cache': 'HIT',
+        },
+      });
+    }
+
     const supabase = getSupabaseAdmin();
 
     // Fetch accounts
@@ -48,10 +63,19 @@ export async function GET() {
           { account_id: 7, account_code: 'HH', account_name: 'HH' },
         ];
 
-    return NextResponse.json({
+    const result = {
       accounts,
       employees: finalEmployees,
       roster: finalEmployees,
+    };
+
+    setCachedData(META_CACHE_KEY, result, META_CACHE_TTL_SECONDS);
+
+    return NextResponse.json(result, {
+      headers: {
+        'Cache-Control': 'public, s-maxage=60, stale-while-revalidate=300',
+        'X-Cache': 'MISS',
+      },
     });
   } catch (err: any) {
     console.error('Error fetching meta info:', err);
