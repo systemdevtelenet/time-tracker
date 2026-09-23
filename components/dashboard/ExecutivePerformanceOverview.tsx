@@ -3,11 +3,12 @@
 import React, { useMemo } from 'react';
 import { 
   Clock, 
-  Sparkles, 
+  Activity, 
   ShieldCheck, 
   UserCheck, 
   CalendarCheck,
-  TrendingUp
+  TrendingUp,
+  BarChart3
 } from 'lucide-react';
 import { PhoneTimeRecord, KpiSummaryStats } from '@/lib/types';
 import { parseDurationToSeconds, formatTotalDurationHuman } from '@/lib/utils';
@@ -62,13 +63,13 @@ export default function ExecutivePerformanceOverview({
     })).sort((a, b) => b.count - a.count);
   }, [records]);
 
-  // AI Generated Insights summary text based on actual database logs
-  const aiSummary = useMemo(() => {
+  // Operational Shift Summary based on actual database logs
+  const shiftSummary = useMemo(() => {
     if (totalLogs === 0) {
       return {
-        headline: 'No Active Shift Logs Detected',
-        detail: 'Workforce records are currently empty. When team members punch in or log shifts, real-time AI attendance patterns will analyze adherence.',
-        recommendation: 'Encourage team members to record their shift punches through the Workforce Portal.',
+        headline: 'No Active Shift Logs Recorded',
+        detail: 'Workforce records are currently empty. When team members punch in or log shifts, real-time actual attendance logs and adherence will appear here.',
+        recommendation: 'Team members can record their shift punches through the Workforce Portal.',
       };
     }
 
@@ -78,7 +79,7 @@ export default function ExecutivePerformanceOverview({
 
     return {
       headline: `${uniqueMembers.length} Active Members • ${totalDuration} Total Shift Hours Logged`,
-      detail: `${fullShiftsCount} of ${totalLogs} recorded logs (${fullShiftRate}%) meet or exceed the full 8-hour shift standard. Average logged session is ${avgShiftTime} per shift record.`,
+      detail: `${fullShiftsCount} of ${totalLogs} recorded logs (${fullShiftRate}%) meet or exceed the standard 8-hour shift. Average logged session is ${avgShiftTime} per shift record.`,
       recommendation: topMember 
         ? `Lead contributor is ${topMember.name} with ${topMember.count} shifts logged (${topMember.totalFormatted}). Attendance reliability is optimal.`
         : 'Shift coverage is evenly distributed across scheduled personnel.',
@@ -88,21 +89,21 @@ export default function ExecutivePerformanceOverview({
   return (
     <div className="p-5 sm:p-6 rounded-2xl bg-white dark:bg-[#101D3D] border border-slate-200/80 dark:border-slate-800 shadow-xs flex flex-col justify-between space-y-5">
       
-      {/* Header with AI Badge */}
+      {/* Header with Real-Time Data Badge */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <div className="w-7 h-7 rounded-lg bg-[#2F6798]/10 text-[#2F6798] dark:bg-blue-950 dark:text-blue-400 flex items-center justify-center">
-            <Sparkles className="w-4 h-4" />
+            <BarChart3 className="w-4 h-4" />
           </div>
           <div>
             <h3 className="text-base font-extrabold text-slate-900 dark:text-slate-100">
-              AI Attendance &amp; Shift Insights
+              Attendance &amp; Shift Summary
             </h3>
           </div>
         </div>
-        <span className="inline-flex items-center gap-1 text-[10px] font-extrabold text-[#2F6798] dark:text-blue-300 bg-blue-50 dark:bg-blue-950/60 px-2.5 py-1 rounded-full border border-blue-200 dark:border-blue-900/60 uppercase tracking-wider">
-          <Sparkles className="w-3 h-3 text-[#2F6798] dark:text-blue-400" />
-          Live AI Analysis
+        <span className="inline-flex items-center gap-1.5 text-[10px] font-extrabold text-[#2F6798] dark:text-blue-300 bg-blue-50 dark:bg-blue-950/60 px-2.5 py-1 rounded-full border border-blue-200 dark:border-blue-900/60 uppercase tracking-wider">
+          <Activity className="w-3 h-3 text-[#2F6798] dark:text-blue-400" />
+          Actual Shift Logs
         </span>
       </div>
 
@@ -141,17 +142,17 @@ export default function ExecutivePerformanceOverview({
 
       </div>
 
-      {/* AI Smart Intelligence Callout Box */}
+      {/* Actual Data Summary Callout Box */}
       <div className="p-4 rounded-xl bg-gradient-to-r from-blue-50/80 via-indigo-50/50 to-slate-50 dark:from-[#132347] dark:via-[#11203F] dark:to-[#0F1B35] border border-blue-200/80 dark:border-blue-900/50 space-y-2 shadow-2xs">
         <div className="flex items-center gap-1.5 text-xs font-black text-[#2F6798] dark:text-blue-300">
           <TrendingUp className="w-3.5 h-3.5" />
-          <span>{aiSummary.headline}</span>
+          <span>{shiftSummary.headline}</span>
         </div>
         <p className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed font-normal">
-          {aiSummary.detail}
+          {shiftSummary.detail}
         </p>
         <div className="pt-1 text-[11px] font-medium text-slate-500 dark:text-slate-400 border-t border-blue-200/50 dark:border-blue-900/40">
-          💡 <strong className="text-slate-700 dark:text-slate-200">AI Observation:</strong> {aiSummary.recommendation}
+          💡 <strong className="text-slate-700 dark:text-slate-200">Shift Highlights:</strong> {shiftSummary.recommendation}
         </div>
       </div>
 

@@ -91,9 +91,17 @@ export default function Sidebar({
       
       {/* 1. Supervisor Profile Header */}
       <div className="flex items-center gap-3.5 pb-4 border-b border-white/15">
-        {/* Solid Circular Initials Avatar */}
-        <div className="w-14 h-14 rounded-2xl bg-white/20 text-white font-extrabold text-xl flex items-center justify-center border-2 border-white/30 shadow-sm shrink-0">
-          NR
+        {/* Solid Circular Initials / Avatar */}
+        <div className="w-14 h-14 rounded-2xl bg-white/20 text-white font-extrabold text-xl flex items-center justify-center border-2 border-white/30 shadow-sm shrink-0 overflow-hidden">
+          {supervisor.avatarUrl ? (
+            <img
+              src={supervisor.avatarUrl}
+              alt={supervisor.name}
+              className="w-full h-full object-cover"
+            />
+          ) : (
+            supervisor.name ? supervisor.name.split(' ').map(n => n[0]).slice(0, 2).join('').toUpperCase() : 'NR'
+          )}
         </div>
 
         <div className="min-w-0">

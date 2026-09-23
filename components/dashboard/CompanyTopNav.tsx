@@ -544,10 +544,18 @@ export default function CompanyTopNav({
             <button
               type="button"
               onClick={() => setIsAvatarDropdownOpen(!isAvatarDropdownOpen)}
-              className="w-9 h-9 rounded-full bg-gradient-to-br from-[#2F6798] to-[#1F4A6E] ring-2 ring-white dark:ring-[#434142] shadow-lg shadow-[#2F6798]/30 text-xs font-bold text-white flex items-center justify-center hover:scale-105 hover:opacity-90 transition-all cursor-pointer select-none"
+              className="w-9 h-9 rounded-full bg-gradient-to-br from-[#2F6798] to-[#1F4A6E] ring-2 ring-white dark:ring-[#434142] shadow-lg shadow-[#2F6798]/30 text-xs font-bold text-white flex items-center justify-center hover:scale-105 hover:opacity-90 transition-all cursor-pointer select-none overflow-hidden"
               title="User profile & settings"
             >
-              {supervisor.name ? supervisor.name.split(' ').filter(Boolean).map(n => n[0]).slice(0, 2).join('').toUpperCase() : 'NR'}
+              {supervisor.avatarUrl ? (
+                <img
+                  src={supervisor.avatarUrl}
+                  alt={supervisor.name}
+                  className="w-full h-full object-cover"
+                />
+              ) : (
+                supervisor.name ? supervisor.name.split(' ').filter(Boolean).map(n => n[0]).slice(0, 2).join('').toUpperCase() : 'NR'
+              )}
             </button>
 
             {/* 2. Dropdown Menu Card Container */}
@@ -557,8 +565,16 @@ export default function CompanyTopNav({
                 {/* 3. Dropdown Header (User Profile & Role Pill) */}
                 <div className="p-4 border-b border-[#F1F5F9] dark:border-[#434142]">
                   <div className="flex items-center gap-2.5">
-                    <div className="w-8 h-8 rounded-full bg-gradient-to-br from-[#2F6798] to-[#1F4A6E] ring-1 ring-slate-200 dark:ring-[#434142] text-white font-bold text-xs flex items-center justify-center shrink-0">
-                      {supervisor.name ? supervisor.name.split(' ').filter(Boolean).map(n => n[0]).slice(0, 2).join('').toUpperCase() : 'NR'}
+                    <div className="w-8 h-8 rounded-full bg-gradient-to-br from-[#2F6798] to-[#1F4A6E] ring-1 ring-slate-200 dark:ring-[#434142] text-white font-bold text-xs flex items-center justify-center shrink-0 overflow-hidden">
+                      {supervisor.avatarUrl ? (
+                        <img
+                          src={supervisor.avatarUrl}
+                          alt={supervisor.name}
+                          className="w-full h-full object-cover"
+                        />
+                      ) : (
+                        supervisor.name ? supervisor.name.split(' ').filter(Boolean).map(n => n[0]).slice(0, 2).join('').toUpperCase() : 'NR'
+                      )}
                     </div>
                     <div className="min-w-0 flex-1">
                       <h4 className="text-xs font-bold text-[#0F172A] dark:text-[#F8F8F6] truncate leading-tight">

@@ -87,6 +87,7 @@ export default function CompanySidebar({
   // Live Punch State
   const [currentStatus, setCurrentStatus] = useState<'working' | 'lunch' | 'break_1' | 'break_2' | 'offline'>('lunch');
   const [statusSeconds, setStatusSeconds] = useState<number>(0);
+  const [punchesState, setPunchesState] = useState<any>(null);
   const [isPunching, setIsPunching] = useState<boolean>(false);
 
   const isHeadOrAdmin = isHeadOrAdminUser(supervisor);
@@ -106,6 +107,9 @@ export default function CompanySidebar({
       if (data.currentStatus) {
         setCurrentStatus(data.currentStatus.status);
         setStatusSeconds(data.currentStatus.elapsedSeconds || 0);
+        if (data.currentStatus.punchesState) {
+          setPunchesState(data.currentStatus.punchesState);
+        }
       }
     } catch (err) {
       console.error('Error fetching sidebar punch status:', err);
@@ -166,6 +170,9 @@ export default function CompanySidebar({
       if (resData.currentStatus) {
         setCurrentStatus(resData.currentStatus.status);
         setStatusSeconds(0);
+        if (resData.currentStatus.punchesState) {
+          setPunchesState(resData.currentStatus.punchesState);
+        }
       }
 
       if (typeof window !== 'undefined') {
@@ -179,6 +186,14 @@ export default function CompanySidebar({
       setIsPunching(false);
     }
   };
+
+  const hasBreak1Done = Boolean(punchesState?.hasBreak1Start && punchesState?.hasBreak1End);
+  const hasBreak2Done = Boolean(punchesState?.hasBreak2Start && punchesState?.hasBreak2End);
+  const hasLunchDone = Boolean(punchesState?.hasLunchStart && punchesState?.hasLunchEnd);
+
+  const nextBreakType: 'Break 1 Start' | 'Break 2 Start' = hasBreak1Done ? 'Break 2 Start' : 'Break 1 Start';
+  const nextBreakLabel = hasBreak1Done ? (hasBreak2Done ? 'Breaks Done' : 'Break 2') : 'Break 1';
+  const isBreakDisabled = Boolean(hasBreak1Done && hasBreak2Done);
 
   const logoUrl = 'https://zhdmsmwrskxowvytedgh.supabase.co/storage/v1/object/public/Images/ctnp-logo.png';
   const artworkUrl = 'https://zhdmsmwrskxowvytedgh.supabase.co/storage/v1/object/public/Images/design%20(1).png';
@@ -344,25 +359,43 @@ export default function CompanySidebar({
                   <LogIn className="w-3 h-3" />
                   <span>{isPunching ? 'Saving...' : 'Shift Start'}</span>
                 </button>
+              ) : hasBreak1Done && hasLunchDone && hasBreak2Done ? (
+                <button
+                  type="button"
+                  disabled={isPunching}
+                  onClick={() => handleActionClick('Shift End')}
+                  className="w-full py-1.5 px-2.5 rounded-lg bg-rose-600 hover:bg-rose-700 text-white font-extrabold text-xs shadow-xs transition-all flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-50"
+                >
+                  <LogOut className="w-3 h-3" />
+                  <span>{isPunching ? 'Saving...' : 'End Shift'}</span>
+                </button>
               ) : (
                 <div className="grid grid-cols-2 gap-1.5">
                   <button
                     type="button"
-                    disabled={isPunching}
+                    disabled={isPunching || hasLunchDone}
                     onClick={() => handleActionClick('Start Lunch')}
-                    className="py-1.5 px-2 rounded-lg bg-black/20 hover:bg-black/30 text-white font-bold text-[11px] border border-white/15 dark:border-[#434142] transition-all flex items-center justify-center gap-1 cursor-pointer disabled:opacity-50"
+                    className={`py-1.5 px-2 rounded-lg font-bold text-[11px] border transition-all flex items-center justify-center gap-1 cursor-pointer disabled:opacity-50 ${
+                      hasLunchDone
+                        ? 'bg-black/10 text-white/50 border-white/10 dark:border-[#434142]'
+                        : 'bg-black/20 hover:bg-black/30 text-white border-white/15 dark:border-[#434142]'
+                    }`}
                   >
                     <Utensils className="w-3 h-3 text-[#C8A54B]" />
-                    <span>Lunch</span>
+                    <span>{hasLunchDone ? 'Lunch Done' : 'Lunch'}</span>
                   </button>
                   <button
                     type="button"
-                    disabled={isPunching}
-                    onClick={() => handleActionClick('Break 1 Start')}
-                    className="py-1.5 px-2 rounded-lg bg-[#C8A54B] hover:bg-[#b8953d] text-slate-950 font-bold text-[11px] transition-all flex items-center justify-center gap-1 cursor-pointer disabled:opacity-50"
+                    disabled={isPunching || isBreakDisabled}
+                    onClick={() => handleActionClick(nextBreakType)}
+                    className={`py-1.5 px-2 rounded-lg font-bold text-[11px] transition-all flex items-center justify-center gap-1 cursor-pointer disabled:opacity-50 ${
+                      isBreakDisabled
+                        ? 'bg-slate-700/60 text-slate-400'
+                        : 'bg-[#C8A54B] hover:bg-[#b8953d] text-slate-950'
+                    }`}
                   >
                     <Coffee className="w-3 h-3" />
-                    <span>Break 1</span>
+                    <span>{nextBreakLabel}</span>
                   </button>
                 </div>
               )}
@@ -399,13 +432,23 @@ export default function CompanySidebar({
                 >
                   <LogIn className="w-4 h-4" />
                 </button>
+              ) : hasBreak1Done && hasLunchDone && hasBreak2Done ? (
+                <button
+                  type="button"
+                  disabled={isPunching}
+                  onClick={() => handleActionClick('Shift End')}
+                  className="p-2.5 rounded-xl bg-rose-600 text-white shadow-xs cursor-pointer disabled:opacity-50"
+                  title="End Shift"
+                >
+                  <LogOut className="w-4 h-4" />
+                </button>
               ) : (
                 <button
                   type="button"
                   disabled={isPunching}
-                  onClick={() => handleActionClick('Start Lunch')}
+                  onClick={() => handleActionClick(hasBreak1Done ? 'Break 2 Start' : 'Break 1 Start')}
                   className="p-2.5 rounded-xl bg-white/10 dark:bg-[#363435] text-white border border-white/20 dark:border-[#434142] cursor-pointer disabled:opacity-50"
-                  title="Start Lunch"
+                  title="Punch Action"
                 >
                   <Clock className="w-4 h-4 text-[#C8A54B]" />
                 </button>

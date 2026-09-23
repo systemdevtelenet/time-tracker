@@ -168,6 +168,18 @@ function HomePageContent() {
         }
       }
 
+      // Listen for dynamic avatar changes across tabs or windows
+      const handleAvatarUpdate = (e: Event) => {
+        const customEvent = e as CustomEvent<{ avatarUrl?: string }>;
+        if (customEvent.detail !== undefined) {
+          setSupervisor(prev => ({
+            ...prev,
+            avatarUrl: customEvent.detail.avatarUrl || undefined,
+          }));
+        }
+      };
+      window.addEventListener('user-avatar-updated', handleAvatarUpdate);
+
       // Instant cache retrieval from sessionStorage to eliminate cold-start lag
       try {
         const cachedRecords = sessionStorage.getItem('ctnp_cached_records');
@@ -195,6 +207,7 @@ function HomePageContent() {
         if (mediaQuery.removeEventListener) {
           mediaQuery.removeEventListener('change', handleMediaChange);
         }
+        window.removeEventListener('user-avatar-updated', handleAvatarUpdate);
       };
     }
   }, [tabParam, router, applyThemeMode]);
@@ -695,6 +708,12 @@ function HomePageContent() {
                 themeMode={themeMode}
                 onSelectThemeMode={applyThemeMode}
                 onToggleTheme={toggleTheme}
+                onUpdateAvatar={(newAvatar) => {
+                  setSupervisor((prev) => ({
+                    ...prev,
+                    avatarUrl: newAvatar || undefined,
+                  }));
+                }}
               />
             </div>
           )}

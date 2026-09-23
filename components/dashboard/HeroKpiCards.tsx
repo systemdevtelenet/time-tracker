@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { Clock, PhoneCall, UserCheck, Users, TrendingUp, Sparkles } from 'lucide-react';
+import { Clock, PhoneCall, UserCheck, Users, TrendingUp } from 'lucide-react';
 import { parseDurationToSeconds, formatTotalDurationHuman } from '@/lib/utils';
 import { KpiSummaryStats, PhoneTimeRecord } from '@/lib/types';
 

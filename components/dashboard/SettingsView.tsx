@@ -47,6 +47,7 @@ interface SettingsViewProps {
   onToggleTheme: () => void;
   themeMode?: 'light' | 'dark' | 'system';
   onSelectThemeMode?: (mode: 'light' | 'dark' | 'system') => void;
+  onUpdateAvatar?: (avatarUrl?: string) => void;
 }
 
 type TabType = 'profile' | 'notifications' | 'general';
@@ -65,6 +66,7 @@ export default function SettingsView({
   onToggleTheme,
   themeMode: propThemeMode,
   onSelectThemeMode,
+  onUpdateAvatar,
 }: SettingsViewProps) {
   const [activeTab, setActiveTab] = useState<TabType>('profile');
   const [isSaved, setIsSaved] = useState(false);
@@ -111,8 +113,8 @@ export default function SettingsView({
   useEffect(() => {
     if (supervisor.avatarUrl) {
       setAvatarPhoto(supervisor.avatarUrl);
-    } else if (localUser?.avatar_url) {
-      setAvatarPhoto(localUser.avatar_url);
+    } else if (localUser?.avatar_url || localUser?.avatarUrl) {
+      setAvatarPhoto(localUser.avatar_url || localUser.avatarUrl);
     }
   }, [supervisor.avatarUrl, localUser]);
 
@@ -138,13 +140,70 @@ export default function SettingsView({
       const reader = new FileReader();
       reader.onload = (uploadEvent) => {
         if (uploadEvent.target?.result) {
-          setAvatarPhoto(uploadEvent.target.result as string);
+          const photoData = uploadEvent.target.result as string;
+          setAvatarPhoto(photoData);
+
+          // 1. Update localStorage
+          try {
+            const raw = localStorage.getItem('ctnp_current_user');
+            const parsed = raw ? JSON.parse(raw) : {};
+            const updated = {
+              ...parsed,
+              avatar_url: photoData,
+              avatarUrl: photoData,
+            };
+            localStorage.setItem('ctnp_current_user', JSON.stringify(updated));
+            setLocalUser(updated);
+          } catch (err) {}
+
+          // 2. Notify parent component via prop
+          if (onUpdateAvatar) {
+            onUpdateAvatar(photoData);
+          }
+
+          // 3. Dispatch global custom event for all page components
+          if (typeof window !== 'undefined') {
+            window.dispatchEvent(new CustomEvent('user-avatar-updated', { detail: { avatarUrl: photoData } }));
+          }
+
           setToastMessage('Profile photo updated!');
           setTimeout(() => setToastMessage(null), 2500);
         }
       };
       reader.readAsDataURL(file);
     }
+  };
+
+  // Handle photo removal
+  const handleRemovePhoto = () => {
+    setIsCameraDropdownOpen(false);
+    setAvatarPhoto(null);
+
+    // 1. Update localStorage
+    try {
+      const raw = localStorage.getItem('ctnp_current_user');
+      const parsed = raw ? JSON.parse(raw) : {};
+      const updated = {
+        ...parsed,
+        avatar_url: null,
+        avatarUrl: null,
+      };
+      localStorage.setItem('ctnp_current_user', JSON.stringify(updated));
+      setLocalUser(updated);
+    } catch (err) {}
+
+    // 2. Notify parent component via prop
+    if (onUpdateAvatar) {
+      onUpdateAvatar(undefined);
+    }
+
+    // 3. Dispatch global custom event
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('user-avatar-updated', { detail: { avatarUrl: undefined } }));
+    }
+
+    setToastMessage('Profile photo removed');
+    setTimeout(() => setToastMessage(null), 2000);
   };
 
   // Alarm Ringtone State (Defaults to 'jungle' - Welcome to the Jungle)
@@ -383,12 +442,7 @@ export default function SettingsView({
                     </button>
                     <button
                       type="button"
-                      onClick={() => {
-                        setIsCameraDropdownOpen(false);
-                        setAvatarPhoto(null);
-                        setToastMessage('Profile photo removed');
-                        setTimeout(() => setToastMessage(null), 2000);
-                      }}
+                      onClick={handleRemovePhoto}
                       className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-bold text-red-600 dark:text-[#ED1C25] hover:bg-red-50 dark:hover:bg-red-950/40 transition-colors cursor-pointer text-left"
                     >
                       <Trash2 className="w-4 h-4 text-red-500 shrink-0" />

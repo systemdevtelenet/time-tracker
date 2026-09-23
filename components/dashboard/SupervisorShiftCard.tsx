@@ -338,9 +338,17 @@ export default function SupervisorShiftCard({
       {/* 1. Header Profile Banner */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3.5 border-b border-slate-100 dark:border-slate-800">
         <div className="flex items-center gap-3.5">
-          {/* Circular Initials Avatar */}
-          <div className="w-12 h-12 rounded-full bg-[#2F6798] text-white flex items-center justify-center font-bold text-base shadow-sm ring-2 ring-[#2F6798]/20 shrink-0 select-none">
-            {getInitials(supervisor.name)}
+          {/* Circular Initials / Avatar Image */}
+          <div className="w-12 h-12 rounded-full bg-[#2F6798] text-white flex items-center justify-center font-bold text-base shadow-sm ring-2 ring-[#2F6798]/20 shrink-0 select-none overflow-hidden">
+            {supervisor.avatarUrl ? (
+              <img
+                src={supervisor.avatarUrl}
+                alt={supervisor.name}
+                className="w-full h-full object-cover"
+              />
+            ) : (
+              getInitials(supervisor.name)
+            )}
           </div>
           <div>
             <div className="flex items-center gap-2.5 flex-wrap">

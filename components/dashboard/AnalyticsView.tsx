@@ -1,17 +1,18 @@
 'use client';
 
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import { 
   Clock, 
   Users, 
   CheckCircle2, 
   ShieldCheck, 
   Award,
-  Sun,
-  Moon,
-  Timer,
+  AlertTriangle,
   CalendarCheck,
-  UserCheck
+  TrendingUp,
+  Flame,
+  ChevronLeft,
+  ChevronRight
 } from 'lucide-react';
 import { PhoneTimeRecord, EmployeeOption, AccountOption, KpiSummaryStats } from '@/lib/types';
 import { parseDurationToSeconds, formatTotalDurationHuman } from '@/lib/utils';
@@ -27,152 +28,248 @@ export default function AnalyticsView({
   records = [],
   employees = [],
 }: AnalyticsViewProps) {
-  // Total seconds and time calculations from actual records
-  const totalSeconds = useMemo(() => {
-    return records.reduce((acc, r) => acc + parseDurationToSeconds(r.total_minutes), 0);
+  const totalRosterCount = employees.length > 0 ? employees.length : 13;
+
+  // Pagination state for Member Attendance table
+  const [pageSize, setPageSize] = useState<number | 'all'>(10);
+  const [currentPage, setCurrentPage] = useState<number>(1);
+
+  // 1. Core Total Durations and Calculations
+  const { totalSeconds, regularSeconds, overtimeSeconds } = useMemo(() => {
+    let totalSecs = 0;
+    let otSecs = 0;
+
+    records.forEach((r) => {
+      const secs = parseDurationToSeconds(r.total_minutes);
+      totalSecs += secs;
+      // If a single shift or entry exceeds 8 hours (28,800 secs), excess is Overtime
+      if (secs > 28800) {
+        otSecs += (secs - 28800);
+      }
+    });
+
+    const regSecs = Math.max(0, totalSecs - otSecs);
+    return {
+      totalSeconds: totalSecs,
+      regularSeconds: regSecs,
+      overtimeSeconds: otSecs,
+    };
   }, [records]);
 
-  const formattedTotalTime = useMemo(() => {
-    return totalSeconds > 0 ? formatTotalDurationHuman(totalSeconds) : '0h 0m';
-  }, [totalSeconds]);
-
-  // Unique active employees from actual records
+  // Unique active agents with records
   const uniqueAgentsInRecords = useMemo(() => {
     const set = new Set(records.map((r) => r.name?.trim()).filter(Boolean));
     return Array.from(set);
   }, [records]);
 
   const activeContributorsCount = uniqueAgentsInRecords.length;
-  const totalRosterCount = employees.length > 0 ? employees.length : 13;
 
-  // 1. Attendance & Shift Status Breakdown dynamically derived from actual data
-  const shiftStatusMetrics = useMemo(() => {
-    const activeWorking = activeContributorsCount;
-    const offlineOrPending = Math.max(0, totalRosterCount - activeWorking);
-    const activePct = Math.round((activeWorking / totalRosterCount) * 100) || 0;
-    const offlinePct = Math.max(0, 100 - activePct);
+  // 2. Attendance Status Classification (Present, Absent, Late, Undertime)
+  const attendanceBreakdown = useMemo(() => {
+    const totalLogs = records.length;
+    let lateCount = 0;
+    let undertimeCount = 0;
+    let manualEditCount = 0;
 
-    return [
-      {
-        label: 'Active on Shift / Logged',
-        count: activeWorking,
-        percentage: activePct,
-        color: 'bg-emerald-500',
-        textColor: 'text-emerald-600 dark:text-emerald-400',
-        badgeBg: 'bg-emerald-50 dark:bg-emerald-950/40 border-emerald-200 dark:border-emerald-800',
-        description: 'Members with active shift logs recorded',
-      },
-      {
-        label: 'Offline / Scheduled Off',
-        count: offlineOrPending,
-        percentage: offlinePct,
-        color: 'bg-slate-400',
-        textColor: 'text-slate-600 dark:text-slate-400',
-        badgeBg: 'bg-slate-100 dark:bg-slate-800 border-slate-200 dark:border-slate-700',
-        description: 'Members without shift logs today',
-      },
-    ];
-  }, [activeContributorsCount, totalRosterCount]);
+    records.forEach((r) => {
+      const text = `${r.tagging || ''} ${r.summary || ''}`.toLowerCase();
+      const secs = parseDurationToSeconds(r.total_minutes);
+      
+      const isLate = text.includes('late') || text.includes('tardy') || text.includes('delay');
+      const isUndertime = (secs > 0 && secs < 28800) || text.includes('undertime') || text.includes('early out');
 
-  // 2. Shift Schedule Distribution (Dayshift vs Nightshift from actual roster)
-  const shiftDistribution = useMemo(() => {
-    const dayshiftCount = employees.filter((e: any) => e.shift_type?.toLowerCase().includes('day') || e.shift?.toLowerCase().includes('am')).length || 7;
-    const nightshiftCount = employees.filter((e: any) => e.shift_type?.toLowerCase().includes('night') || e.shift?.toLowerCase().includes('pm')).length || 6;
-    const total = dayshiftCount + nightshiftCount || 13;
+      if (isLate) {
+        lateCount += 1;
+      }
+      if (isUndertime) {
+        undertimeCount += 1;
+      }
+      if (text.includes('manual') || text.includes('adjust') || text.includes('edited')) {
+        manualEditCount += 1;
+      }
+    });
+
+    const presentCount = Math.max(0, totalLogs - lateCount);
+    const absentCount = Math.max(0, totalRosterCount - activeContributorsCount);
+
+    const baseTotal = (presentCount + absentCount + lateCount + undertimeCount) || (totalRosterCount || 1);
 
     return {
-      dayshiftCount,
-      nightshiftCount,
-      dayPct: Math.round((dayshiftCount / total) * 100),
-      nightPct: Math.round((nightshiftCount / total) * 100),
+      presentCount,
+      presentPct: Math.round((presentCount / baseTotal) * 100),
+      absentCount,
+      absentPct: Math.round((absentCount / baseTotal) * 100),
+      lateCount,
+      latePct: Math.round((lateCount / baseTotal) * 100),
+      undertimeCount,
+      undertimePct: Math.round((undertimeCount / baseTotal) * 100),
+      manualEditCount,
     };
-  }, [employees]);
+  }, [records, totalRosterCount, activeContributorsCount]);
 
-  // 3. Punctuality & Break Compliance Metrics derived from actual record count
-  const complianceMetrics = useMemo(() => {
-    const totalLogs = records.length;
-    const complianceRate = totalLogs > 0 ? '100%' : '0%';
-    const pct = totalLogs > 0 ? 100 : 0;
+  // 3. Punctuality & Adherence Key Ratios
+  const adherenceRate = useMemo(() => {
+    if (totalRosterCount === 0) return 100;
+    const baseExpectedSeconds = activeContributorsCount * 8 * 3600;
+    if (baseExpectedSeconds === 0) return records.length > 0 ? 100 : 0;
+    return Math.min(100, Math.round((totalSeconds / baseExpectedSeconds) * 100));
+  }, [totalSeconds, activeContributorsCount, totalRosterCount, records.length]);
 
-    return [
-      {
-        title: 'Shift Log Accuracy',
-        rate: complianceRate,
-        subtitle: `${totalLogs} valid shift entries verified`,
-        status: totalLogs > 0 ? 'Verified' : 'Pending',
-        statusColor: 'text-emerald-600 dark:text-emerald-400',
-        barColor: 'bg-emerald-500',
-        percentage: pct,
-        icon: UserCheck,
-      },
-      {
-        title: 'Active Shift Coverage',
-        rate: `${Math.round((activeContributorsCount / totalRosterCount) * 100)}%`,
-        subtitle: `${activeContributorsCount} of ${totalRosterCount} roster pool logged`,
-        status: 'Active',
-        statusColor: 'text-[#2F6798] dark:text-blue-400',
-        barColor: 'bg-[#2F6798]',
-        percentage: Math.round((activeContributorsCount / totalRosterCount) * 100),
-        icon: ShieldCheck,
-      },
-      {
-        title: 'Avg Logged Duration / Member',
-        rate: activeContributorsCount > 0 ? formatTotalDurationHuman(Math.round(totalSeconds / activeContributorsCount)) : '0m',
-        subtitle: 'Average recorded operational hours',
-        status: 'Live',
-        statusColor: 'text-[#2F6798] dark:text-blue-400',
-        barColor: 'bg-[#2F6798]',
-        percentage: Math.min(100, Math.round(((totalSeconds / Math.max(1, activeContributorsCount)) / (8 * 3600)) * 100)),
-        icon: Clock,
-      },
+  const punctualityRate = useMemo(() => {
+    const totalShifts = attendanceBreakdown.presentCount + attendanceBreakdown.lateCount;
+    if (totalShifts === 0) return records.length > 0 ? 100 : 0;
+    return Math.round((attendanceBreakdown.presentCount / totalShifts) * 100);
+  }, [attendanceBreakdown, records.length]);
+
+  // Lost Time / Shrinkage Estimate based on actual tardiness and unworked roster members
+  const shrinkageHours = useMemo(() => {
+    const tardyLostHours = (attendanceBreakdown.lateCount * 0.25);
+    const absentLostHours = (attendanceBreakdown.absentCount * 8);
+    const totalLost = tardyLostHours + absentLostHours;
+    return totalLost.toFixed(1);
+  }, [attendanceBreakdown]);
+
+  // 4. Weekly Attendance Trends (Mon - Sun) derived from real shift dates
+  const weeklyTrends = useMemo(() => {
+    const dayDefs = [
+      { key: 1, day: 'Mon', full: 'Monday' },
+      { key: 2, day: 'Tue', full: 'Tuesday' },
+      { key: 3, day: 'Wed', full: 'Wednesday' },
+      { key: 4, day: 'Thu', full: 'Thursday' },
+      { key: 5, day: 'Fri', full: 'Friday' },
+      { key: 6, day: 'Sat', full: 'Saturday' },
+      { key: 0, day: 'Sun', full: 'Sunday' },
     ];
-  }, [records, totalSeconds, activeContributorsCount, totalRosterCount]);
 
-  // 4. Member Attendance & Shift Hours Leaderboard based STRICTLY on actual records
+    const buckets: Record<number, { shifts: number; late: number }> = {
+      0: { shifts: 0, late: 0 },
+      1: { shifts: 0, late: 0 },
+      2: { shifts: 0, late: 0 },
+      3: { shifts: 0, late: 0 },
+      4: { shifts: 0, late: 0 },
+      5: { shifts: 0, late: 0 },
+      6: { shifts: 0, late: 0 },
+    };
+
+    records.forEach((r) => {
+      const dateStr = r.date_of_shift || r.created_at;
+      if (dateStr) {
+        const d = new Date(dateStr);
+        if (!isNaN(d.getTime())) {
+          const dayIdx = d.getDay();
+          buckets[dayIdx].shifts += 1;
+          const text = `${r.tagging || ''} ${r.summary || ''}`.toLowerCase();
+          if (text.includes('late') || text.includes('tardy') || text.includes('delay')) {
+            buckets[dayIdx].late += 1;
+          }
+        }
+      }
+    });
+
+    const totalLogs = records.length;
+
+    return dayDefs.map((def) => {
+      const b = buckets[def.key];
+      let rate = 100;
+      const shifts = b.shifts;
+
+      if (totalLogs > 0 && shifts > 0) {
+        const onTime = Math.max(0, shifts - b.late);
+        rate = Math.round((onTime / shifts) * 100);
+      } else if (totalLogs === 0) {
+        rate = 0;
+      }
+
+      let trend = 'Optimal Attendance';
+      if (rate >= 95) trend = 'Target Achieved (≥95%)';
+      else if (rate >= 90) trend = 'Good Compliance';
+      else if (shifts > 0) trend = 'Attention Required (<90%)';
+      else trend = 'No Shifts Logged';
+
+      return {
+        day: def.day,
+        full: def.full,
+        rate,
+        shifts,
+        late: b.late,
+        trend,
+      };
+    });
+  }, [records]);
+
+  // 5. Member Reliability & Adherence Leaderboard Table (100% Calculated from database records)
   const memberLeaderboard = useMemo(() => {
-    const map: Record<string, { name: string; count: number; totalSeconds: number; role?: string; shift?: string }> = {};
+    const map: Record<string, { name: string; count: number; lateCount: number; totalSeconds: number; role?: string; shift?: string }> = {};
 
-    // Group actual records by member name
     records.forEach((r) => {
       const rawName = (r.name || 'Anonymous').trim();
       if (!rawName) return;
 
       if (!map[rawName]) {
-        const empMatch = employees.find(
-          (e: any) => e.name?.toLowerCase().trim() === rawName.toLowerCase()
-        );
+        const empMatch = employees.find((e: any) => {
+          const eName = (e.name || '').toLowerCase().trim();
+          const rName = rawName.toLowerCase().trim();
+          return eName === rName || eName.includes(rName) || rName.includes(eName);
+        });
+
+        const empPosition = (empMatch as any)?.position || empMatch?.role;
+        const actualRole = empPosition && empPosition !== 'User' && empPosition !== 'Admin'
+          ? empPosition
+          : 'Trainer';
+
         map[rawName] = {
           name: rawName,
           count: 0,
+          lateCount: 0,
           totalSeconds: 0,
-          role: empMatch?.role || (empMatch as any)?.position || 'Workforce Member',
-          shift: (empMatch as any)?.shift || '9:00 PM - 6:00 AM',
+          role: actualRole,
+          shift: (empMatch as any)?.shift || '9:00 PM to 6:00 AM',
         };
       }
 
       map[rawName].count += 1;
       map[rawName].totalSeconds += parseDurationToSeconds(r.total_minutes);
+      const text = `${r.tagging || ''} ${r.summary || ''}`.toLowerCase();
+      if (text.includes('late') || text.includes('tardy') || text.includes('delay')) {
+        map[rawName].lateCount += 1;
+      }
     });
 
-    // Also include other employees from the roster with 0 shifts if they have no logs yet
+    // Include roster members with 0 records
     employees.forEach((emp: any) => {
       const name = (emp.name || '').trim();
       if (!name) return;
       if (!map[name]) {
+        const empPosition = (emp as any)?.position || emp.role;
+        const actualRole = empPosition && empPosition !== 'User' && empPosition !== 'Admin'
+          ? empPosition
+          : 'Trainer';
+
         map[name] = {
           name,
           count: 0,
+          lateCount: 0,
           totalSeconds: 0,
-          role: emp.role || emp.position || 'Workforce Member',
-          shift: emp.shift || '9:00 PM - 6:00 AM',
+          role: actualRole,
+          shift: (emp as any)?.shift || '9:00 PM to 6:00 AM',
         };
       }
     });
 
     const entries = Object.values(map).map((member) => {
-      let punctuality = 'No Logs Recorded';
-      if (member.count > 0) {
-        punctuality = '100% Logged';
+      const hasLogs = member.count > 0;
+      const onTimeCount = Math.max(0, member.count - member.lateCount);
+      const onTimeRate = hasLogs ? Math.round((onTimeCount / member.count) * 100) : 0;
+      
+      let badge = { text: 'No Logs', color: 'bg-slate-100 dark:bg-slate-800 text-slate-400 border-slate-200 dark:border-slate-700' };
+      if (hasLogs) {
+        if (onTimeRate >= 95) {
+          badge = { text: 'Excellent (95%+)', color: 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border-emerald-300 dark:border-emerald-800' };
+        } else if (onTimeRate >= 85) {
+          badge = { text: 'Good Adherence', color: 'bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 border-blue-300 dark:border-blue-800' };
+        } else {
+          badge = { text: 'Needs Improvement', color: 'bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 border-amber-300 dark:border-amber-800' };
+        }
       }
 
       return {
@@ -180,13 +277,13 @@ export default function AnalyticsView({
         count: member.count,
         totalSeconds: member.totalSeconds,
         formattedTime: member.totalSeconds > 0 ? formatTotalDurationHuman(member.totalSeconds) : '0h 0m',
-        role: member.role || 'Workforce Member',
-        shift: member.shift || '9:00 PM - 6:00 AM',
-        punctuality,
+        role: member.role || 'Trainer',
+        shift: member.shift || '9:00 PM to 6:00 AM',
+        onTimeRate: hasLogs ? `${onTimeRate}%` : 'N/A',
+        badge,
       };
     });
 
-    // Sort by total logged time descending, then by count descending
     entries.sort((a, b) => {
       if (b.totalSeconds !== a.totalSeconds) return b.totalSeconds - a.totalSeconds;
       return b.count - a.count;
@@ -195,35 +292,66 @@ export default function AnalyticsView({
     return entries;
   }, [records, employees]);
 
+  // Paginated member records
+  const totalPages = pageSize === 'all' ? 1 : Math.ceil(memberLeaderboard.length / pageSize);
+  const paginatedMembers = useMemo(() => {
+    if (pageSize === 'all') return memberLeaderboard;
+    const startIndex = (currentPage - 1) * pageSize;
+    return memberLeaderboard.slice(startIndex, startIndex + pageSize);
+  }, [memberLeaderboard, currentPage, pageSize]);
+
+  const handlePageSizeChange = (newSize: number | 'all') => {
+    setPageSize(newSize);
+    setCurrentPage(1);
+  };
+
   return (
     <div className="space-y-6 animate-in fade-in select-none">
       
-      {/* Top Header */}
+      {/* Top Header without Live Tracker pill */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h2 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-slate-50 tracking-tight">
-            Operations &amp; Shift Reliability Insights
+            Attendance &amp; Schedule Adherence Analytics
           </h2>
           <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 max-w-xl">
-            Real-time workforce attendance reliability, punch punctuality, and shift summary computed from actual records.
+            Real-time punctuality rates, total logged hours, late punch tracking, and shift audit summaries.
           </p>
         </div>
       </div>
 
-      {/* 1. TOP 4 ATTENDANCE KPI SUMMARY CARDS */}
+      {/* 1. TOP 4 ATTENDANCE & ADHERENCE KPI CARDS */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         
-        {/* Card 1: Total Logged Shift Time */}
+        {/* Card 1: Punctuality Rate */}
         <div className="p-4 sm:p-5 rounded-2xl bg-white dark:bg-[#0E1B38] border border-slate-200/90 dark:border-slate-800 shadow-2xs flex items-center justify-between min-h-[96px]">
           <div className="flex flex-col justify-center min-w-0">
             <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 tracking-wider uppercase">
-              TOTAL LOGGED SHIFT TIME
+              PUNCTUALITY / ON-TIME RATE
             </span>
-            <span className="text-2xl sm:text-3xl font-black tracking-tight text-[#24537D] dark:text-blue-400 mt-1">
-              {formattedTotalTime}
+            <span className="text-2xl sm:text-3xl font-black tracking-tight text-emerald-600 dark:text-emerald-400 mt-1">
+              {punctualityRate}%
             </span>
             <span className="text-[10.5px] font-medium text-slate-400 dark:text-slate-500 mt-0.5">
-              From {records.length} actual shift logs
+              {attendanceBreakdown.lateCount} late clock-in{attendanceBreakdown.lateCount === 1 ? '' : 's'} recorded
+            </span>
+          </div>
+          <div className="w-11 h-11 rounded-xl bg-emerald-50 dark:bg-emerald-950/50 text-emerald-600 dark:text-emerald-400 border border-emerald-100 dark:border-emerald-900/40 flex items-center justify-center shrink-0 shadow-2xs">
+            <CheckCircle2 className="w-5 h-5 stroke-[2.2]" />
+          </div>
+        </div>
+
+        {/* Card 2: Total Logged Work Time */}
+        <div className="p-4 sm:p-5 rounded-2xl bg-white dark:bg-[#0E1B38] border border-slate-200/90 dark:border-slate-800 shadow-2xs flex items-center justify-between min-h-[96px]">
+          <div className="flex flex-col justify-center min-w-0">
+            <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 tracking-wider uppercase">
+              TOTAL LOGGED WORK TIME
+            </span>
+            <span className="text-2xl sm:text-3xl font-black tracking-tight text-[#24537D] dark:text-blue-400 mt-1">
+              {formatTotalDurationHuman(totalSeconds)}
+            </span>
+            <span className="text-[10.5px] font-medium text-slate-400 dark:text-slate-500 mt-0.5">
+              {records.length} verified shift log{records.length === 1 ? '' : 's'}
             </span>
           </div>
           <div className="w-11 h-11 rounded-xl bg-blue-50 dark:bg-blue-950/50 text-[#24537D] dark:text-blue-300 border border-blue-100 dark:border-blue-900/40 flex items-center justify-center shrink-0 shadow-2xs">
@@ -231,305 +359,551 @@ export default function AnalyticsView({
           </div>
         </div>
 
-        {/* Card 2: Recorded Shifts */}
+        {/* Card 3: Late Punches */}
         <div className="p-4 sm:p-5 rounded-2xl bg-white dark:bg-[#0E1B38] border border-slate-200/90 dark:border-slate-800 shadow-2xs flex items-center justify-between min-h-[96px]">
           <div className="flex flex-col justify-center min-w-0">
             <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 tracking-wider uppercase">
-              TOTAL RECORDED SHIFTS
+              LATE PUNCHES
             </span>
-            <span className="text-2xl sm:text-3xl font-black tracking-tight text-slate-900 dark:text-slate-100 mt-1">
-              {records.length} Logs
+            <span className="text-2xl sm:text-3xl font-black tracking-tight text-amber-600 dark:text-amber-400 mt-1">
+              {attendanceBreakdown.lateCount} Logs
             </span>
             <span className="text-[10.5px] font-medium text-slate-400 dark:text-slate-500 mt-0.5">
-              Live entries in database
+              {attendanceBreakdown.lateCount === 0 ? 'No late punches recorded' : `${attendanceBreakdown.latePct}% of total shifts`}
             </span>
           </div>
-          <div className="w-11 h-11 rounded-xl bg-emerald-50 dark:bg-emerald-950/50 text-emerald-600 dark:text-emerald-400 border border-emerald-100 dark:border-emerald-900/40 flex items-center justify-center shrink-0 shadow-2xs">
-            <CalendarCheck className="w-5 h-5 stroke-[2.2]" />
+          <div className="w-11 h-11 rounded-xl bg-amber-50 dark:bg-amber-950/50 text-amber-600 dark:text-amber-400 border border-amber-100 dark:border-amber-900/40 flex items-center justify-center shrink-0 shadow-2xs">
+            <AlertTriangle className="w-5 h-5 stroke-[2.2]" />
           </div>
         </div>
 
-        {/* Card 3: Active Contributing Members */}
+        {/* Card 4: Active Contributors */}
         <div className="p-4 sm:p-5 rounded-2xl bg-white dark:bg-[#0E1B38] border border-slate-200/90 dark:border-slate-800 shadow-2xs flex items-center justify-between min-h-[96px]">
           <div className="flex flex-col justify-center min-w-0">
             <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 tracking-wider uppercase">
               ACTIVE CONTRIBUTORS
             </span>
-            <span className="text-2xl sm:text-3xl font-black tracking-tight text-[#2F6798] dark:text-blue-400 mt-1">
-              {activeContributorsCount} Members
+            <span className="text-2xl sm:text-3xl font-black tracking-tight text-indigo-600 dark:text-indigo-400 mt-1">
+              {activeContributorsCount} Active
             </span>
             <span className="text-[10.5px] font-medium text-slate-400 dark:text-slate-500 mt-0.5">
-              With recorded activity
+              {activeContributorsCount} of {totalRosterCount} roster members logged
             </span>
           </div>
-          <div className="w-11 h-11 rounded-xl bg-indigo-50 dark:bg-indigo-950/50 text-[#2F6798] dark:text-indigo-400 border border-indigo-100 dark:border-indigo-900/40 flex items-center justify-center shrink-0 shadow-2xs">
+          <div className="w-11 h-11 rounded-xl bg-indigo-50 dark:bg-indigo-950/50 text-indigo-600 dark:text-indigo-400 border border-indigo-100 dark:border-indigo-900/40 flex items-center justify-center shrink-0 shadow-2xs">
             <Users className="w-5 h-5 stroke-[2.2]" />
-          </div>
-        </div>
-
-        {/* Card 4: Total Roster Pool */}
-        <div className="p-4 sm:p-5 rounded-2xl bg-white dark:bg-[#0E1B38] border border-slate-200/90 dark:border-slate-800 shadow-2xs flex items-center justify-between min-h-[96px]">
-          <div className="flex flex-col justify-center min-w-0">
-            <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 tracking-wider uppercase">
-              TOTAL ROSTER POOL
-            </span>
-            <span className="text-2xl sm:text-3xl font-black tracking-tight text-slate-900 dark:text-slate-100 mt-1">
-              {totalRosterCount} Members
-            </span>
-            <span className="text-[10.5px] font-medium text-slate-400 dark:text-slate-500 mt-0.5">
-              Workforce directory
-            </span>
-          </div>
-          <div className="w-11 h-11 rounded-xl bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700 flex items-center justify-center shrink-0 shadow-2xs">
-            <ShieldCheck className="w-5 h-5 stroke-[2.2]" />
           </div>
         </div>
 
       </div>
 
-      {/* 2. SINGLE EXTERNAL WHITE CONTAINER ENCLOSING ALL ATTENDANCE ANALYTICS */}
-      <div className="w-full bg-white dark:bg-[#0E1B38] border border-slate-200/90 dark:border-slate-800 rounded-3xl p-5 sm:p-6 shadow-2xs space-y-6">
+      {/* 2. ATTENDANCE STATUS BREAKDOWN & WEEKLY HEATMAP (GRAPH STYLE - SOLID COLORS) */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         
-        {/* ROW 1: ATTENDANCE STATUS & COMPLIANCE */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-          
-          {/* Left Card: Live Attendance & Shift Status */}
-          <div className="lg:col-span-7 p-5 sm:p-6 rounded-2xl bg-slate-50/60 dark:bg-slate-900/40 border border-slate-200/70 dark:border-slate-800 flex flex-col justify-between">
-            <div className="space-y-4">
-              <div className="flex items-center justify-between pb-3 border-b border-slate-200/60 dark:border-slate-800">
-                <div className="flex items-center gap-2">
-                  <div className="p-2 rounded-xl bg-[#2F6798]/10 text-[#2F6798] dark:bg-blue-950/60 dark:text-blue-400">
-                    <CheckCircle2 className="w-4 h-4" />
-                  </div>
-                  <div>
-                    <h3 className="text-sm sm:text-base font-extrabold text-slate-900 dark:text-slate-100">
-                      Live Shift Participation
-                    </h3>
-                    <span className="text-[10.5px] text-slate-400 block font-medium">
-                      Active recorded shifts vs scheduled roster
+        {/* Left Card: Attendance Status Donut Graph */}
+        <div className="lg:col-span-6 p-5 sm:p-6 rounded-2xl bg-white dark:bg-[#0E1B38] border border-slate-200/90 dark:border-slate-800 shadow-2xs flex flex-col justify-between">
+          <div>
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
+              <div className="flex items-center gap-2">
+                <div className="p-2 rounded-xl bg-emerald-50 text-emerald-600 dark:bg-emerald-950/60 dark:text-emerald-400">
+                  <CalendarCheck className="w-4 h-4" />
+                </div>
+                <div>
+                  <h3 className="text-sm sm:text-base font-extrabold text-slate-900 dark:text-slate-100">
+                    Attendance Status Breakdown
+                  </h3>
+                  <span className="text-[10.5px] text-slate-400 block font-medium">
+                    Proportional workforce distribution by shift status
+                  </span>
+                </div>
+              </div>
+              <span className="text-xs font-bold text-[#24537D] dark:text-blue-400 px-2.5 py-1 rounded-lg bg-blue-50 dark:bg-blue-950/40">
+                {totalRosterCount} Total Roster
+              </span>
+            </div>
+
+            {/* Donut Chart and Legend Row */}
+            <div className="mt-5 grid grid-cols-1 sm:grid-cols-12 gap-4 items-center">
+              
+              {/* SVG Donut Visual */}
+              <div className="sm:col-span-5 flex flex-col items-center justify-center relative py-2">
+                <div className="relative w-36 h-36">
+                  <svg className="w-full h-full -rotate-90 transform" viewBox="0 0 100 100">
+                    {/* Background Ring */}
+                    <circle
+                      cx="50"
+                      cy="50"
+                      r="38"
+                      className="text-slate-100 dark:text-slate-800"
+                      strokeWidth="11"
+                      stroke="currentColor"
+                      fill="transparent"
+                    />
+                    
+                    {/* Donut Segments */}
+                    {(() => {
+                      const total = (attendanceBreakdown.presentCount + attendanceBreakdown.lateCount + attendanceBreakdown.undertimeCount + attendanceBreakdown.absentCount) || 1;
+                      const circumference = 2 * Math.PI * 38;
+                      
+                      const presentDash = (attendanceBreakdown.presentCount / total) * circumference;
+                      const lateDash = (attendanceBreakdown.lateCount / total) * circumference;
+                      const undertimeDash = (attendanceBreakdown.undertimeCount / total) * circumference;
+                      const absentDash = (attendanceBreakdown.absentCount / total) * circumference;
+
+                      let offset = 0;
+                      const s1Offset = offset;
+                      offset -= presentDash;
+                      const s2Offset = offset;
+                      offset -= lateDash;
+                      const s3Offset = offset;
+                      offset -= undertimeDash;
+                      const s4Offset = offset;
+
+                      return (
+                        <>
+                          {/* Segment 1: Present (Emerald) */}
+                          <circle
+                            cx="50"
+                            cy="50"
+                            r="38"
+                            stroke="#10B981"
+                            strokeWidth="11"
+                            fill="transparent"
+                            strokeDasharray={`${presentDash} ${circumference}`}
+                            strokeDashoffset={s1Offset}
+                            className="transition-all duration-700"
+                          />
+                          {/* Segment 2: Late (Amber) */}
+                          <circle
+                            cx="50"
+                            cy="50"
+                            r="38"
+                            stroke="#F59E0B"
+                            strokeWidth="11"
+                            fill="transparent"
+                            strokeDasharray={`${lateDash} ${circumference}`}
+                            strokeDashoffset={s2Offset}
+                            className="transition-all duration-700"
+                          />
+                          {/* Segment 3: Undertime (Indigo) */}
+                          <circle
+                            cx="50"
+                            cy="50"
+                            r="38"
+                            stroke="#6366F1"
+                            strokeWidth="11"
+                            fill="transparent"
+                            strokeDasharray={`${undertimeDash} ${circumference}`}
+                            strokeDashoffset={s3Offset}
+                            className="transition-all duration-700"
+                          />
+                          {/* Segment 4: Absent (Rose) */}
+                          <circle
+                            cx="50"
+                            cy="50"
+                            r="38"
+                            stroke="#F43F5E"
+                            strokeWidth="11"
+                            fill="transparent"
+                            strokeDasharray={`${absentDash} ${circumference}`}
+                            strokeDashoffset={s4Offset}
+                            className="transition-all duration-700"
+                          />
+                        </>
+                      );
+                    })()}
+                  </svg>
+                  
+                  {/* Center Metric Label */}
+                  <div className="absolute inset-0 flex flex-col items-center justify-center text-center pointer-events-none">
+                    <span className="text-xl font-black text-slate-900 dark:text-slate-100 tracking-tight">
+                      {punctualityRate}%
+                    </span>
+                    <span className="text-[9.5px] font-bold uppercase tracking-wider text-slate-400">
+                      PRESENT
                     </span>
                   </div>
                 </div>
-                <span className="text-xs font-bold text-[#2F6798] px-2.5 py-1 rounded-lg bg-blue-50 dark:bg-blue-950/40">
-                  {totalRosterCount} Total Members
-                </span>
               </div>
 
-              <div className="space-y-3">
-                {shiftStatusMetrics.map((item, idx) => (
-                  <div key={idx} className="p-3 rounded-xl bg-white dark:bg-slate-800/80 border border-slate-200/60 dark:border-slate-700/60 space-y-2 shadow-2xs">
-                    <div className="flex items-center justify-between text-xs">
-                      <div className="flex items-center gap-2">
-                        <span className={`px-2 py-0.5 rounded-md font-extrabold text-[10.5px] border ${item.badgeBg} ${item.textColor}`}>
-                          {item.label}
-                        </span>
-                        <span className="text-[11px] text-slate-400 font-medium hidden sm:inline">
-                          {item.description}
-                        </span>
-                      </div>
-                      <div className="flex items-center gap-2 font-bold text-xs">
-                        <span className="text-slate-900 dark:text-slate-100 font-black">{item.count} Members</span>
-                        <span className="text-slate-400 font-medium text-[11px]">({item.percentage}%)</span>
-                      </div>
-                    </div>
-
-                    <div className="w-full h-2 rounded-full bg-slate-100 dark:bg-slate-700 overflow-hidden">
-                      <div
-                        className={`h-full rounded-full ${item.color} transition-all duration-500`}
-                        style={{ width: `${Math.max(item.percentage, 5)}%` }}
-                      />
-                    </div>
+              {/* Status Breakdown Legend & Counts */}
+              <div className="sm:col-span-7 space-y-2 text-xs">
+                {/* 1. Present */}
+                <div className="flex items-center justify-between p-2 rounded-xl bg-slate-50/80 dark:bg-slate-850 border border-slate-100 dark:border-slate-800">
+                  <div className="flex items-center gap-2">
+                    <span className="w-2.5 h-2.5 rounded-full bg-[#10B981] shrink-0 shadow-xs" />
+                    <span className="font-bold text-slate-700 dark:text-slate-300">Present</span>
                   </div>
-                ))}
+                  <div className="flex items-center gap-1.5 font-bold">
+                    <span className="text-emerald-600 dark:text-emerald-400">{attendanceBreakdown.presentCount}</span>
+                    <span className="text-slate-400 text-[11px]">({attendanceBreakdown.presentPct}%)</span>
+                  </div>
+                </div>
+
+                {/* 2. Absent */}
+                <div className="flex items-center justify-between p-2 rounded-xl bg-slate-50/80 dark:bg-slate-850 border border-slate-100 dark:border-slate-800">
+                  <div className="flex items-center gap-2">
+                    <span className="w-2.5 h-2.5 rounded-full bg-[#F43F5E] shrink-0 shadow-xs" />
+                    <span className="font-bold text-slate-700 dark:text-slate-300">Absent</span>
+                  </div>
+                  <div className="flex items-center gap-1.5 font-bold">
+                    <span className="text-rose-600 dark:text-rose-400">{attendanceBreakdown.absentCount}</span>
+                    <span className="text-slate-400 text-[11px]">({attendanceBreakdown.absentPct}%)</span>
+                  </div>
+                </div>
+
+                {/* 3. Late */}
+                <div className="flex items-center justify-between p-2 rounded-xl bg-slate-50/80 dark:bg-slate-850 border border-slate-100 dark:border-slate-800">
+                  <div className="flex items-center gap-2">
+                    <span className="w-2.5 h-2.5 rounded-full bg-[#F59E0B] shrink-0 shadow-xs" />
+                    <span className="font-bold text-slate-700 dark:text-slate-300">Late</span>
+                  </div>
+                  <div className="flex items-center gap-1.5 font-bold">
+                    <span className="text-amber-600 dark:text-amber-400">{attendanceBreakdown.lateCount}</span>
+                    <span className="text-slate-400 text-[11px]">({attendanceBreakdown.latePct}%)</span>
+                  </div>
+                </div>
+
+                {/* 4. Undertime */}
+                <div className="flex items-center justify-between p-2 rounded-xl bg-slate-50/80 dark:bg-slate-850 border border-slate-100 dark:border-slate-800">
+                  <div className="flex items-center gap-2">
+                    <span className="w-2.5 h-2.5 rounded-full bg-[#6366F1] shrink-0 shadow-xs" />
+                    <span className="font-bold text-slate-700 dark:text-slate-300">Undertime</span>
+                  </div>
+                  <div className="flex items-center gap-1.5 font-bold">
+                    <span className="text-indigo-600 dark:text-indigo-400">{attendanceBreakdown.undertimeCount}</span>
+                    <span className="text-slate-400 text-[11px]">({attendanceBreakdown.undertimePct}%)</span>
+                  </div>
+                </div>
               </div>
+
             </div>
           </div>
 
-          {/* Right Card: Shift Schedule Distribution */}
-          <div className="lg:col-span-5 p-5 sm:p-6 rounded-2xl bg-slate-50/60 dark:bg-slate-900/40 border border-slate-200/70 dark:border-slate-800 flex flex-col justify-between">
-            <div className="space-y-4">
-              <div className="flex items-center justify-between pb-3 border-b border-slate-200/60 dark:border-slate-800">
-                <div className="flex items-center gap-2">
-                  <div className="p-2 rounded-xl bg-[#2F6798]/10 text-[#2F6798] dark:bg-blue-950/60 dark:text-blue-400">
-                    <ShieldCheck className="w-4 h-4" />
-                  </div>
-                  <div>
-                    <h3 className="text-sm sm:text-base font-extrabold text-slate-900 dark:text-slate-100">
-                      Attendance &amp; Coverage Metrics
-                    </h3>
-                    <span className="text-[10.5px] text-slate-400 block font-medium">
-                      Actual shift adherence
-                    </span>
-                  </div>
+          {/* Status Footer */}
+          <div className="mt-3 pt-3 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between text-xs">
+            <span className="text-slate-500 dark:text-slate-400 font-medium text-[11px]">
+              Active Shift Cycle: <strong>{activeContributorsCount} Logged</strong>
+            </span>
+            <span className="px-2.5 py-0.5 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 font-bold text-[11px]">
+              {attendanceBreakdown.absentCount} Absent / Off
+            </span>
+          </div>
+        </div>
+
+        {/* Right Card: Weekly Shift Attendance Bar Chart (SOLID FLAT COLORS) */}
+        <div className="lg:col-span-6 p-5 sm:p-6 rounded-2xl bg-white dark:bg-[#0E1B38] border border-slate-200/90 dark:border-slate-800 shadow-2xs flex flex-col justify-between">
+          <div>
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
+              <div className="flex items-center gap-2">
+                <div className="p-2 rounded-xl bg-[#24537D]/10 text-[#24537D] dark:bg-blue-950/60 dark:text-blue-400">
+                  <Flame className="w-4 h-4" />
                 </div>
-                <span className="text-xs font-bold text-emerald-600 dark:text-emerald-400">
-                  Live Status
+                <div>
+                  <h3 className="text-sm sm:text-base font-extrabold text-slate-900 dark:text-slate-100">
+                    Weekly Attendance &amp; Punctuality Trend
+                  </h3>
+                  <span className="text-[10.5px] text-slate-400 block font-medium">
+                    Daily shift capacity &amp; on-time compliance rate
+                  </span>
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40 px-2 py-0.5 rounded-md">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" /> &ge;95% Target
                 </span>
               </div>
+            </div>
 
-              <div className="space-y-3">
-                {complianceMetrics.map((item, idx) => {
-                  const IconComp = item.icon;
+            {/* Weekly Bar Chart Visual with SOLID flat colors */}
+            <div className="mt-4 pt-1">
+              <div className="h-36 w-full flex items-end justify-between gap-2 px-1 relative">
+                
+                {/* 95% Benchmark Target Line */}
+                <div 
+                  className="absolute left-0 right-0 border-b border-dashed border-emerald-400/60 dark:border-emerald-500/40 pointer-events-none z-10"
+                  style={{ bottom: '72%' }}
+                >
+                  <span className="absolute -top-3.5 right-1 text-[9px] font-extrabold text-emerald-600 dark:text-emerald-400">
+                    Target 95%
+                  </span>
+                </div>
+
+                {weeklyTrends.map((d, idx) => {
+                  const maxShifts = 15;
+                  const barHeightPct = Math.round((d.shifts / maxShifts) * 100);
+                  const isHighPunctual = d.rate >= 95;
+                  const isMinorDrop = d.rate < 92;
+
                   return (
-                    <div key={idx} className="space-y-1">
-                      <div className="flex items-center justify-between text-xs">
-                        <div className="flex items-center gap-1.5 font-bold text-slate-800 dark:text-slate-200">
-                          <IconComp className="w-3.5 h-3.5 text-[#2F6798] dark:text-blue-400" />
-                          <span>{item.title}</span>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <span className={`font-black ${item.statusColor}`}>
-                            {item.rate}
-                          </span>
-                          <span className="text-[10.5px] text-slate-400 font-medium">
-                            ({item.status})
-                          </span>
-                        </div>
-                      </div>
+                    <div key={idx} className="flex-1 flex flex-col items-center h-full justify-end group cursor-pointer">
+                      
+                      {/* Punctuality Percentage Pill on Top */}
+                      <span className={`text-[10px] font-black mb-1 transition-transform group-hover:scale-110 ${
+                        isHighPunctual ? 'text-emerald-600 dark:text-emerald-400' : isMinorDrop ? 'text-amber-600 dark:text-amber-400' : 'text-slate-700 dark:text-slate-300'
+                      }`}>
+                        {d.rate}%
+                      </span>
 
-                      <div className="w-full h-2 rounded-full bg-slate-200 dark:bg-slate-700 overflow-hidden">
+                      {/* Column Bar with SOLID FLAT COLORS */}
+                      <div className="w-full max-w-[34px] bg-slate-100 dark:bg-slate-800 rounded-t-lg overflow-hidden relative flex flex-col justify-end h-24">
                         <div
-                          className={`h-full rounded-full ${item.barColor} transition-all duration-500`}
-                          style={{ width: `${item.percentage}%` }}
+                          className={`w-full rounded-t-lg transition-all duration-700 ${
+                            isHighPunctual 
+                              ? 'bg-emerald-500' 
+                              : isMinorDrop
+                              ? 'bg-amber-500'
+                              : 'bg-[#24537D] dark:bg-blue-600'
+                          }`}
+                          style={{ height: `${barHeightPct}%` }}
                         />
                       </div>
+
+                      {/* Day Label */}
+                      <span className="text-[10.5px] font-black text-slate-500 dark:text-slate-400 uppercase mt-2">
+                        {d.day}
+                      </span>
                     </div>
                   );
                 })}
               </div>
-
-              {/* Shift Schedule Distribution Footer */}
-              <div className="pt-3 border-t border-slate-200/60 dark:border-slate-800 grid grid-cols-2 gap-2 text-center text-xs">
-                <div className="p-2.5 rounded-xl bg-white dark:bg-slate-800 border border-blue-200/50 dark:border-blue-900/40 shadow-2xs">
-                  <div className="flex items-center justify-center gap-1 text-[#2F6798] dark:text-blue-400 font-extrabold text-[11px]">
-                    <Sun className="w-3.5 h-3.5" /> Dayshift Roster
-                  </div>
-                  <span className="font-black text-slate-900 dark:text-slate-100 text-sm mt-0.5 block">
-                    {shiftDistribution.dayshiftCount} Members ({shiftDistribution.dayPct}%)
-                  </span>
-                </div>
-
-                <div className="p-2.5 rounded-xl bg-white dark:bg-slate-800 border border-indigo-200/50 dark:border-indigo-900/40 shadow-2xs">
-                  <div className="flex items-center justify-center gap-1 text-indigo-600 dark:text-indigo-400 font-extrabold text-[11px]">
-                    <Moon className="w-3.5 h-3.5" /> Nightshift Roster
-                  </div>
-                  <span className="font-black text-slate-900 dark:text-slate-100 text-sm mt-0.5 block">
-                    {shiftDistribution.nightshiftCount} Members ({shiftDistribution.nightPct}%)
-                  </span>
-                </div>
-              </div>
-
             </div>
-          </div>
 
-        </div>
-
-        {/* ROW 2: WORKFORCE ATTENDANCE & SHIFT HOURS LEADERBOARD (STRICTLY ACTUAL DATA) */}
-        <div className="p-5 sm:p-6 rounded-2xl bg-slate-50/60 dark:bg-slate-900/40 border border-slate-200/70 dark:border-slate-800">
-          <div className="space-y-4">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-3 border-b border-slate-200/60 dark:border-slate-800">
-              <div className="flex items-center gap-2">
-                <div className="p-2 rounded-xl bg-emerald-50 text-emerald-600 dark:bg-emerald-950/60 dark:text-emerald-400">
-                  <Award className="w-4 h-4" />
-                </div>
-                <div>
-                  <h3 className="text-sm sm:text-base font-extrabold text-slate-900 dark:text-slate-100">
-                    Workforce Attendance &amp; Shift Hours Summary
-                  </h3>
-                  <span className="text-[10.5px] text-slate-400 block font-medium">
-                    Shift participation and hours logged per roster member (computed directly from real logs)
-                  </span>
-                </div>
-              </div>
-
-              <span className="text-xs font-bold text-slate-400">
-                {memberLeaderboard.length} Members in Roster
+            {/* Punch Exception & Deviation Audit Box */}
+            <div className="mt-3 pt-3 border-t border-slate-100 dark:border-slate-800">
+              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1.5">
+                PUNCH DEVIATION &amp; AUDIT FLAGS
               </span>
+              <div className="grid grid-cols-3 gap-2 text-center text-xs">
+                <div className="p-2 rounded-xl bg-slate-50 dark:bg-slate-850 border border-slate-200/60 dark:border-slate-800">
+                  <span className="text-[9.5px] text-slate-400 block font-medium">Manual Adjustments</span>
+                  <span className="font-extrabold text-slate-900 dark:text-slate-100 text-xs mt-0.5 block">
+                    {attendanceBreakdown.manualEditCount} Logs
+                  </span>
+                </div>
+                <div className="p-2 rounded-xl bg-slate-50 dark:bg-slate-850 border border-slate-200/60 dark:border-slate-800">
+                  <span className="text-[9.5px] text-slate-400 block font-medium">Late Clock-Ins (&gt;5m)</span>
+                  <span className="font-extrabold text-amber-600 dark:text-amber-400 text-xs mt-0.5 block">
+                    {attendanceBreakdown.lateCount} Logs
+                  </span>
+                </div>
+                <div className="p-2 rounded-xl bg-slate-50 dark:bg-slate-850 border border-slate-200/60 dark:border-slate-800">
+                  <span className="text-[9.5px] text-slate-400 block font-medium">Undertime (&lt;8h)</span>
+                  <span className="font-extrabold text-indigo-600 dark:text-indigo-400 text-xs mt-0.5 block">
+                    {attendanceBreakdown.undertimeCount} Logs
+                  </span>
+                </div>
+              </div>
             </div>
 
-            <div className="overflow-x-auto">
-              <table className="w-full text-left text-xs border-collapse">
-                <thead>
-                  <tr className="border-b border-slate-200/60 dark:border-slate-800 bg-white/70 dark:bg-slate-800/60 text-[10px] font-black uppercase tracking-wider text-slate-400 select-none">
-                    <th className="py-2.5 px-4 font-black">RANK</th>
-                    <th className="py-2.5 px-4 font-black">MEMBER NAME</th>
-                    <th className="py-2.5 px-4 font-black">ASSIGNED ROLE</th>
-                    <th className="py-2.5 px-4 font-black">SHIFT SCHEDULE</th>
-                    <th className="py-2.5 px-4 font-black">RECORDED SHIFTS</th>
-                    <th className="py-2.5 px-4 font-black">TOTAL LOGGED TIME</th>
-                    <th className="py-2.5 px-4 font-black">STATUS</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-200/60 dark:divide-slate-800/60 font-medium bg-white dark:bg-slate-850">
-                  {memberLeaderboard.length === 0 ? (
-                    <tr>
-                      <td colSpan={7} className="py-8 text-center text-slate-400 italic">
-                        No member attendance records available.
-                      </td>
-                    </tr>
-                  ) : (
-                    memberLeaderboard.map((m, idx) => {
-                      const initials = m.name
-                        .split(' ')
-                        .filter(Boolean)
-                        .slice(0, 2)
-                        .map((n) => n[0].toUpperCase())
-                        .join('');
-
-                      const hasLogs = m.count > 0;
-
-                      return (
-                        <tr key={idx} className="hover:bg-blue-50/40 dark:hover:bg-slate-800/60 transition-colors">
-                          <td className="py-3 px-4 font-black text-slate-400">
-                            #{idx + 1}
-                          </td>
-                          <td className="py-3 px-4 whitespace-nowrap">
-                            <div className="flex items-center gap-2.5">
-                              <div className="w-7 h-7 rounded-full bg-[#2F6798]/10 text-[#2F6798] dark:bg-blue-950/60 dark:text-blue-300 font-extrabold text-[10px] flex items-center justify-center shrink-0 border border-[#2F6798]/20">
-                                {initials || 'U'}
-                              </div>
-                              <span className="font-bold text-slate-900 dark:text-slate-100 text-xs">
-                                {m.name}
-                              </span>
-                            </div>
-                          </td>
-                          <td className="py-3 px-4 text-slate-500 dark:text-slate-400 font-semibold whitespace-nowrap">
-                            {m.role}
-                          </td>
-                          <td className="py-3 px-4 whitespace-nowrap">
-                            <span className="px-2 py-0.5 rounded-md font-bold text-[10px] bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300">
-                              {m.shift}
-                            </span>
-                          </td>
-                          <td className={`py-3 px-4 font-bold whitespace-nowrap ${hasLogs ? 'text-[#2F6798] dark:text-blue-400' : 'text-slate-400'}`}>
-                            {m.count} {m.count === 1 ? 'shift' : 'shifts'}
-                          </td>
-                          <td className={`py-3 px-4 font-extrabold whitespace-nowrap ${hasLogs ? 'text-slate-900 dark:text-slate-100' : 'text-slate-400 font-normal'}`}>
-                            {m.formattedTime}
-                          </td>
-                          <td className="py-3 px-4 whitespace-nowrap">
-                            {hasLogs ? (
-                              <span className="px-2.5 py-0.5 rounded-full text-[10px] font-extrabold border border-emerald-300 dark:border-emerald-800 bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300">
-                                {m.punctuality}
-                              </span>
-                            ) : (
-                              <span className="px-2.5 py-0.5 rounded-full text-[10px] font-semibold border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-400">
-                                No Logs Yet
-                              </span>
-                            )}
-                          </td>
-                        </tr>
-                      );
-                    })
-                  )}
-                </tbody>
-              </table>
-            </div>
           </div>
         </div>
 
+      </div>
+
+      {/* 3. MEMBER ATTENDANCE & ADHERENCE LEADERBOARD TABLE (WITH PAGINATION & VIEW OPTIONS) */}
+      <div className="p-5 sm:p-6 rounded-2xl bg-white dark:bg-[#0E1B38] border border-slate-200/90 dark:border-slate-800 shadow-2xs">
+        <div className="space-y-4">
+          
+          {/* Table Header & View Controls */}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-100 dark:border-slate-800">
+            <div className="flex items-center gap-2">
+              <div className="p-2 rounded-xl bg-indigo-50 text-indigo-600 dark:bg-indigo-950/60 dark:text-indigo-400">
+                <Award className="w-4 h-4" />
+              </div>
+              <div>
+                <h3 className="text-sm sm:text-base font-extrabold text-slate-900 dark:text-slate-100">
+                  Member Attendance &amp; Adherence Roster
+                </h3>
+                <span className="text-[10.5px] text-slate-400 block font-medium">
+                  Punctuality rate, shift attendance, and total hours logged per team member
+                </span>
+              </div>
+            </div>
+
+            {/* Page Size View Option Buttons */}
+            <div className="flex items-center gap-2 self-start sm:self-auto">
+              <span className="text-[11px] font-bold text-slate-400">Rows:</span>
+              <div className="inline-flex rounded-xl bg-slate-100 dark:bg-slate-800 p-1 text-xs font-bold">
+                <button
+                  type="button"
+                  onClick={() => handlePageSizeChange(10)}
+                  className={`px-2.5 py-1 rounded-lg transition-all cursor-pointer ${
+                    pageSize === 10
+                      ? 'bg-white dark:bg-slate-700 text-[#24537D] dark:text-blue-300 shadow-2xs'
+                      : 'text-slate-500 hover:text-slate-900 dark:hover:text-white'
+                  }`}
+                >
+                  10
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handlePageSizeChange(25)}
+                  className={`px-2.5 py-1 rounded-lg transition-all cursor-pointer ${
+                    pageSize === 25
+                      ? 'bg-white dark:bg-slate-700 text-[#24537D] dark:text-blue-300 shadow-2xs'
+                      : 'text-slate-500 hover:text-slate-900 dark:hover:text-white'
+                  }`}
+                >
+                  25
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handlePageSizeChange('all')}
+                  className={`px-2.5 py-1 rounded-lg transition-all cursor-pointer ${
+                    pageSize === 'all'
+                      ? 'bg-white dark:bg-slate-700 text-[#24537D] dark:text-blue-300 shadow-2xs'
+                      : 'text-slate-500 hover:text-slate-900 dark:hover:text-white'
+                  }`}
+                >
+                  Show All ({memberLeaderboard.length})
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {/* Table Container */}
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-xs border-collapse">
+              <thead>
+                <tr className="border-b border-slate-200/80 dark:border-slate-800 bg-slate-50/80 dark:bg-slate-850 text-[10px] font-black uppercase tracking-wider text-slate-400 select-none">
+                  <th className="py-2.5 px-4 font-black">RANK</th>
+                  <th className="py-2.5 px-4 font-black">MEMBER NAME</th>
+                  <th className="py-2.5 px-4 font-black">ROLE</th>
+                  <th className="py-2.5 px-4 font-black">SHIFT SCHEDULE</th>
+                  <th className="py-2.5 px-4 font-black">RECORDED SHIFTS</th>
+                  <th className="py-2.5 px-4 font-black">PUNCTUALITY</th>
+                  <th className="py-2.5 px-4 font-black">LOGGED HOURS</th>
+                  <th className="py-2.5 px-4 font-black">RELIABILITY STATUS</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100 dark:divide-slate-800/70 font-medium">
+                {paginatedMembers.length === 0 ? (
+                  <tr>
+                    <td colSpan={8} className="py-8 text-center text-slate-400 italic">
+                      No member attendance records available.
+                    </td>
+                  </tr>
+                ) : (
+                  paginatedMembers.map((m, idx) => {
+                    const actualRank = pageSize === 'all' ? idx + 1 : (currentPage - 1) * pageSize + idx + 1;
+                    const initials = m.name
+                      .split(' ')
+                      .filter(Boolean)
+                      .slice(0, 2)
+                      .map((n) => n[0].toUpperCase())
+                      .join('');
+
+                    const hasLogs = m.count > 0;
+
+                    return (
+                      <tr key={idx} className="hover:bg-slate-50/70 dark:hover:bg-slate-800/50 transition-colors">
+                        <td className="py-3 px-4 font-black text-slate-400">
+                          #{actualRank}
+                        </td>
+                        <td className="py-3 px-4 whitespace-nowrap">
+                          <div className="flex items-center gap-2.5">
+                            <div className="w-7 h-7 rounded-full bg-[#24537D]/10 text-[#24537D] dark:bg-blue-950/60 dark:text-blue-300 font-extrabold text-[10px] flex items-center justify-center shrink-0 border border-[#24537D]/20">
+                              {initials || 'U'}
+                            </div>
+                            <span className="font-bold text-slate-900 dark:text-slate-100 text-xs">
+                              {m.name}
+                            </span>
+                          </div>
+                        </td>
+                        <td className="py-3 px-4 text-slate-500 dark:text-slate-400 font-semibold whitespace-nowrap">
+                          {m.role}
+                        </td>
+                        <td className="py-3 px-4 whitespace-nowrap">
+                          <span className="px-2 py-0.5 rounded-md font-bold text-[10px] bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300">
+                            {m.shift}
+                          </span>
+                        </td>
+                        <td className={`py-3 px-4 font-bold whitespace-nowrap ${hasLogs ? 'text-[#24537D] dark:text-blue-400' : 'text-slate-400'}`}>
+                          {m.count} {m.count === 1 ? 'shift' : 'shifts'}
+                        </td>
+                        <td className={`py-3 px-4 font-extrabold whitespace-nowrap ${hasLogs ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-400'}`}>
+                          {m.onTimeRate}
+                        </td>
+                        <td className={`py-3 px-4 font-extrabold whitespace-nowrap ${hasLogs ? 'text-slate-900 dark:text-slate-100' : 'text-slate-400 font-normal'}`}>
+                          {m.formattedTime}
+                        </td>
+                        <td className="py-3 px-4 whitespace-nowrap">
+                          <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-extrabold border ${m.badge.color}`}>
+                            {m.badge.text}
+                          </span>
+                        </td>
+                      </tr>
+                    );
+                  })
+                )}
+              </tbody>
+            </table>
+          </div>
+
+          {/* Table Pagination Footer */}
+          {pageSize !== 'all' && totalPages > 1 && (
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-3 border-t border-slate-100 dark:border-slate-800 text-xs">
+              <span className="text-slate-400 font-medium">
+                Showing{' '}
+                <strong className="text-slate-700 dark:text-slate-200">
+                  {(currentPage - 1) * pageSize + 1}
+                </strong>{' '}
+                to{' '}
+                <strong className="text-slate-700 dark:text-slate-200">
+                  {Math.min(currentPage * pageSize, memberLeaderboard.length)}
+                </strong>{' '}
+                of{' '}
+                <strong className="text-slate-700 dark:text-slate-200">
+                  {memberLeaderboard.length}
+                </strong>{' '}
+                members
+              </span>
+
+              {/* Page Controls */}
+              <div className="flex items-center gap-1 self-start sm:self-auto">
+                <button
+                  type="button"
+                  disabled={currentPage === 1}
+                  onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                  className="p-1.5 rounded-lg border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 disabled:opacity-40 disabled:pointer-events-none cursor-pointer"
+                  title="Previous Page"
+                >
+                  <ChevronLeft className="w-4 h-4" />
+                </button>
+
+                {Array.from({ length: totalPages }, (_, i) => i + 1).map((pageNum) => (
+                  <button
+                    key={pageNum}
+                    type="button"
+                    onClick={() => setCurrentPage(pageNum)}
+                    className={`w-7 h-7 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                      currentPage === pageNum
+                        ? 'bg-[#24537D] text-white shadow-2xs'
+                        : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'
+                    }`}
+                  >
+                    {pageNum}
+                  </button>
+                ))}
+
+                <button
+                  type="button"
+                  disabled={currentPage === totalPages}
+                  onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                  className="p-1.5 rounded-lg border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 disabled:opacity-40 disabled:pointer-events-none cursor-pointer"
+                  title="Next Page"
+                >
+                  <ChevronRight className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+          )}
+
+        </div>
       </div>
 
     </div>
   );
 }
+
