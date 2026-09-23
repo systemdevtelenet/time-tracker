@@ -101,9 +101,16 @@ export default function EmployeeDetailsTab({
     fetchLiveRosterFromDb();
   };
 
+  const isCurrentUser = (emp: EmployeeDetailRecord) => {
+    if (!supervisorName) return false;
+    const sName = supervisorName.toLowerCase().trim();
+    const rName = (emp.name || '').toLowerCase().trim();
+    return Boolean(sName && (rName === sName || rName.includes(sName) || sName.includes(rName)));
+  };
+
   // Filter using top filter search term and client account
   const filtered = useMemo(() => {
-    return dbEmployees.filter((emp) => {
+    const matches = dbEmployees.filter((emp) => {
       const q = (searchTerm || '').toLowerCase();
       const matchesSearch = !q || (
         emp.name.toLowerCase().includes(q) ||
@@ -124,7 +131,19 @@ export default function EmployeeDetailsTab({
 
       return matchesSearch && matchesAccount;
     });
-  }, [dbEmployees, searchTerm, filterAccount]);
+
+    const currentUserList: EmployeeDetailRecord[] = [];
+    const otherList: EmployeeDetailRecord[] = [];
+    matches.forEach((emp) => {
+      if (isCurrentUser(emp)) {
+        currentUserList.push(emp);
+      } else {
+        otherList.push(emp);
+      }
+    });
+
+    return [...currentUserList, ...otherList];
+  }, [dbEmployees, searchTerm, filterAccount, supervisorName]);
 
   const totalPages = Math.ceil(filtered.length / rowsPerPage) || 1;
   const paginatedEmployees = useMemo(() => {

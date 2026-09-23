@@ -376,7 +376,29 @@ export default function AttendanceRosterHub({
   const [selectedCalendarEmployee, setSelectedCalendarEmployee] = useState<string>(
     initialEmployee || supervisorName || 'Nissi-Jeh Reguero'
   );
-  const [employeesList, setEmployeesList] = useState<RosterEmployee[]>(INITIAL_ROSTER_EMPLOYEES);
+  const sortWithCurrentUserFirst = (list: RosterEmployee[]) => {
+    const sName = (supervisorName || supervisor?.name || '').toLowerCase().trim();
+    const sId = supervisorId || supervisor?.id;
+    const currentUserList: RosterEmployee[] = [];
+    const otherList: RosterEmployee[] = [];
+
+    list.forEach((emp) => {
+      const rName = (emp.name || '').toLowerCase().trim();
+      const nameMatch = Boolean(sName && (rName === sName || rName.includes(sName) || sName.includes(rName)));
+      const idMatch = Boolean(sId && (emp.employeeCode === sId || emp.id === sId || emp.id === `emp-${sId}`));
+      if (nameMatch || idMatch) {
+        currentUserList.push(emp);
+      } else {
+        otherList.push(emp);
+      }
+    });
+
+    return [...currentUserList, ...otherList];
+  };
+
+  const [employeesList, setEmployeesList] = useState<RosterEmployee[]>(() =>
+    sortWithCurrentUserFirst(INITIAL_ROSTER_EMPLOYEES)
+  );
   const [selectedDate, setSelectedDate] = useState<string>('2026-09-22');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [searchTerm, setSearchTerm] = useState<string>('');
@@ -492,9 +514,9 @@ export default function AttendanceRosterHub({
             const rName = (r.name || '').toLowerCase().trim();
             return (sName && (rName === sName || rName.includes(sName) || sName.includes(rName))) || (sId && r.employeeCode === sId);
           });
-          setEmployeesList(filtered.length > 0 ? filtered : mapped.slice(0, 1));
+          setEmployeesList(sortWithCurrentUserFirst(filtered.length > 0 ? filtered : mapped.slice(0, 1)));
         } else {
-          setEmployeesList(mapped);
+          setEmployeesList(sortWithCurrentUserFirst(mapped));
         }
       }
     } catch (err) {
@@ -869,6 +891,8 @@ export default function AttendanceRosterHub({
               setTimeout(() => setToastMsg(null), 2500);
             }}
             onRefresh={handleRefresh}
+            currentUserName={supervisorName || supervisor?.name}
+            currentUserId={supervisorId || supervisor?.id}
           />
         )}
 

@@ -21,7 +21,9 @@ import {
 import AttendanceCalendarView from './AttendanceCalendarView';
 import AttendanceDetailModal, { TeamMemberDayStatus } from './AttendanceDetailModal';
 import AttendanceCellPopover from './AttendanceCellPopover';
+import DatePickerPopover from './DatePickerPopover';
 import { PhoneTimeRecord } from '@/lib/types';
+import { logAttendanceUpdate } from '@/lib/activityLogs';
 
 interface AttendanceCalendarTabProps {
   records?: PhoneTimeRecord[];
@@ -363,10 +365,27 @@ export default function AttendanceCalendarTab({
         console.error('Error persisting attendance status to database:', err);
       }
     }
+
+    // 4. Record to Activity Logs
+    const fullStatusLabel = newStatus === 'P' ? 'Present' : newStatus === 'L' ? 'Late' : newStatus === 'U' ? 'Undertime' : newStatus === 'A' ? 'Absent' : newStatus === 'RD' ? 'Rest Day' : String(newStatus || 'Updated');
+    logAttendanceUpdate({
+      employeeName: employeeName,
+      dateStr: `${monthNames[currentMonthIndex]} ${dayNumber}, ${currentYear}`,
+      status: fullStatusLabel,
+      performedBy: supervisorName || 'Supervisor',
+      note: note || undefined,
+    });
   };
 
   const scrollContainerRef = useRef<HTMLDivElement>(null);
-  const activeDayNumber = 22;
+  
+  // Dynamic Today detection
+  const today = useMemo(() => new Date(), []);
+  const todayDate = today.getDate();
+  const todayMonth = today.getMonth();
+  const todayYear = today.getFullYear();
+  const isCurrentViewMonth = currentMonthIndex === todayMonth && currentYear === todayYear;
+  const activeDayNumber = isCurrentViewMonth ? todayDate : null;
 
   const monthNames = [
     'January', 'February', 'March', 'April', 'May', 'June',
@@ -375,8 +394,8 @@ export default function AttendanceCalendarTab({
 
   // Open Day Summary or Employee Detail Modal
   const handleOpenDayModal = (dayNum: number, employeeName?: string) => {
-    const dayIndex = (dayNum - 1) % FULL_DAY_NAMES.length;
-    const fullDayName = FULL_DAY_NAMES[dayIndex] || 'Wednesday';
+    const fullDate = new Date(currentYear, currentMonthIndex, dayNum);
+    const fullDayName = fullDate.toLocaleDateString('en-US', { weekday: 'long' });
     setModalDayNumber(dayNum);
     setModalDayName(fullDayName);
     setModalSelectedEmployeeName(employeeName || null);
@@ -406,57 +425,51 @@ export default function AttendanceCalendarTab({
     });
   }, [attendanceDataList, modalDayNumber]);
 
-  // Jump to active day column (Sep 22)
+  // Jump to active day column
   const handleJumpToToday = () => {
-    if (scrollContainerRef.current) {
-      const todayTh = scrollContainerRef.current.querySelector('[data-today-header="true"]');
-      if (todayTh) {
-        todayTh.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
+    const now = new Date();
+    if (currentMonthIndex !== now.getMonth() || currentYear !== now.getFullYear()) {
+      setCurrentMonthIndex(now.getMonth());
+      setCurrentYear(now.getFullYear());
+    }
+    setTimeout(() => {
+      if (scrollContainerRef.current) {
+        const todayTh = scrollContainerRef.current.querySelector('[data-today-header="true"]');
+        if (todayTh) {
+          todayTh.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
+        }
       }
-    }
-  };
-
-  // Month navigation
-  const handlePrevMonth = () => {
-    if (currentMonthIndex === 0) {
-      setCurrentMonthIndex(11);
-      setCurrentYear((y) => y - 1);
-    } else {
-      setCurrentMonthIndex((m) => m - 1);
-    }
-  };
-
-  const handleNextMonth = () => {
-    if (currentMonthIndex === 11) {
-      setCurrentMonthIndex(0);
-      setCurrentYear((y) => y + 1);
-    } else {
-      setCurrentMonthIndex((m) => m + 1);
-    }
+    }, 50);
   };
 
   // Days list based on active range
+  const totalDaysInMonth = useMemo(() => {
+    return new Date(currentYear, currentMonthIndex + 1, 0).getDate();
+  }, [currentYear, currentMonthIndex]);
+
   const displayedDays = useMemo(() => {
     const days: number[] = [];
     let start = 1;
-    let end = 30;
+    let end = totalDaysInMonth;
 
     if (rangeView === 'period_1') {
       start = 1;
-      end = 15;
+      end = Math.min(15, totalDaysInMonth);
     } else if (rangeView === 'period_2') {
       start = 16;
-      end = 30;
+      end = totalDaysInMonth;
     } else if (rangeView === 'current_week') {
-      start = 16;
-      end = 22;
+      const now = new Date();
+      const currentDay = isCurrentViewMonth ? now.getDate() : 16;
+      start = Math.max(1, currentDay - 3);
+      end = Math.min(totalDaysInMonth, start + 6);
     }
 
     for (let i = start; i <= end; i++) {
       days.push(i);
     }
     return days;
-  }, [rangeView]);
+  }, [rangeView, totalDaysInMonth, isCurrentViewMonth]);
 
   // Fetch actual live roster & punch logs from database and compute attendance matrix
   useEffect(() => {
@@ -553,9 +566,19 @@ export default function AttendanceCalendarTab({
     loadDbTeam();
   }, [isHeadOrAdmin, supervisorName, supervisorId]);
 
+  const isCurrentUser = (emp: EmployeeAttendanceRow) => {
+    if (!supervisorName && !supervisorId) return false;
+    const sName = (supervisorName || '').toLowerCase().trim();
+    const sId = supervisorId || '';
+    const rName = (emp.name || '').toLowerCase().trim();
+    const nameMatch = Boolean(sName && (rName === sName || rName.includes(sName) || sName.includes(rName)));
+    const idMatch = Boolean(sId && (emp.id === `emp-${sId}` || emp.id === sId));
+    return nameMatch || idMatch;
+  };
+
   // Filter employees with top search and status
   const filteredEmployees = useMemo(() => {
-    return attendanceDataList.filter((emp) => {
+    const matches = attendanceDataList.filter((emp) => {
       const matchesSearch = 
         emp.name.toLowerCase().includes(searchFilter.toLowerCase()) ||
         emp.position.toLowerCase().includes(searchFilter.toLowerCase());
@@ -570,7 +593,19 @@ export default function AttendanceCalendarTab({
 
       return true;
     });
-  }, [attendanceDataList, searchFilter, selectedStatusFilter]);
+
+    const currentUserList: EmployeeAttendanceRow[] = [];
+    const otherList: EmployeeAttendanceRow[] = [];
+    matches.forEach((emp) => {
+      if (isCurrentUser(emp)) {
+        currentUserList.push(emp);
+      } else {
+        otherList.push(emp);
+      }
+    });
+
+    return [...currentUserList, ...otherList];
+  }, [attendanceDataList, searchFilter, selectedStatusFilter, supervisorName, supervisorId]);
 
   // Status Styling Helper (Reduced size by 1)
   const getStatusBadge = (status: AttendanceStatus) => {
@@ -667,30 +702,17 @@ export default function AttendanceCalendarTab({
                   </button>
                 </div>
 
-                {/* Month Navigator with Arrow Buttons & Bold Date */}
-                <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-50 dark:bg-[#272626] border border-slate-200 dark:border-[#434142] text-xs font-sans">
-                  <button
-                    type="button"
-                    onClick={handlePrevMonth}
-                    className="p-1.5 rounded-lg bg-white dark:bg-[#363435] hover:bg-slate-100 dark:hover:bg-[#434142] text-slate-700 dark:text-[#F8F8F6] text-xs font-semibold shadow-2xs transition-colors cursor-pointer flex items-center justify-center border border-slate-200/60 dark:border-[#434142]"
-                    title="Previous Month"
-                  >
-                    <ChevronLeft className="w-3.5 h-3.5" />
-                  </button>
-
-                  <span className="font-bold text-slate-900 dark:text-[#F8F8F6] px-2 text-xs">
-                    {monthNames[currentMonthIndex]} {currentYear}
-                  </span>
-
-                  <button
-                    type="button"
-                    onClick={handleNextMonth}
-                    className="p-1.5 rounded-lg bg-white dark:bg-[#363435] hover:bg-slate-100 dark:hover:bg-[#434142] text-slate-700 dark:text-[#F8F8F6] text-xs font-semibold shadow-2xs transition-colors cursor-pointer flex items-center justify-center border border-slate-200/60 dark:border-[#434142]"
-                    title="Next Month"
-                  >
-                    <ChevronRight className="w-3.5 h-3.5" />
-                  </button>
-                </div>
+                {/* Unified Date & Month Picker */}
+                <DatePickerPopover
+                  selectedDate={new Date(currentYear, currentMonthIndex, 1)}
+                  onSelectDate={(d) => {
+                    setCurrentMonthIndex(d.getMonth());
+                    setCurrentYear(d.getFullYear());
+                  }}
+                  format="month-year"
+                  showArrows
+                  align="right"
+                />
 
               </div>
 
@@ -761,7 +783,7 @@ export default function AttendanceCalendarTab({
                 className="inline-flex items-center justify-center gap-1.5 px-3 py-1 rounded-lg bg-white dark:bg-[#363435] border border-[#2F6798]/30 dark:border-[#434142] hover:border-[#2F6798] dark:hover:border-[#C8A54B] text-[#2F6798] dark:text-[#C8A54B] text-xs font-semibold shadow-2xs transition-all cursor-pointer shrink-0"
               >
                 <Sparkles className="w-3.5 h-3.5 text-[#2F6798] dark:text-[#C8A54B]" />
-                <span>Jump to Today (Sep 16)</span>
+                <span>Jump to Today ({monthNames[todayMonth].slice(0, 3)} {todayDate})</span>
               </button>
 
             </div>
@@ -814,15 +836,15 @@ export default function AttendanceCalendarTab({
 
                   {/* Day of Week Columns */}
                   {displayedDays.map((dayNum) => {
-                    const dayIndex = dayNum - 1;
-                    const dayName = DAYS_NAME_SEP_2026[dayIndex % DAYS_NAME_SEP_2026.length];
-                    const isToday = dayNum === activeDayNumber;
+                    const dayDate = new Date(currentYear, currentMonthIndex, dayNum);
+                    const dayName = dayDate.toLocaleDateString('en-US', { weekday: 'short' }).toUpperCase();
+                    const isToday = isCurrentViewMonth && dayNum === activeDayNumber;
 
                     return (
                       <th
                         key={dayNum}
                         onClick={() => handleOpenDayModal(dayNum)}
-                        title={`Click to view team summary for Sep ${dayNum}`}
+                        title={`Click to view team summary for ${monthNames[currentMonthIndex]} ${dayNum}`}
                         data-today-header={isToday ? 'true' : undefined}
                         className={`py-2 px-1 text-center font-semibold min-w-[42px] sm:min-w-[46px] border-r border-white/15 dark:border-[#434142]/60 cursor-pointer hover:bg-white/20 dark:hover:bg-white/10 transition-colors ${
                           isToday ? 'bg-[#059669] dark:bg-[#059669] text-white font-bold ring-1 ring-white/40' : ''
@@ -846,19 +868,21 @@ export default function AttendanceCalendarTab({
                   <th className="sticky left-[215px] z-30 bg-[#24537C] dark:bg-[#161D2B] py-1.5 px-4 border-r border-white/25 dark:border-[#434142] shadow-[4px_0_8px_rgba(0,0,0,0.18)] dark:shadow-[4px_0_8px_rgba(0,0,0,0.5)]"></th>
 
                   {displayedDays.map((dayNum) => {
-                    const isToday = dayNum === activeDayNumber;
+                    const isToday = isCurrentViewMonth && dayNum === activeDayNumber;
 
                     return (
                       <th
                         key={dayNum}
                         onClick={() => handleOpenDayModal(dayNum)}
-                        title={`Click to view team summary for Sep ${dayNum}`}
+                        title={`Click to view team summary for ${monthNames[currentMonthIndex]} ${dayNum}`}
                         className={`py-1 px-1 text-center border-r border-white/15 dark:border-[#434142]/60 cursor-pointer hover:bg-white/20 dark:hover:bg-white/10 transition-colors ${
                           isToday ? 'bg-[#047857] text-white' : ''
                         }`}
                       >
                         <div className="flex flex-col items-center justify-center leading-tight">
-                          <span className="text-[9px] font-semibold opacity-90 tracking-wider">SEP</span>
+                          <span className="text-[9px] font-semibold opacity-90 tracking-wider">
+                            {monthNames[currentMonthIndex].slice(0, 3).toUpperCase()}
+                          </span>
                           <span className="text-[11px] font-bold">{dayNum}</span>
                         </div>
                       </th>
@@ -916,13 +940,13 @@ export default function AttendanceCalendarTab({
                       {/* Day Columns */}
                       {displayedDays.map((dayNum) => {
                         const status = emp.attendanceByDay[dayNum] || null;
-                        const isToday = dayNum === activeDayNumber;
+                        const isToday = isCurrentViewMonth && dayNum === activeDayNumber;
 
                         return (
                           <td
                             key={dayNum}
                             onClick={() => handleOpenCellPopover(emp, dayNum)}
-                            title={`Click to set attendance tag for ${emp.name} on Sep ${dayNum}`}
+                            title={`Click to set attendance tag for ${emp.name} on ${monthNames[currentMonthIndex]} ${dayNum}`}
                             className={`py-2 px-1 text-center border-r border-slate-100 dark:border-[#434142]/60 cursor-pointer hover:bg-[#2F6798]/15 dark:hover:bg-[#1D2433] transition-all ${
                               isToday ? 'bg-emerald-50/40 dark:bg-emerald-950/20 ring-1 ring-emerald-500/20' : ''
                             }`}
@@ -963,6 +987,7 @@ export default function AttendanceCalendarTab({
         <div className="animate-in fade-in">
           <AttendanceCalendarView
             employeeName={selectedIndividualEmployee}
+            supervisorName={supervisorName}
             onBackToRoster={() => setViewFormat('matrix')}
             records={records}
           />

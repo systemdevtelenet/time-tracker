@@ -352,6 +352,64 @@ export async function insertTimeTrackerPunch(payload: {
 }
 
 /**
+ * Delete punch logs for a specific employee on a specific shift date
+ */
+export async function deleteTimeTrackerPunchesForDay(
+  empId: string | number,
+  monthIndex: number,
+  dayNumber: number,
+  year: number
+) {
+  try {
+    const supabase = getSupabaseAdmin();
+    const numEmpId = isNaN(Number(empId)) ? empId : Number(empId);
+
+    // Fetch logs for this employee to match shift day
+    const { data: logs, error: fetchErr } = await supabase
+      .from('time_tracker_logs')
+      .select('*')
+      .eq('EMPLOYEE ID', numEmpId);
+
+    if (!fetchErr && logs && logs.length > 0) {
+      const idsToDelete = logs.filter((row: any) => {
+        const rawTs = row.TIMESTAMP || row.timestamp;
+        if (!rawTs) return false;
+        const d = new Date(rawTs);
+        if (isNaN(d.getTime())) return false;
+        if (d.getFullYear() !== year) return false;
+        
+        // Night shift grace: hours < 9 belong to previous shift date
+        const h = d.getHours();
+        let sDay = d.getDate();
+        let sMonth = d.getMonth();
+        if (h < 9) {
+          const prev = new Date(d);
+          prev.setDate(prev.getDate() - 1);
+          sDay = prev.getDate();
+          sMonth = prev.getMonth();
+        }
+        return sMonth === monthIndex && sDay === dayNumber;
+      }).map((r: any) => r['LOG ID'] || r.id).filter(Boolean);
+
+      if (idsToDelete.length > 0) {
+        await supabase
+          .from('time_tracker_logs')
+          .delete()
+          .in('LOG ID', idsToDelete);
+        await supabase
+          .from('time_tracker_logs')
+          .delete()
+          .in('id', idsToDelete);
+      }
+    }
+    return { success: true };
+  } catch (err) {
+    console.warn('Exception in deleteTimeTrackerPunchesForDay:', err);
+    return { success: false };
+  }
+}
+
+/**
  * Computes live current punch status, elapsed seconds, last punch, and the 8 button states
  */
 export function computeLiveStatusFromLogs(

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { 
   getTimeTrackerLogsFromDb, 
   insertTimeTrackerPunch, 
+  deleteTimeTrackerPunchesForDay,
   computeLiveStatusFromLogs,
   NormalizedTimeTrackerLog 
 } from '@/lib/timeTrackerDb';
@@ -70,18 +71,19 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { empId, type, status, duration } = body;
+    const { empId, type, status, duration, timestamp } = body;
 
     if (!empId || !type) {
       return NextResponse.json({ error: 'empId and type are required' }, { status: 400 });
     }
 
-    // Insert directly into Supabase table time_tracker_logs
+    // Insert directly into Supabase table time_tracker_logs with accurate timestamp
     const inserted = await insertTimeTrackerPunch({
       empId,
       punchType: type,
       status: status || 'On Time',
       duration: duration || 'N/A',
+      timestamp: timestamp || body.timestamp,
     });
 
     // Fetch fresh logs to recompute state
@@ -98,6 +100,26 @@ export async function POST(request: NextRequest) {
     );
   } catch (err: any) {
     console.error('Error in POST /api/punch-logs:', err);
+    return NextResponse.json({ error: err.message }, { status: 500 });
+  }
+}
+
+export async function DELETE(request: NextRequest) {
+  try {
+    const { searchParams } = new URL(request.url);
+    const empId = searchParams.get('empId');
+    const month = searchParams.get('month');
+    const day = searchParams.get('day');
+    const year = searchParams.get('year');
+
+    if (empId && month !== null && day !== null && year !== null) {
+      await deleteTimeTrackerPunchesForDay(empId, Number(month), Number(day), Number(year));
+      return NextResponse.json({ success: true, message: 'Punches cleared for day' });
+    }
+
+    return NextResponse.json({ error: 'Missing required parameters' }, { status: 400 });
+  } catch (err: any) {
+    console.error('Error in DELETE /api/punch-logs:', err);
     return NextResponse.json({ error: err.message }, { status: 500 });
   }
 }

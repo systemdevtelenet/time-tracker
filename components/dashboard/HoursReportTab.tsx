@@ -11,6 +11,7 @@ import {
 } from 'lucide-react';
 import { RosterEmployee } from './RosterTable';
 import { PunchLogItem, INITIAL_PUNCH_LOGS } from '@/lib/punchLogs';
+import DatePickerPopover from './DatePickerPopover';
 
 interface HoursReportTabProps {
   employees?: RosterEmployee[];
@@ -95,31 +96,6 @@ export default function HoursReportTab({
     const dateNum = d.getDate();
     return `${dayStr} ${dateNum}`;
   }, [selectedDate, viewMode]);
-
-  // Navigate dates
-  const handlePrevDay = () => {
-    const d = new Date(selectedDate);
-    if (viewMode === 'Daily') {
-      d.setDate(d.getDate() - 1);
-    } else if (viewMode === 'Weekly') {
-      d.setDate(d.getDate() - 7);
-    } else {
-      d.setMonth(d.getMonth() - 1);
-    }
-    setSelectedDate(d.toISOString().split('T')[0]);
-  };
-
-  const handleNextDay = () => {
-    const d = new Date(selectedDate);
-    if (viewMode === 'Daily') {
-      d.setDate(d.getDate() + 1);
-    } else if (viewMode === 'Weekly') {
-      d.setDate(d.getDate() + 7);
-    } else {
-      d.setMonth(d.getMonth() + 1);
-    }
-    setSelectedDate(d.toISOString().split('T')[0]);
-  };
 
   const getInitials = (name: string) => {
     return name
@@ -323,9 +299,16 @@ export default function HoursReportTab({
   const [currentPage, setCurrentPage] = useState<number>(1);
   const pageSize = 10;
 
+  const isCurrentUser = (emp: TeamMemberHours) => {
+    if (!supervisorName) return false;
+    const sName = supervisorName.toLowerCase().trim();
+    const rName = (emp.name || '').toLowerCase().trim();
+    return Boolean(sName && (rName === sName || rName.includes(sName) || sName.includes(rName)));
+  };
+
   // Filter based on search & account
   const filteredData = useMemo(() => {
-    return calculatedReportData.filter((member) => {
+    const matches = calculatedReportData.filter((member) => {
       const matchesSearch =
         !searchTerm ||
         member.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -339,7 +322,19 @@ export default function HoursReportTab({
 
       return matchesSearch && matchesAccount;
     });
-  }, [calculatedReportData, searchTerm, filterAccount]);
+
+    const currentUserList: TeamMemberHours[] = [];
+    const otherList: TeamMemberHours[] = [];
+    matches.forEach((emp) => {
+      if (isCurrentUser(emp)) {
+        currentUserList.push(emp);
+      } else {
+        otherList.push(emp);
+      }
+    });
+
+    return [...currentUserList, ...otherList];
+  }, [calculatedReportData, searchTerm, filterAccount, supervisorName]);
 
   // Reset page when filters change
   useEffect(() => {
@@ -395,30 +390,14 @@ export default function HoursReportTab({
             ))}
           </div>
 
-          {/* Date Navigator with Arrow Buttons & Date Display */}
-          <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-sans">
-            <button
-              type="button"
-              onClick={handlePrevDay}
-              className="p-1.5 rounded-lg bg-white dark:bg-slate-700 hover:bg-slate-100 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 text-xs font-semibold shadow-2xs transition-colors cursor-pointer flex items-center justify-center"
-              title="Previous Period"
-            >
-              <ChevronLeft className="w-3.5 h-3.5" />
-            </button>
-
-            <span className="font-bold text-slate-900 dark:text-slate-100 px-2 text-xs">
-              {selectedDate}
-            </span>
-
-            <button
-              type="button"
-              onClick={handleNextDay}
-              className="p-1.5 rounded-lg bg-white dark:bg-slate-700 hover:bg-slate-100 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 text-xs font-semibold shadow-2xs transition-colors cursor-pointer flex items-center justify-center"
-              title="Next Period"
-            >
-              <ChevronRight className="w-3.5 h-3.5" />
-            </button>
-          </div>
+          {/* Unified Date & Period Picker */}
+          <DatePickerPopover
+            selectedDate={selectedDate}
+            onSelectDate={(_, dateStr) => setSelectedDate(dateStr)}
+            format={viewMode === 'Monthly' ? 'month-year' : 'date'}
+            showArrows
+            align="right"
+          />
 
         </div>
 

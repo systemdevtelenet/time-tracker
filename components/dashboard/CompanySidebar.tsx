@@ -34,7 +34,7 @@ const NAV_ITEMS: NavItem[] = [
   { id: 'activity', label: 'Activity Logs', icon: FileText },
 ];
 
-export function isHeadOrAdminUser(supervisor?: { role?: string; position?: string; name?: string }) {
+export function isHeadOrAdminUser(supervisor?: { role?: string; position?: string; name?: string; id?: string }) {
   if (!supervisor) return false;
   const role = supervisor.role?.toLowerCase() || '';
   const position = supervisor.position?.toLowerCase() || '';

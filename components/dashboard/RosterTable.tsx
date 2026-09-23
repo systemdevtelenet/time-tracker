@@ -50,6 +50,8 @@ interface RosterTableProps {
   filterAccount?: string;
   onToast?: (msg: string) => void;
   onRefresh?: () => void;
+  currentUserName?: string;
+  currentUserId?: string;
 }
 
 export default function RosterTable({
@@ -67,6 +69,8 @@ export default function RosterTable({
   filterAccount = 'all',
   onToast,
   onRefresh,
+  currentUserName,
+  currentUserId,
 }: RosterTableProps) {
   const [internalSearch, setInternalSearch] = useState('');
   const searchTerm = externalSearchTerm !== undefined ? externalSearchTerm : internalSearch;
@@ -76,12 +80,22 @@ export default function RosterTable({
   const [currentPage, setCurrentPage] = useState(1);
   const [isRefreshing, setIsRefreshing] = useState(false);
 
-  const [sortField, setSortField] = useState<keyof RosterEmployee>('name');
+  const [sortField, setSortField] = useState<keyof RosterEmployee | null>(null);
   const [sortAsc, setSortAsc] = useState(true);
+
+  const isCurrentUser = (emp: RosterEmployee) => {
+    if (!currentUserName && !currentUserId) return false;
+    const sName = (currentUserName || '').toLowerCase().trim();
+    const sId = currentUserId || '';
+    const rName = (emp.name || '').toLowerCase().trim();
+    const nameMatch = Boolean(sName && (rName === sName || rName.includes(sName) || sName.includes(rName)));
+    const idMatch = Boolean(sId && (emp.employeeCode === sId || emp.id === sId || emp.id === `emp-${sId}`));
+    return nameMatch || idMatch;
+  };
 
   // Filter & Search Logic
   const filteredEmployees = useMemo(() => {
-    return employees.filter((emp) => {
+    const matches = employees.filter((emp) => {
       // Search matches
       const matchesSearch = 
         emp.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -110,18 +124,41 @@ export default function RosterTable({
       }
 
       return matchesSearch && matchesAccount && matchesStatus;
-    }).sort((a, b) => {
-      const valA = a[sortField];
-      const valB = b[sortField];
-      if (typeof valA === 'string' && typeof valB === 'string') {
-        return sortAsc ? valA.localeCompare(valB) : valB.localeCompare(valA);
-      }
-      if (typeof valA === 'number' && typeof valB === 'number') {
-        return sortAsc ? valA - valB : valB - valA;
-      }
-      return 0;
     });
-  }, [employees, searchTerm, filterAccount, activeStatusFilter, sortField, sortAsc]);
+
+    if (sortField) {
+      return [...matches].sort((a, b) => {
+        // Current logged-in user stays at the top
+        const isCurA = isCurrentUser(a);
+        const isCurB = isCurrentUser(b);
+        if (isCurA && !isCurB) return -1;
+        if (!isCurA && isCurB) return 1;
+
+        const valA = a[sortField];
+        const valB = b[sortField];
+        if (typeof valA === 'string' && typeof valB === 'string') {
+          return sortAsc ? valA.localeCompare(valB) : valB.localeCompare(valA);
+        }
+        if (typeof valA === 'number' && typeof valB === 'number') {
+          return sortAsc ? valA - valB : valB - valA;
+        }
+        return 0;
+      });
+    }
+
+    // Default: Stable partition with current user first and preserving exact roster sequence
+    const currentUserList: RosterEmployee[] = [];
+    const otherList: RosterEmployee[] = [];
+    matches.forEach((emp) => {
+      if (isCurrentUser(emp)) {
+        currentUserList.push(emp);
+      } else {
+        otherList.push(emp);
+      }
+    });
+
+    return [...currentUserList, ...otherList];
+  }, [employees, searchTerm, filterAccount, activeStatusFilter, sortField, sortAsc, currentUserName, currentUserId]);
 
   const totalPages = Math.max(1, Math.ceil(filteredEmployees.length / rowsPerPage));
 

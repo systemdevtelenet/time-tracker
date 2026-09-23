@@ -197,6 +197,34 @@ export function logUserLogin(email: string, performedBy: string = 'System Auth')
   });
 }
 
+export function logAttendanceUpdate(params: {
+  employeeName: string;
+  dateStr: string;
+  status: string;
+  punchesCount?: number;
+  performedBy?: string;
+  note?: string;
+}): SystemActivityLog {
+  const { employeeName, dateStr, status, punchesCount = 0, performedBy = 'Supervisor', note } = params;
+  const punchText = punchesCount > 0 ? ` with ${punchesCount} punch${punchesCount > 1 ? 'es' : ''}` : '';
+  const noteText = note ? ` (Note: "${note}")` : '';
+  
+  return addActivityLog({
+    title: 'Attendance Shift Updated',
+    description: `${employeeName}'s attendance for ${dateStr} was updated to ${status}${punchText}.${noteText}`,
+    performedBy: performedBy || 'Supervisor',
+    category: 'ATTENDANCE',
+    type: 'attendance',
+    metadata: {
+      employeeName,
+      dateStr,
+      status,
+      punchesCount,
+      note,
+    },
+  });
+}
+
 export function markAllNotificationsAsRead(): void {
   if (typeof window === 'undefined') return;
   const current = getActivityLogs();
