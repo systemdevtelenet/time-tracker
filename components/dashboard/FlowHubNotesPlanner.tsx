@@ -2,204 +2,182 @@
 
 import React, { useState } from 'react';
 import { 
-  FileText, 
-  CheckSquare, 
   Pin, 
   Plus, 
   Trash2, 
   Copy, 
   Check, 
   Clock, 
-  User, 
-  Sparkles, 
-  Tag, 
-  AlertTriangle, 
   Calendar, 
   Edit3, 
-  Flame, 
-  Zap, 
-  ShieldCheck, 
-  ArrowRight,
-  Bookmark,
-  Type,
-  Italic,
-  Bold,
-  Underline
+  CheckCircle2,
+  AlertCircle,
+  FileCheck2,
+  CalendarDays,
+  ShieldCheck,
+  Save,
+  Tag
 } from 'lucide-react';
 import ConfirmActionModal from './ConfirmActionModal';
 
-interface StickyNote {
+interface AttendanceStickyNote {
   id: string;
   title: string;
   content: string;
   color: 'blue' | 'yellow' | 'green' | 'rose' | 'slate';
-  tag: string;
+  tag: 'Late Arrival' | 'Meal Coverage' | 'Shift Swap' | 'Overtime Flag' | 'Missing Punch' | 'Approved Leave';
   isPinned: boolean;
   timestamp: string;
 }
 
-interface ShiftPriority {
-  id: string;
-  text: string;
-  completed: boolean;
-  priority: 'HIGH' | 'MEDIUM' | 'NORMAL';
-}
-
-interface ShiftTimeBlock {
+interface ShiftPunchMilestone {
   id: string;
   timeRange: string;
   activity: string;
-  category: string;
+  category: 'Punch-In' | 'Paid Break' | 'Meal Break' | 'Verification' | 'Punch-Out';
   completed: boolean;
-}
-
-interface CoachingLog {
-  id: string;
-  traineeName: string;
-  topic: string;
-  actionPlan: string;
-  status: 'Pending' | 'Completed';
-  date: string;
+  note?: string;
 }
 
 export default function FlowHubNotesPlanner() {
-  const [activeTab, setActiveTab] = useState<'handover' | 'stickies' | 'schedule' | 'coaching' | 'minddump'>('handover');
+  const [activeTab, setActiveTab] = useState<'stickies' | 'schedule' | 'memo'>('stickies');
 
-  // 1. Shift Handover & Endorsement State
-  const [shiftPriorities, setShiftPriorities] = useState<ShiftPriority[]>([
-    { id: 'p1', text: 'Batch 12 Module 3 Live Evaluation & QA Audit', completed: false, priority: 'HIGH' },
-    { id: 'p2', text: 'Follow-up on SL Form & Ticket #17889 (Matt Riner)', completed: true, priority: 'HIGH' },
-    { id: 'p3', text: 'End-of-shift attendance lock & supervisor punch sync', completed: false, priority: 'MEDIUM' },
-  ]);
-  const [newPriorityText, setNewPriorityText] = useState('');
-  const [handoverPendingIssues, setHandoverPendingIssues] = useState(
-    '1. Trainee Bianca Colonia requested schedule adjustment for Friday.\n2. Audio test server had a 10-min latency spike at 01:30 AM (Resolved).\n3. Batch 12 exam 2 scores ready for QA verification.'
-  );
-  const [handoverNextShiftEndorsements, setHandoverNextShiftEndorsements] = useState(
-    '• Handover to Next Supervisor (Rommel Mendoza / Raymundo):\n- Please monitor Batch 12 simulation calls starting 09:00 PM.\n- Check attendance records for 3 newly onboarded trainers.'
-  );
-  const [isCopiedReport, setIsCopiedReport] = useState(false);
-
-  // 2. Sticky Notes Scratchpad State
-  const [stickyNotes, setStickyNotes] = useState<StickyNote[]>([
+  // 1. Attendance Sticky Notes State
+  const [stickyNotes, setStickyNotes] = useState<AttendanceStickyNote[]>([
     {
       id: 's1',
-      title: 'QA Escalation #17889',
-      content: 'Call handling score issue on COVA simulation. Needs re-coaching before Friday certification.',
-      color: 'rose',
-      tag: 'Escalation',
+      title: 'Auto-Capped Punch-Out Verification',
+      content: 'Shift end duration auto-capped to 8.0 hrs regular for unclosed 06:00 AM punch-out. Verified by Head of Training.',
+      color: 'yellow',
+      tag: 'Missing Punch',
       isPinned: true,
-      timestamp: '02:15 AM',
+      timestamp: '09:42 PM',
     },
     {
       id: 's2',
-      title: 'Batch 12 Attendance Note',
-      content: 'Maegan & Niño were present on time for morning huddle. Great reliability this week!',
-      color: 'green',
-      tag: 'Trainees',
+      title: 'Meal / Lunch Break Coverage',
+      content: 'Badz covered Neil\'s 1-hour lunch period from 04:47 AM to 05:47 AM on ONO account.',
+      color: 'blue',
+      tag: 'Meal Coverage',
       isPinned: true,
-      timestamp: '01:45 AM',
+      timestamp: '04:50 AM',
     },
     {
       id: 's3',
-      title: 'Meeting with Operations',
-      content: 'Agenda: Shift roster for October and training room audio headset upgrades.',
-      color: 'blue',
-      tag: 'Meeting',
-      isPinned: false,
+      title: 'Schedule Swap — Fleet Account',
+      content: 'Charles Espinosa approved for 8.0 hrs shift coverage on Fleet queue. Attendance logged and verified.',
+      color: 'green',
+      tag: 'Shift Swap',
+      isPinned: true,
       timestamp: 'Yesterday',
     },
     {
       id: 's4',
-      title: 'Quick Extension Codes',
-      content: 'IT Support: ext. 4040\nHR Desk: ext. 2011\nOps Floor Desk: ext. 1005',
-      color: 'yellow',
-      tag: 'Quick Ref',
+      title: 'Rain Grace Period Approval',
+      content: 'Matt Riner Balaba - 15 min weather delay arrival approved under company typhoon/rain grace period policy.',
+      color: 'rose',
+      tag: 'Late Arrival',
       isPinned: false,
-      timestamp: 'Sep 14',
+      timestamp: 'Sep 24',
     },
   ]);
+
   const [newNoteTitle, setNewNoteTitle] = useState('');
   const [newNoteContent, setNewNoteContent] = useState('');
   const [newNoteColor, setNewNoteColor] = useState<'blue' | 'yellow' | 'green' | 'rose'>('blue');
-  const [newNoteTag, setNewNoteTag] = useState('General');
+  const [newNoteTag, setNewNoteTag] = useState<AttendanceStickyNote['tag']>('Late Arrival');
   const [isAddingSticky, setIsAddingSticky] = useState(false);
   const [stickyToDelete, setStickyToDelete] = useState<string | null>(null);
 
-  // 3. Shift Time-Block Schedule State
-  const [shiftTimeBlocks, setShiftTimeBlocks] = useState<ShiftTimeBlock[]>([
-    { id: 'tb1', timeRange: '09:00 PM – 09:30 PM', activity: 'Team Standup & Attendance Sync', category: 'Ops', completed: true },
-    { id: 'tb2', timeRange: '09:30 PM – 12:30 AM', activity: 'Batch 12 Live Training & Simulation Runs', category: 'Training', completed: true },
-    { id: 'tb3', timeRange: '12:30 AM – 01:00 AM', activity: 'Mid-Shift Check & Escalation Logging', category: 'Admin', completed: true },
-    { id: 'tb4', timeRange: '01:00 AM – 02:00 AM', activity: 'Lunch Break (Shift Staggered)', category: 'Break', completed: false },
-    { id: 'tb5', timeRange: '02:00 AM – 04:00 AM', activity: '1-on-1 Coaching & QA Audit Reviews', category: 'Coaching', completed: false },
-    { id: 'tb6', timeRange: '04:00 AM – 05:30 AM', activity: 'Self-Paced Practice & Trainee Quiz Verification', category: 'Training', completed: false },
-    { id: 'tb7', timeRange: '05:30 AM – 06:00 AM', activity: 'Shift Handover & Endorsement Report', category: 'Handover', completed: false },
+  // 2. Shift Attendance Timeline (9:00 PM to 6:00 AM Shift Schedule)
+  const [shiftMilestones, setShiftMilestones] = useState<ShiftPunchMilestone[]>([
+    { 
+      id: 'tb1', 
+      timeRange: '09:00 PM', 
+      activity: 'Shift Start & Live Punch In', 
+      category: 'Punch-In', 
+      completed: true, 
+      note: 'Supervisor and team clock-in on portal' 
+    },
+    { 
+      id: 'tb2', 
+      timeRange: '11:00 PM – 11:15 PM', 
+      activity: '1st Paid Rest Period (15 mins)', 
+      category: 'Paid Break', 
+      completed: true, 
+      note: 'Paid rest interval — No punch deduction' 
+    },
+    { 
+      id: 'tb3', 
+      timeRange: '01:00 AM – 02:00 AM', 
+      activity: 'Unpaid Meal / Lunch Break (1 Hour)', 
+      category: 'Meal Break', 
+      completed: true, 
+      note: 'Staggered lunch window — 60m deduction' 
+    },
+    { 
+      id: 'tb4', 
+      timeRange: '03:30 AM – 03:45 AM', 
+      activity: '2nd Paid Rest Period (15 mins)', 
+      category: 'Paid Break', 
+      completed: false, 
+      note: 'Final 15-minute rest interval' 
+    },
+    { 
+      id: 'tb5', 
+      timeRange: '05:45 AM – 06:00 AM', 
+      activity: 'Daily Shift Audit & Unclosed Punch Check', 
+      category: 'Verification', 
+      completed: false, 
+      note: 'Verify missing punches to avoid auto-cap flags' 
+    },
+    { 
+      id: 'tb6', 
+      timeRange: '06:00 AM', 
+      activity: 'Shift End & Live Punch Out', 
+      category: 'Punch-Out', 
+      completed: false, 
+      note: '8.0 regular work hours logged' 
+    },
   ]);
 
-  // 4. Coaching Log State
-  const [coachingLogs, setCoachingLogs] = useState<CoachingLog[]>([
-    {
-      id: 'c1',
-      traineeName: 'Bianca Kaye Colonia',
-      topic: 'AHT (Average Handling Time) optimization & empathy tone',
-      actionPlan: 'Practice 3 mock calls on customer objections; follow cheat sheet on knowledge portal.',
-      status: 'Pending',
-      date: 'Sep 16, 2026',
-    },
-    {
-      id: 'c2',
-      traineeName: 'Rommel Mendoza',
-      topic: 'Tardiness prevention & shift check-in punctuality',
-      actionPlan: 'Set 30-min buffer alarm; acknowledged attendance policy endorsement.',
-      status: 'Completed',
-      date: 'Sep 15, 2026',
-    },
-  ]);
-  const [newCoachingName, setNewCoachingName] = useState('Michelle Yncierto');
-  const [newCoachingTopic, setNewCoachingTopic] = useState('');
-  const [newCoachingAction, setNewCoachingAction] = useState('');
-  const [isAddingCoaching, setIsAddingCoaching] = useState(false);
+  // 3. Attendance Shift Memo State
+  const [memoTitle, setMemoTitle] = useState('Daily Shift Attendance & Adherence Memo');
+  const [memoText, setMemoText] = useState(
+    `CEBU TELE-NET OPERATIONS — DAILY ATTENDANCE SUMMARY
+Date of Shift: September 25, 2026
+Shift Window: 9:00 PM to 6:00 AM
+Supervisor / Head of Training: Nissi-Jeh Reguero
 
-  // 5. Mind Dump / Freeform Note State
-  const [mindDumpTitle, setMindDumpTitle] = useState('Shift Planning & Training Memo');
-  const [mindDumpText, setMindDumpText] = useState(
-    'Cebu Tele-Net Training Operations — Week 3 Progress Note.\n\nAll Batch 12 trainees have completed the technical telephony onboarding. Priority focus for the upcoming pay period is customer communication, escalation matrix adherence, and CRM ticket accuracy.\n\nKey Action Items:\n- Review QA scorecard for incoming trainers\n- Verify supervisor lunch logs on portal'
+1. PUNCTUALITY & ATTENDANCE COMPLIANCE:
+• Total Active Roster: 13 Members
+• Verified Shifts Logged: 10 Shifts
+• On-Time Punctuality Rate: 100% (No unexcused tardiness)
+
+2. BREAK & MEAL ADHERENCE:
+• 1st & 2nd Paid Breaks (15m): 100% compliance across all trainers.
+• 1-Hour Meal / Lunch: All lunch periods properly recorded.
+
+3. SCHEDULE OVERRIDES & COVERAGE:
+• Charles Espinosa covered 8.0 hrs on Fleet Queue.
+• Badz covered 1.0 hr lunch coverage on ONO account.
+
+4. END-OF-SHIFT PUNCH VALIDATION:
+• All shift logs verified against Cebu Tele-Net Attendance Audit Trail.`
   );
-  const [isSavedMindDump, setIsSavedMindDump] = useState(false);
+  const [isSavedMemo, setIsSavedMemo] = useState(false);
+  const [isCopiedMemo, setIsCopiedMemo] = useState(false);
 
   // Handlers
-  const handleTogglePriority = (id: string) => {
-    setShiftPriorities(prev => prev.map(p => p.id === id ? { ...p, completed: !p.completed } : p));
-  };
-
-  const handleAddPriority = () => {
-    if (!newPriorityText.trim()) return;
-    setShiftPriorities(prev => [
-      ...prev,
-      { id: Date.now().toString(), text: newPriorityText.trim(), completed: false, priority: 'HIGH' }
-    ]);
-    setNewPriorityText('');
-  };
-
-  const handleCopyHandoverReport = () => {
-    const prioritiesStr = shiftPriorities.map(p => `[${p.completed ? 'X' : ' '}] ${p.text}`).join('\n');
-    const fullReport = `=== CEBU TELE-NET SHIFT HANDOVER REPORT ===\nDate: September 16, 2026\nSupervisor: Nissi-Jeh Reguero\n\n📌 DAILY PRIORITIES:\n${prioritiesStr}\n\n⚠️ PENDING ISSUES & ESCALATIONS:\n${handoverPendingIssues}\n\n📝 ENDORSEMENTS FOR NEXT SHIFT:\n${handoverNextShiftEndorsements}\n\nGenerated via Cebu Tele-Net Flow Hub.`;
-    
-    navigator.clipboard.writeText(fullReport);
-    setIsCopiedReport(true);
-    setTimeout(() => setIsCopiedReport(false), 2500);
-  };
-
   const handleAddStickyNote = () => {
     if (!newNoteTitle.trim() && !newNoteContent.trim()) return;
     setStickyNotes(prev => [
       {
         id: Date.now().toString(),
-        title: newNoteTitle.trim() || 'Untitled Note',
+        title: newNoteTitle.trim() || 'Attendance Note',
         content: newNoteContent.trim(),
         color: newNoteColor,
-        tag: newNoteTag.trim() || 'General',
+        tag: newNoteTag,
         isPinned: false,
         timestamp: 'Just now',
       },
@@ -218,39 +196,65 @@ export default function FlowHubNotesPlanner() {
     setStickyNotes(prev => prev.map(s => s.id === id ? { ...s, isPinned: !s.isPinned } : s));
   };
 
-  const handleToggleTimeBlock = (id: string) => {
-    setShiftTimeBlocks(prev => prev.map(b => b.id === id ? { ...b, completed: !b.completed } : b));
+  const handleToggleMilestone = (id: string) => {
+    setShiftMilestones(prev => prev.map(b => b.id === id ? { ...b, completed: !b.completed } : b));
   };
 
-  const handleAddCoaching = () => {
-    if (!newCoachingTopic.trim()) return;
-    setCoachingLogs(prev => [
-      {
-        id: Date.now().toString(),
-        traineeName: newCoachingName,
-        topic: newCoachingTopic.trim(),
-        actionPlan: newCoachingAction.trim() || 'Self-review and follow-up on next shift.',
-        status: 'Pending',
-        date: 'Sep 16, 2026',
-      },
-      ...prev
-    ]);
-    setNewCoachingTopic('');
-    setNewCoachingAction('');
-    setIsAddingCoaching(false);
+  const handleSaveMemo = () => {
+    setIsSavedMemo(true);
+    setTimeout(() => setIsSavedMemo(false), 2000);
   };
 
-  const getStickyColorClasses = (color: StickyNote['color']) => {
+  const handleCopyMemo = () => {
+    navigator.clipboard.writeText(memoText);
+    setIsCopiedMemo(true);
+    setTimeout(() => setIsCopiedMemo(false), 2500);
+  };
+
+  const getStickyColorClasses = (color: AttendanceStickyNote['color']) => {
     switch (color) {
       case 'rose':
-        return 'bg-[#FADBD8] dark:bg-rose-950/60 border-rose-300 dark:border-rose-700 text-rose-950 dark:text-rose-100';
+        return 'bg-rose-50 dark:bg-rose-950/40 border-rose-300 dark:border-rose-800 text-rose-950 dark:text-rose-100';
       case 'green':
-        return 'bg-[#D4EFDF] dark:bg-emerald-950/60 border-emerald-400 dark:border-emerald-700 text-emerald-950 dark:text-emerald-100';
+        return 'bg-emerald-50 dark:bg-emerald-950/40 border-emerald-300 dark:border-emerald-800 text-emerald-950 dark:text-emerald-100';
       case 'yellow':
-        return 'bg-[#FDEBD0] dark:bg-amber-950/60 border-amber-300 dark:border-amber-700 text-amber-950 dark:text-amber-100';
+        return 'bg-amber-50 dark:bg-amber-950/40 border-amber-300 dark:border-amber-800 text-amber-950 dark:text-amber-100';
       case 'blue':
       default:
-        return 'bg-[#D6EAF8] dark:bg-blue-950/60 border-blue-300 dark:border-blue-700 text-blue-950 dark:text-blue-100';
+        return 'bg-blue-50 dark:bg-blue-950/40 border-blue-300 dark:border-blue-800 text-blue-950 dark:text-blue-100';
+    }
+  };
+
+  const getTagBadgeClass = (tag: AttendanceStickyNote['tag']) => {
+    switch (tag) {
+      case 'Late Arrival':
+        return 'bg-rose-100 text-rose-800 dark:bg-rose-900/60 dark:text-rose-200';
+      case 'Meal Coverage':
+        return 'bg-blue-100 text-blue-800 dark:bg-blue-900/60 dark:text-blue-200';
+      case 'Shift Swap':
+        return 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/60 dark:text-emerald-200';
+      case 'Missing Punch':
+        return 'bg-amber-100 text-amber-800 dark:bg-amber-900/60 dark:text-amber-200';
+      case 'Overtime Flag':
+        return 'bg-purple-100 text-purple-800 dark:bg-purple-900/60 dark:text-purple-200';
+      case 'Approved Leave':
+        return 'bg-slate-200 text-slate-800 dark:bg-slate-700 dark:text-slate-200';
+      default:
+        return 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300';
+    }
+  };
+
+  const getCategoryClass = (cat: ShiftPunchMilestone['category']) => {
+    switch (cat) {
+      case 'Punch-In':
+      case 'Punch-Out':
+        return 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 border-emerald-300 dark:border-emerald-800';
+      case 'Meal Break':
+        return 'bg-blue-100 text-blue-800 dark:bg-blue-950 dark:text-blue-300 border-blue-300 dark:border-blue-800';
+      case 'Paid Break':
+        return 'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300 border-amber-300 dark:border-amber-800';
+      case 'Verification':
+        return 'bg-indigo-100 text-indigo-800 dark:bg-indigo-950 dark:text-indigo-300 border-indigo-300 dark:border-indigo-800';
     }
   };
 
@@ -263,292 +267,151 @@ export default function FlowHubNotesPlanner() {
         <div>
           <div className="flex items-center gap-2">
             <div className="w-8 h-8 rounded-xl bg-[#2F6798]/15 text-[#2F6798] dark:bg-blue-950/80 dark:text-blue-300 flex items-center justify-center shadow-2xs">
-              <FileText className="w-4 h-4" />
+              <FileCheck2 className="w-4 h-4" />
             </div>
             <h3 className="text-base sm:text-lg font-black text-slate-900 dark:text-slate-100 tracking-tight">
-              Shift Notes & Planning Studio
+              Shift Attendance &amp; Planning Studio
             </h3>
           </div>
           <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-            Operational handovers, time-block scheduling, coaching logs & scratchpad
+            Attendance exception flags, scheduled shift punch timeline &amp; audit shift memo
           </p>
         </div>
 
-        {/* Tab Navigation Pill Group */}
+        {/* 3 Focused Attendance Tabs */}
         <div className="flex items-center p-1 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold overflow-x-auto">
-          <button
-            type="button"
-            onClick={() => setActiveTab('handover')}
-            className={`px-3 py-1.5 rounded-lg flex items-center gap-1.5 transition-all cursor-pointer whitespace-nowrap ${
-              activeTab === 'handover'
-                ? 'bg-[#2F6798] text-white shadow-xs font-black'
-                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900'
-            }`}
-          >
-            <ShieldCheck className="w-3.5 h-3.5" />
-            <span>Shift Handover</span>
-          </button>
-
+          
           <button
             type="button"
             onClick={() => setActiveTab('stickies')}
-            className={`px-3 py-1.5 rounded-lg flex items-center gap-1.5 transition-all cursor-pointer whitespace-nowrap ${
+            className={`px-3.5 py-1.5 rounded-lg flex items-center gap-1.5 transition-all cursor-pointer whitespace-nowrap ${
               activeTab === 'stickies'
                 ? 'bg-[#2F6798] text-white shadow-xs font-black'
-                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900'
+                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
             }`}
           >
             <Pin className="w-3.5 h-3.5" />
-            <span>Sticky Board ({stickyNotes.length})</span>
+            <span>Attendance Flags &amp; Notes ({stickyNotes.length})</span>
           </button>
 
           <button
             type="button"
             onClick={() => setActiveTab('schedule')}
-            className={`px-3 py-1.5 rounded-lg flex items-center gap-1.5 transition-all cursor-pointer whitespace-nowrap ${
+            className={`px-3.5 py-1.5 rounded-lg flex items-center gap-1.5 transition-all cursor-pointer whitespace-nowrap ${
               activeTab === 'schedule'
                 ? 'bg-[#2F6798] text-white shadow-xs font-black'
-                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900'
+                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
             }`}
           >
             <Clock className="w-3.5 h-3.5" />
-            <span>Shift Timeline</span>
+            <span>Shift Punch Timeline</span>
           </button>
 
           <button
             type="button"
-            onClick={() => setActiveTab('coaching')}
-            className={`px-3 py-1.5 rounded-lg flex items-center gap-1.5 transition-all cursor-pointer whitespace-nowrap ${
-              activeTab === 'coaching'
+            onClick={() => setActiveTab('memo')}
+            className={`px-3.5 py-1.5 rounded-lg flex items-center gap-1.5 transition-all cursor-pointer whitespace-nowrap ${
+              activeTab === 'memo'
                 ? 'bg-[#2F6798] text-white shadow-xs font-black'
-                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900'
-            }`}
-          >
-            <User className="w-3.5 h-3.5" />
-            <span>1-on-1 Coaching</span>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => setActiveTab('minddump')}
-            className={`px-3 py-1.5 rounded-lg flex items-center gap-1.5 transition-all cursor-pointer whitespace-nowrap ${
-              activeTab === 'minddump'
-                ? 'bg-[#2F6798] text-white shadow-xs font-black'
-                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900'
+                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
             }`}
           >
             <Edit3 className="w-3.5 h-3.5" />
-            <span>Freeform Memo</span>
+            <span>Daily Attendance Memo</span>
           </button>
+
         </div>
 
       </div>
 
-      {/* 2. Tab Contents */}
-      
-      {/* TAB 1: SHIFT HANDOVER & ENDORSEMENT PLAN */}
-      {activeTab === 'handover' && (
-        <div className="space-y-4 animate-in fade-in">
-          
-          {/* Top 3 Priorities Checklist */}
-          <div className="p-4 rounded-xl bg-[#F4F7FB] dark:bg-[#070D1E] border border-slate-200/80 dark:border-slate-800 space-y-3">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-black text-slate-800 dark:text-slate-200 uppercase tracking-wider flex items-center gap-1.5">
-                <Flame className="w-3.5 h-3.5 text-amber-500" />
-                <span>Top Shift Priorities ({shiftPriorities.filter(p => p.completed).length}/{shiftPriorities.length} Completed)</span>
-              </span>
-              <span className="text-[10px] font-bold text-slate-400">September 16, 2026 Shift</span>
-            </div>
-
-            <div className="space-y-2">
-              {shiftPriorities.map((item) => (
-                <div
-                  key={item.id}
-                  onClick={() => handleTogglePriority(item.id)}
-                  className={`p-2.5 rounded-lg border transition-all flex items-center justify-between gap-3 cursor-pointer ${
-                    item.completed
-                      ? 'bg-[#27AE60]/10 dark:bg-[#27AE60]/20 border-[#27AE60]/40 dark:border-[#27AE60]/60 text-slate-500 line-through'
-                      : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 hover:border-[#2F6798]'
-                  }`}
-                >
-                  <div className="flex items-center gap-2.5">
-                    <div className={`w-4 h-4 rounded-md border flex items-center justify-center transition-colors ${
-                      item.completed 
-                        ? 'bg-[#27AE60] border-[#27AE60] text-white' 
-                        : 'border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800'
-                    }`}>
-                      {item.completed && <Check className="w-3 h-3 stroke-[3]" />}
-                    </div>
-                    <span className="text-xs font-bold">{item.text}</span>
-                  </div>
-
-                  <span className={`px-2 py-0.5 rounded text-[10px] font-black uppercase ${
-                    item.priority === 'HIGH'
-                      ? 'bg-rose-100 text-rose-700 dark:bg-rose-950 dark:text-rose-300'
-                      : 'bg-blue-100 text-blue-700 dark:bg-blue-950 dark:text-blue-300'
-                  }`}>
-                    {item.priority}
-                  </span>
-                </div>
-              ))}
-            </div>
-
-            {/* Quick add priority */}
-            <div className="flex items-center gap-2 pt-1">
-              <input
-                type="text"
-                value={newPriorityText}
-                onChange={(e) => setNewPriorityText(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && handleAddPriority()}
-                placeholder="Add a new target priority..."
-                className="flex-1 px-3 py-1.5 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-xs text-slate-800 dark:text-slate-200 placeholder-slate-400 outline-none focus:ring-1 focus:ring-[#2F6798]"
-              />
-              <button
-                type="button"
-                onClick={handleAddPriority}
-                className="px-3 py-1.5 rounded-lg bg-[#2F6798] hover:bg-[#24537D] text-white text-xs font-bold cursor-pointer transition-colors shrink-0"
-              >
-                Add
-              </button>
-            </div>
-          </div>
-
-          {/* Two Columns: Pending Issues & Next Shift Endorsements */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            
-            {/* Pending Issues & Escalations */}
-            <div className="p-3.5 rounded-xl bg-slate-50 dark:bg-slate-900/40 border border-slate-200/80 dark:border-slate-800 space-y-2">
-              <div className="flex items-center gap-1.5 text-xs font-black text-rose-700 dark:text-rose-400 uppercase">
-                <AlertTriangle className="w-3.5 h-3.5" />
-                <span>Pending Issues &amp; Trainee Escalations</span>
-              </div>
-              <textarea
-                rows={2}
-                value={handoverPendingIssues}
-                onChange={(e) => setHandoverPendingIssues(e.target.value)}
-                placeholder="Log any unresolved trainer or technical issues..."
-                className="w-full p-2.5 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-xs text-slate-800 dark:text-slate-200 leading-relaxed outline-none focus:ring-1 focus:ring-[#2F6798] resize-none"
-              />
-            </div>
-
-            {/* Next Shift Endorsements */}
-            <div className="p-3.5 rounded-xl bg-slate-50 dark:bg-slate-900/40 border border-slate-200/80 dark:border-slate-800 space-y-2">
-              <div className="flex items-center gap-1.5 text-xs font-black text-[#2F6798] dark:text-blue-400 uppercase">
-                <ArrowRight className="w-3.5 h-3.5" />
-                <span>Endorsements to Incoming Supervisor</span>
-              </div>
-              <textarea
-                rows={2}
-                value={handoverNextShiftEndorsements}
-                onChange={(e) => setHandoverNextShiftEndorsements(e.target.value)}
-                placeholder="Notes for next shift team..."
-                className="w-full p-2.5 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-xs text-slate-800 dark:text-slate-200 leading-relaxed outline-none focus:ring-1 focus:ring-[#2F6798] resize-none"
-              />
-            </div>
-
-          </div>
-
-          {/* Action Footer: 1-Click Copy Shift Report */}
-          <div className="flex items-center justify-between p-3 rounded-xl bg-slate-100 dark:bg-slate-800/80 border border-slate-200/80 dark:border-slate-700">
-            <span className="text-xs text-slate-500 font-semibold">
-              Ready to send to team Slack / Discord / Email handover channel?
-            </span>
-            <button
-              type="button"
-              onClick={handleCopyHandoverReport}
-              className="px-4 py-1.5 rounded-lg bg-[#2F6798] hover:bg-[#235179] text-white text-xs font-black shadow-xs transition-all flex items-center gap-1.5 cursor-pointer"
-            >
-              {isCopiedReport ? (
-                <>
-                  <Check className="w-3.5 h-3.5 text-emerald-300" />
-                  <span>Report Copied!</span>
-                </>
-              ) : (
-                <>
-                  <Copy className="w-3.5 h-3.5" />
-                  <span>Copy Formatted Shift Report</span>
-                </>
-              )}
-            </button>
-          </div>
-
-        </div>
-      )}
-
-      {/* TAB 2: STICKY BOARD SCRATCHPAD */}
+      {/* 2. TAB 1: ATTENDANCE STICKY NOTES & EXCEPTION FLAGS */}
       {activeTab === 'stickies' && (
         <div className="space-y-4 animate-in fade-in">
           
-          {/* Header Action: Add Sticky Button */}
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-bold text-slate-400">
-              Pin critical thoughts, shift tasks, training notes & quick reminders
-            </span>
+          {/* Action Bar */}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-bold text-slate-700 dark:text-slate-300">
+                Active Attendance Flags ({stickyNotes.length})
+              </span>
+              <span className="text-[11px] px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 font-semibold">
+                {stickyNotes.filter(s => s.isPinned).length} Pinned
+              </span>
+            </div>
+
             <button
               type="button"
               onClick={() => setIsAddingSticky(!isAddingSticky)}
-              className="px-3 py-1.5 rounded-lg bg-[#2F6798] hover:bg-[#235179] text-white text-xs font-bold transition-all flex items-center gap-1 cursor-pointer"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#2F6798] hover:bg-[#24537D] text-white text-xs font-bold shadow-xs transition-colors cursor-pointer self-start sm:self-auto"
             >
               <Plus className="w-3.5 h-3.5" />
-              <span>{isAddingSticky ? 'Close Form' : 'New Sticky Note'}</span>
+              <span>{isAddingSticky ? 'Cancel Note' : 'Add Attendance Note'}</span>
             </button>
           </div>
 
-          {/* Add Sticky Card Form */}
+          {/* Add Note Form */}
           {isAddingSticky && (
-            <div className="p-4 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 space-y-3">
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <div className="p-4 rounded-xl bg-slate-50 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-700 space-y-3 animate-in fade-in">
+              <span className="text-xs font-black text-slate-800 dark:text-slate-200 uppercase tracking-wider block">
+                Create New Attendance Exception Note
+              </span>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <input
                   type="text"
                   value={newNoteTitle}
                   onChange={(e) => setNewNoteTitle(e.target.value)}
-                  placeholder="Note Title..."
-                  className="px-3 py-1.5 rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-800 dark:text-slate-200 outline-none"
+                  placeholder="Note Title (e.g. Approved Lateness, Lunch Swap)..."
+                  className="w-full px-3 py-2 text-xs rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 outline-none focus:ring-2 focus:ring-[#2F6798]/30 font-medium"
                 />
-                <input
-                  type="text"
+
+                {/* Category Tag Selector */}
+                <select
                   value={newNoteTag}
-                  onChange={(e) => setNewNoteTag(e.target.value)}
-                  placeholder="Tag (e.g. Escalation, Trainees)..."
-                  className="px-3 py-1.5 rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs text-slate-800 dark:text-slate-200 outline-none"
-                />
-                <div className="flex items-center gap-2">
-                  <span className="text-xs text-slate-400 font-bold">Color:</span>
-                  {(['blue', 'yellow', 'green', 'rose'] as const).map(color => (
-                    <button
-                      key={color}
-                      type="button"
-                      onClick={() => setNewNoteColor(color)}
-                      className={`w-6 h-6 rounded-full border-2 transition-all cursor-pointer ${
-                        color === 'blue' ? 'bg-blue-400' : color === 'yellow' ? 'bg-amber-400' : color === 'green' ? 'bg-[#27AE60]' : 'bg-rose-400'
-                      } ${newNoteColor === color ? 'border-slate-900 dark:border-white scale-110' : 'border-transparent opacity-70'}`}
-                    />
-                  ))}
-                </div>
+                  onChange={(e) => setNewNoteTag(e.target.value as any)}
+                  className="w-full px-3 py-2 text-xs rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 outline-none focus:ring-2 focus:ring-[#2F6798]/30 font-medium cursor-pointer"
+                >
+                  <option value="Late Arrival">Late Arrival</option>
+                  <option value="Meal Coverage">Meal Coverage</option>
+                  <option value="Shift Swap">Shift Swap</option>
+                  <option value="Missing Punch">Missing Punch</option>
+                  <option value="Overtime Flag">Overtime Flag</option>
+                  <option value="Approved Leave">Approved Leave</option>
+                </select>
               </div>
 
               <textarea
                 rows={2}
                 value={newNoteContent}
                 onChange={(e) => setNewNoteContent(e.target.value)}
-                placeholder="Write your quick note here..."
-                className="w-full p-2.5 rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs text-slate-800 dark:text-slate-200 outline-none resize-none"
+                placeholder="Details of the attendance note, employee name, timestamps, and reason..."
+                className="w-full p-2.5 text-xs rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 outline-none focus:ring-2 focus:ring-[#2F6798]/30 resize-none font-medium"
               />
 
-              <div className="flex justify-end gap-2">
-                <button
-                  type="button"
-                  onClick={() => setIsAddingSticky(false)}
-                  className="px-3 py-1 rounded-lg text-xs font-bold text-slate-500 hover:bg-slate-200 dark:hover:bg-slate-800 cursor-pointer"
-                >
-                  Cancel
-                </button>
+              <div className="flex items-center justify-between gap-3 pt-1">
+                {/* Color Selector */}
+                <div className="flex items-center gap-2">
+                  <span className="text-[11px] font-bold text-slate-500 dark:text-slate-400">Card Color:</span>
+                  {(['blue', 'green', 'yellow', 'rose'] as const).map((col) => (
+                    <button
+                      key={col}
+                      type="button"
+                      onClick={() => setNewNoteColor(col)}
+                      className={`w-5 h-5 rounded-full cursor-pointer transition-transform ${
+                        col === 'blue' ? 'bg-blue-400' :
+                        col === 'green' ? 'bg-emerald-400' :
+                        col === 'yellow' ? 'bg-amber-400' : 'bg-rose-400'
+                      } ${newNoteColor === col ? 'ring-2 ring-offset-2 ring-[#2F6798] scale-110' : ''}`}
+                    />
+                  ))}
+                </div>
+
                 <button
                   type="button"
                   onClick={handleAddStickyNote}
-                  className="px-4 py-1.5 rounded-lg bg-[#2F6798] hover:bg-[#235179] text-white text-xs font-black cursor-pointer"
+                  className="px-4 py-1.5 rounded-lg bg-[#2F6798] hover:bg-[#24537D] text-white text-xs font-bold cursor-pointer transition-colors"
                 >
-                  Pin Note
+                  Save Note
                 </button>
               </div>
             </div>
@@ -556,47 +419,62 @@ export default function FlowHubNotesPlanner() {
 
           {/* Sticky Notes Grid */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5">
-            {stickyNotes.map(note => (
+            {stickyNotes.map((note) => (
               <div
                 key={note.id}
-                className={`p-3.5 rounded-xl border shadow-2xs flex flex-col justify-between space-y-2 relative transition-all group hover:shadow-md ${getStickyColorClasses(note.color)}`}
+                className={`p-4 rounded-xl border shadow-xs flex flex-col justify-between transition-all duration-200 group ${getStickyColorClasses(note.color)} ${
+                  note.isPinned ? 'ring-1.5 ring-[#2F6798]/50' : ''
+                }`}
               >
                 <div>
-                  <div className="flex items-start justify-between gap-2">
-                    <span className="px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider bg-black/10 dark:bg-white/10">
+                  <div className="flex items-start justify-between gap-2 mb-2">
+                    <span className={`px-2 py-0.5 rounded text-[10px] font-extrabold uppercase tracking-wide ${getTagBadgeClass(note.tag)}`}>
                       {note.tag}
                     </span>
+
                     <div className="flex items-center gap-1 opacity-80 group-hover:opacity-100 transition-opacity">
                       <button
                         type="button"
                         onClick={() => handleTogglePinSticky(note.id)}
-                        className={`p-1 rounded cursor-pointer ${note.isPinned ? 'text-amber-600 font-bold' : 'text-slate-400 hover:text-slate-700'}`}
-                        title={note.isPinned ? 'Unpin note' : 'Pin note'}
+                        className={`p-1 rounded cursor-pointer transition-colors ${
+                          note.isPinned ? 'text-[#2F6798] font-black' : 'text-slate-400 hover:text-slate-700'
+                        }`}
+                        title={note.isPinned ? 'Unpin' : 'Pin to top'}
                       >
-                        <Pin className="w-3 h-3" />
+                        <Pin className="w-3.5 h-3.5" />
                       </button>
+
                       <button
                         type="button"
                         onClick={() => setStickyToDelete(note.id)}
-                        className="p-1 rounded text-slate-400 hover:text-rose-600 cursor-pointer"
+                        className="p-1 rounded text-slate-400 hover:text-rose-600 transition-colors cursor-pointer"
                         title="Delete note"
                       >
-                        <Trash2 className="w-3 h-3" />
+                        <Trash2 className="w-3.5 h-3.5" />
                       </button>
                     </div>
                   </div>
 
-                  <h4 className="font-extrabold text-xs mt-2 leading-snug">
+                  <h4 className="font-black text-xs text-slate-900 dark:text-slate-100 mb-1 leading-snug">
                     {note.title}
                   </h4>
-                  <p className="text-[11px] mt-1 leading-relaxed whitespace-pre-wrap opacity-90">
+
+                  <p className="text-[11.5px] text-slate-700 dark:text-slate-300 leading-relaxed font-medium">
                     {note.content}
                   </p>
                 </div>
 
-                <span className="text-[9px] text-slate-400 font-mono self-end pt-1">
-                  {note.timestamp}
-                </span>
+                <div className="mt-3 pt-2 border-t border-black/10 dark:border-white/10 flex items-center justify-between text-[10px] font-bold text-slate-500 dark:text-slate-400">
+                  <span className="flex items-center gap-1">
+                    <Clock className="w-3 h-3" />
+                    {note.timestamp}
+                  </span>
+                  {note.isPinned && (
+                    <span className="text-[#2F6798] dark:text-blue-300 font-extrabold">
+                      Pinned
+                    </span>
+                  )}
+                </div>
               </div>
             ))}
           </div>
@@ -604,229 +482,136 @@ export default function FlowHubNotesPlanner() {
         </div>
       )}
 
-      {/* TAB 3: SHIFT TIMELINE & TIME-BLOCK SCHEDULE */}
+      {/* 3. TAB 2: SHIFT PUNCH & BREAK TIMELINE */}
       {activeTab === 'schedule' && (
-        <div className="space-y-3 animate-in fade-in">
+        <div className="space-y-4 animate-in fade-in">
+          
           <div className="flex items-center justify-between pb-1">
-            <span className="text-xs font-bold text-slate-500">
-              Shift Time-Blocks (9:00 PM – 6:00 AM) • Check off as your shift progresses
-            </span>
-            <span className="text-xs font-black text-[#2F6798]">
-              {shiftTimeBlocks.filter(b => b.completed).length} of {shiftTimeBlocks.length} Completed
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-bold text-slate-700 dark:text-slate-300">
+                Scheduled Shift Punch &amp; Break Schedule (9:00 PM – 6:00 AM)
+              </span>
+              <span className="text-[11px] px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 font-black">
+                {shiftMilestones.filter(m => m.completed).length}/{shiftMilestones.length} Milestones Checked
+              </span>
+            </div>
+
+            <span className="text-[11px] text-slate-400 font-medium">
+              Standard 8.0h Regular Work + 1.0h Meal
             </span>
           </div>
 
-          <div className="divide-y divide-slate-100 dark:divide-slate-800 rounded-xl border border-slate-200 dark:border-slate-800 overflow-hidden">
-            {shiftTimeBlocks.map(block => (
+          <div className="space-y-2.5">
+            {shiftMilestones.map((item, idx) => (
               <div
-                key={block.id}
-                onClick={() => handleToggleTimeBlock(block.id)}
-                className={`p-3 transition-colors flex items-center justify-between gap-3 cursor-pointer ${
-                  block.completed
-                    ? 'bg-slate-50/70 dark:bg-slate-900/40 text-slate-400'
-                    : 'bg-white dark:bg-[#101D3D] hover:bg-blue-50/40 dark:hover:bg-slate-800/40 text-slate-800 dark:text-slate-200'
+                key={item.id}
+                onClick={() => handleToggleMilestone(item.id)}
+                className={`p-3.5 rounded-xl border transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-3 cursor-pointer ${
+                  item.completed
+                    ? 'bg-emerald-50/70 dark:bg-emerald-950/20 border-emerald-300/80 dark:border-emerald-800/60 text-slate-700 dark:text-slate-300'
+                    : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-800 dark:text-slate-200 hover:border-[#2F6798]'
                 }`}
               >
                 <div className="flex items-center gap-3">
-                  <div className={`w-4 h-4 rounded border flex items-center justify-center ${
-                    block.completed 
-                      ? 'bg-[#2F6798] border-[#2F6798] text-white' 
-                      : 'border-slate-300 dark:border-slate-600'
+                  <div className={`w-5 h-5 rounded-lg border flex items-center justify-center transition-colors shrink-0 ${
+                    item.completed 
+                      ? 'bg-emerald-500 border-emerald-500 text-white' 
+                      : 'border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800'
                   }`}>
-                    {block.completed && <Check className="w-3 h-3 stroke-[3]" />}
+                    {item.completed && <Check className="w-3.5 h-3.5 stroke-[3]" />}
                   </div>
 
-                  <span className="text-xs font-mono font-bold text-[#2F6798] dark:text-blue-300 min-w-[145px]">
-                    {block.timeRange}
-                  </span>
+                  <div>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className={`font-extrabold text-xs ${item.completed ? 'line-through text-slate-500' : 'text-slate-900 dark:text-slate-100'}`}>
+                        {item.activity}
+                      </span>
+                      <span className={`px-2 py-0.2 rounded text-[10px] font-bold border ${getCategoryClass(item.category)}`}>
+                        {item.category}
+                      </span>
+                    </div>
 
-                  <span className={`text-xs font-bold ${block.completed ? 'line-through text-slate-400' : ''}`}>
-                    {block.activity}
-                  </span>
+                    {item.note && (
+                      <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
+                        {item.note}
+                      </p>
+                    )}
+                  </div>
                 </div>
 
-                <span className="px-2 py-0.5 rounded text-[10px] font-black uppercase bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300">
-                  {block.category}
-                </span>
+                <div className="flex items-center gap-3 self-start sm:self-auto shrink-0">
+                  <div className="flex items-center gap-1.5 text-xs font-bold text-slate-600 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 px-2.5 py-1 rounded-lg">
+                    <Clock className="w-3.5 h-3.5 text-[#2F6798]" />
+                    <span>{item.timeRange}</span>
+                  </div>
+                </div>
               </div>
             ))}
           </div>
+
         </div>
       )}
 
-      {/* TAB 4: 1-ON-1 COACHING LOG */}
-      {activeTab === 'coaching' && (
+      {/* 4. TAB 3: DAILY ATTENDANCE MEMO */}
+      {activeTab === 'memo' && (
         <div className="space-y-4 animate-in fade-in">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-bold text-slate-500">
-              Track 1-on-1 coaching sessions, quality audit feedback & trainee agreements
-            </span>
-            <button
-              type="button"
-              onClick={() => setIsAddingCoaching(!isAddingCoaching)}
-              className="px-3 py-1.5 rounded-lg bg-[#2F6798] hover:bg-[#235179] text-white text-xs font-bold cursor-pointer"
-            >
-              <Plus className="w-3.5 h-3.5 inline mr-1" />
-              <span>{isAddingCoaching ? 'Close' : 'Log Coaching Session'}</span>
-            </button>
-          </div>
-
-          {/* Add Coaching Log Form */}
-          {isAddingCoaching && (
-            <div className="p-4 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 space-y-3">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div>
-                  <label className="text-[10px] font-bold text-slate-400 uppercase block mb-1">Trainee</label>
-                  <select
-                    value={newCoachingName}
-                    onChange={(e) => setNewCoachingName(e.target.value)}
-                    className="w-full px-3 py-1.5 rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-800 dark:text-slate-200 outline-none"
-                  >
-                    <option value="Bianca Kaye Colonia">Bianca Kaye Colonia</option>
-                    <option value="Michelle Yncierto">Michelle Yncierto</option>
-                    <option value="Rommel Mendoza">Rommel Mendoza</option>
-                    <option value="Ronelyn Baguio">Ronelyn Baguio</option>
-                    <option value="Matt Riner Balaba">Matt Riner Balaba</option>
-                    <option value="Niño Elijah Reyes">Niño Elijah Reyes</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className="text-[10px] font-bold text-slate-400 uppercase block mb-1">Topic / Area of Focus</label>
-                  <input
-                    type="text"
-                    value={newCoachingTopic}
-                    onChange={(e) => setNewCoachingTopic(e.target.value)}
-                    placeholder="e.g. Call handling, Tardiness, QA scorecard"
-                    className="w-full px-3 py-1.5 rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs text-slate-800 dark:text-slate-200 outline-none"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="text-[10px] font-bold text-slate-400 uppercase block mb-1">Action Plan / Trainee Agreement</label>
-                <textarea
-                  rows={2}
-                  value={newCoachingAction}
-                  onChange={(e) => setNewCoachingAction(e.target.value)}
-                  placeholder="Action items agreed upon during coaching..."
-                  className="w-full p-2.5 rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs text-slate-800 dark:text-slate-200 outline-none resize-none"
-                />
-              </div>
-
-              <div className="flex justify-end gap-2">
-                <button
-                  type="button"
-                  onClick={() => setIsAddingCoaching(false)}
-                  className="px-3 py-1 text-xs font-bold text-slate-500 cursor-pointer"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="button"
-                  onClick={handleAddCoaching}
-                  className="px-4 py-1.5 rounded-lg bg-[#2F6798] hover:bg-[#235179] text-white text-xs font-black cursor-pointer"
-                >
-                  Save Log
-                </button>
-              </div>
+          
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-1">
+            <div className="flex items-center gap-2">
+              <input
+                type="text"
+                value={memoTitle}
+                onChange={(e) => setMemoTitle(e.target.value)}
+                className="font-extrabold text-sm sm:text-base text-slate-900 dark:text-slate-100 bg-transparent outline-none border-b border-transparent focus:border-[#2F6798]"
+              />
             </div>
-          )}
 
-          {/* Coaching Log List */}
-          <div className="space-y-3">
-            {coachingLogs.map(log => (
-              <div
-                key={log.id}
-                className="p-4 rounded-xl bg-slate-50 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800 space-y-2"
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={handleSaveMemo}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 text-xs font-bold transition-colors cursor-pointer"
               >
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <span className="font-extrabold text-xs text-slate-900 dark:text-slate-100">{log.traineeName}</span>
-                    <span className="text-[10px] text-slate-400 font-mono">• {log.date}</span>
-                  </div>
-                  <span className={`px-2 py-0.5 rounded-full text-[10px] font-black ${
-                    log.status === 'Completed'
-                      ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300'
-                      : 'bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-300'
-                  }`}>
-                    {log.status}
-                  </span>
-                </div>
+                <Save className="w-3.5 h-3.5 text-[#2F6798]" />
+                <span>{isSavedMemo ? 'Saved!' : 'Save Memo'}</span>
+              </button>
 
-                <p className="text-xs font-semibold text-[#2F6798] dark:text-blue-300">
-                  Topic: {log.topic}
-                </p>
-
-                <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed bg-white dark:bg-slate-800/80 p-2.5 rounded-lg border border-slate-200/60 dark:border-slate-700">
-                  <b className="text-slate-700 dark:text-slate-300">Agreement:</b> {log.actionPlan}
-                </p>
-              </div>
-            ))}
-          </div>
-
-        </div>
-      )}
-
-      {/* TAB 5: FREEFORM MEMO / MIND DUMP */}
-      {activeTab === 'minddump' && (
-        <div className="space-y-3 animate-in fade-in">
-          <div className="flex items-center justify-between">
-            <input
-              type="text"
-              value={mindDumpTitle}
-              onChange={(e) => setMindDumpTitle(e.target.value)}
-              className="text-sm font-extrabold text-slate-900 dark:text-slate-100 bg-transparent border-b border-dashed border-slate-300 dark:border-slate-700 outline-none pb-0.5"
-            />
-            <span className="text-[10px] font-bold text-slate-400">
-              {mindDumpText.length} characters • {mindDumpText.split(/\s+/).filter(Boolean).length} words
-            </span>
+              <button
+                type="button"
+                onClick={handleCopyMemo}
+                className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-[#2F6798] hover:bg-[#24537D] text-white text-xs font-bold shadow-xs transition-colors cursor-pointer"
+              >
+                {isCopiedMemo ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
+                <span>{isCopiedMemo ? 'Copied to Clipboard!' : 'Copy Formatted Memo'}</span>
+              </button>
+            </div>
           </div>
 
           <textarea
-            rows={5}
-            value={mindDumpText}
-            onChange={(e) => setMindDumpText(e.target.value)}
-            placeholder="Type your notes, ideas, or meeting draft..."
-            className="w-full p-3 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-xs sm:text-sm text-slate-800 dark:text-slate-200 leading-relaxed outline-none focus:ring-1 focus:ring-[#2F6798]"
+            rows={12}
+            value={memoText}
+            onChange={(e) => setMemoText(e.target.value)}
+            className="w-full p-4 rounded-xl bg-slate-50 dark:bg-[#070D1E] border border-slate-200 dark:border-slate-800 text-xs text-slate-800 dark:text-slate-200 font-mono leading-relaxed outline-none focus:ring-2 focus:ring-[#2F6798]/30 resize-none shadow-inner"
           />
 
-          <div className="flex items-center justify-between gap-2 pt-1">
-            <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 text-xs">
-              <span className="text-[10px] text-slate-400 font-bold">Auto-persisted to browser</span>
-            </div>
-
-            <button
-              type="button"
-              onClick={() => {
-                setIsSavedMindDump(true);
-                setTimeout(() => setIsSavedMindDump(false), 2000);
-              }}
-              className="px-4 py-1.5 rounded-xl bg-[#2F6798] hover:bg-[#235179] text-white text-xs font-black shadow-xs cursor-pointer"
-            >
-              {isSavedMindDump ? 'Saved!' : 'Save Memo'}
-            </button>
-          </div>
         </div>
       )}
 
-      {/* Delete Note Confirmation Modal matching user screenshot */}
-      <ConfirmActionModal
-        isOpen={!!stickyToDelete}
-        onClose={() => setStickyToDelete(null)}
-        onConfirm={() => {
-          if (stickyToDelete) {
+      {/* Confirmation Modal for deleting sticky note */}
+      {stickyToDelete && (
+        <ConfirmActionModal
+          isOpen={!!stickyToDelete}
+          title="Delete Attendance Note"
+          description="Are you sure you want to remove this attendance exception flag from the studio?"
+          confirmLabel="Delete Note"
+          iconType="delete"
+          onConfirm={() => {
             handleDeleteSticky(stickyToDelete);
             setStickyToDelete(null);
-          }
-        }}
-        title="Delete Note"
-        description="Are you sure you want to delete this note?"
-        subDescription="This note will be permanently removed from your scratchpad."
-        confirmLabel="Yes"
-        cancelLabel="Cancel"
-        iconType="delete"
-      />
+          }}
+          onClose={() => setStickyToDelete(null)}
+        />
+      )}
 
     </div>
   );

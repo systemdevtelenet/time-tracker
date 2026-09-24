@@ -88,7 +88,7 @@ export default function HeroKpiCards({
   ];
 
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-4 my-2">
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-4 mt-1 mb-3.5">
       {cards.map((card) => {
         const Icon = card.icon;
         const isSelected = activeFilter === card.id;

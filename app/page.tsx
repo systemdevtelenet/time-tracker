@@ -11,7 +11,7 @@ import DepartmentalTrendsChart from '@/components/dashboard/DepartmentalTrendsCh
 import KpiSummary from '@/components/KpiSummary';
 import TimerTracker from '@/components/TimerTracker';
 import ManualEntryModal from '@/components/ManualEntryModal';
-import TimeLogsTable from '@/components/TimeLogsTable';
+import MemberAttendanceRosterTable from '@/components/dashboard/MemberAttendanceRosterTable';
 import AnalyticsCharts from '@/components/AnalyticsCharts';
 import AnalyticsView from '@/components/dashboard/AnalyticsView';
 import HoursReportTab from '@/components/dashboard/HoursReportTab';
@@ -28,7 +28,7 @@ import FullScreenLoader from '@/components/dashboard/FullScreenLoader';
 import { AccountOption, EmployeeOption, PhoneTimeRecord, KpiSummaryStats } from '@/lib/types';
 import { parseDurationToSeconds, formatTotalDurationHuman } from '@/lib/utils';
 import { addActivityLog } from '@/lib/activityLogs';
-import { Plus, CheckCircle2, User, Sparkles } from 'lucide-react';
+import { Plus, CheckCircle2, User, Sparkles, Award } from 'lucide-react';
 
 const VALID_TABS = ['dashboard', 'tracker', 'activity', 'flowhub', 'attendance', 'analytics', 'settings'] as const;
 
@@ -522,9 +522,6 @@ function HomePageContent() {
               <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 items-center">
                 <div className="lg:col-span-8 flex flex-col justify-center space-y-2 py-1">
                   <div className="flex items-center gap-2 flex-wrap">
-                    <span className="px-3 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-[#2F6798]/10 text-[#2F6798] dark:text-blue-300 border border-[#2F6798]/20">
-                      Cebu Tele-Net Operations Hub
-                    </span>
                     <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 flex items-center gap-1.5">
                       <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
                       Shift Active (9:00 PM – 6:00 AM)
@@ -534,7 +531,7 @@ function HomePageContent() {
                     Welcome back, <span className="text-[#2F6798] dark:text-blue-400">{supervisor.name}</span>
                   </h2>
                   <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 font-normal max-w-2xl leading-relaxed">
-                    Real-time training analytics, phone duration tracking, and workforce attendance reliability across all active client accounts.
+                    Real-time shift tracking, workforce attendance adherence, and team performance overview.
                   </p>
                 </div>
 
@@ -555,7 +552,7 @@ function HomePageContent() {
               />
 
               {/* Filter Controls Bar and Analytics/Table in One Single External Container */}
-              <div className="w-full bg-white dark:bg-[#0E1B38] border border-slate-200/90 dark:border-slate-800 rounded-3xl p-5 sm:p-6 shadow-2xs space-y-6">
+              <div className="w-full bg-white dark:bg-[#0E1B38] border border-slate-200/90 dark:border-slate-800 rounded-2xl p-3.5 sm:p-4.5 shadow-2xs space-y-4">
                 
                 {/* Dynamic Filter Controls Bar */}
                 <FilterControlsBar
@@ -580,27 +577,14 @@ function HomePageContent() {
                   </div>
                 </div>
 
-                {/* Quick Summary & Real-time Shift Log Feed */}
+                {/* Member Attendance & Adherence Roster Table */}
                 <div className="space-y-3 pt-1">
-                  <div className="flex items-center justify-between">
-                    <h3 className="text-sm font-extrabold text-slate-800 dark:text-slate-200 flex items-center gap-2">
-                      <span>Recent Workforce Time Logs & Shift Activities</span>
-                      <span className="text-[10px] px-2 py-0.5 rounded-md bg-[#2F6798]/10 text-[#2F6798] dark:text-blue-300 font-black">
-                        Live Feed
-                      </span>
-                    </h3>
-                    <button
-                      onClick={() => handleSelectTab('tracker')}
-                      className="text-xs font-bold text-[#2F6798] hover:underline cursor-pointer"
-                    >
-                      Open Workforce Portal →
-                    </button>
-                  </div>
-                  <TimeLogsTable
+                  <MemberAttendanceRosterTable
                     records={filteredDashboardRecords}
+                    employees={employees}
+                    accounts={accounts}
                     isLoading={isLoading}
                     onRefresh={fetchData}
-                    onDeleteRecord={handleDeleteRecord}
                     onOpenCalendar={(rec) => {
                       if (isHeadOrAdmin) {
                         setActiveCalendarRecord(rec);
@@ -609,7 +593,6 @@ function HomePageContent() {
                         handleSelectTab('tracker');
                       }
                     }}
-                    accounts={accounts}
                   />
                 </div>
 

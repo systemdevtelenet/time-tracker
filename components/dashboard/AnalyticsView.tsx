@@ -16,6 +16,7 @@ import {
 } from 'lucide-react';
 import { PhoneTimeRecord, EmployeeOption, AccountOption, KpiSummaryStats } from '@/lib/types';
 import { parseDurationToSeconds, formatTotalDurationHuman } from '@/lib/utils';
+import MemberAttendanceRosterTable from './MemberAttendanceRosterTable';
 
 interface AnalyticsViewProps {
   records?: PhoneTimeRecord[];
@@ -27,12 +28,9 @@ interface AnalyticsViewProps {
 export default function AnalyticsView({
   records = [],
   employees = [],
+  accounts = [],
 }: AnalyticsViewProps) {
   const totalRosterCount = employees.length > 0 ? employees.length : 13;
-
-  // Pagination state for Member Attendance table
-  const [pageSize, setPageSize] = useState<number | 'all'>(10);
-  const [currentPage, setCurrentPage] = useState<number>(1);
 
   // 1. Core Total Durations and Calculations
   const { totalSeconds, regularSeconds, overtimeSeconds } = useMemo(() => {
@@ -196,114 +194,6 @@ export default function AnalyticsView({
       };
     });
   }, [records]);
-
-  // 5. Member Reliability & Adherence Leaderboard Table (100% Calculated from database records)
-  const memberLeaderboard = useMemo(() => {
-    const map: Record<string, { name: string; count: number; lateCount: number; totalSeconds: number; role?: string; shift?: string }> = {};
-
-    records.forEach((r) => {
-      const rawName = (r.name || 'Anonymous').trim();
-      if (!rawName) return;
-
-      if (!map[rawName]) {
-        const empMatch = employees.find((e: any) => {
-          const eName = (e.name || '').toLowerCase().trim();
-          const rName = rawName.toLowerCase().trim();
-          return eName === rName || eName.includes(rName) || rName.includes(eName);
-        });
-
-        const empPosition = (empMatch as any)?.position || empMatch?.role;
-        const actualRole = empPosition && empPosition !== 'User' && empPosition !== 'Admin'
-          ? empPosition
-          : 'Trainer';
-
-        map[rawName] = {
-          name: rawName,
-          count: 0,
-          lateCount: 0,
-          totalSeconds: 0,
-          role: actualRole,
-          shift: (empMatch as any)?.shift || '9:00 PM to 6:00 AM',
-        };
-      }
-
-      map[rawName].count += 1;
-      map[rawName].totalSeconds += parseDurationToSeconds(r.total_minutes);
-      const text = `${r.tagging || ''} ${r.summary || ''}`.toLowerCase();
-      if (text.includes('late') || text.includes('tardy') || text.includes('delay')) {
-        map[rawName].lateCount += 1;
-      }
-    });
-
-    // Include roster members with 0 records
-    employees.forEach((emp: any) => {
-      const name = (emp.name || '').trim();
-      if (!name) return;
-      if (!map[name]) {
-        const empPosition = (emp as any)?.position || emp.role;
-        const actualRole = empPosition && empPosition !== 'User' && empPosition !== 'Admin'
-          ? empPosition
-          : 'Trainer';
-
-        map[name] = {
-          name,
-          count: 0,
-          lateCount: 0,
-          totalSeconds: 0,
-          role: actualRole,
-          shift: (emp as any)?.shift || '9:00 PM to 6:00 AM',
-        };
-      }
-    });
-
-    const entries = Object.values(map).map((member) => {
-      const hasLogs = member.count > 0;
-      const onTimeCount = Math.max(0, member.count - member.lateCount);
-      const onTimeRate = hasLogs ? Math.round((onTimeCount / member.count) * 100) : 0;
-      
-      let badge = { text: 'No Logs', color: 'bg-slate-100 dark:bg-slate-800 text-slate-400 border-slate-200 dark:border-slate-700' };
-      if (hasLogs) {
-        if (onTimeRate >= 95) {
-          badge = { text: 'Excellent (95%+)', color: 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border-emerald-300 dark:border-emerald-800' };
-        } else if (onTimeRate >= 85) {
-          badge = { text: 'Good Adherence', color: 'bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 border-blue-300 dark:border-blue-800' };
-        } else {
-          badge = { text: 'Needs Improvement', color: 'bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 border-amber-300 dark:border-amber-800' };
-        }
-      }
-
-      return {
-        name: member.name,
-        count: member.count,
-        totalSeconds: member.totalSeconds,
-        formattedTime: member.totalSeconds > 0 ? formatTotalDurationHuman(member.totalSeconds) : '0h 0m',
-        role: member.role || 'Trainer',
-        shift: member.shift || '9:00 PM to 6:00 AM',
-        onTimeRate: hasLogs ? `${onTimeRate}%` : 'N/A',
-        badge,
-      };
-    });
-
-    entries.sort((a, b) => {
-      if (b.totalSeconds !== a.totalSeconds) return b.totalSeconds - a.totalSeconds;
-      return b.count - a.count;
-    });
-
-    return entries;
-  }, [records, employees]);
-
-  // Paginated member records
-  const totalPages = pageSize === 'all' ? 1 : Math.ceil(memberLeaderboard.length / pageSize);
-  const paginatedMembers = useMemo(() => {
-    if (pageSize === 'all') return memberLeaderboard;
-    const startIndex = (currentPage - 1) * pageSize;
-    return memberLeaderboard.slice(startIndex, startIndex + pageSize);
-  }, [memberLeaderboard, currentPage, pageSize]);
-
-  const handlePageSizeChange = (newSize: number | 'all') => {
-    setPageSize(newSize);
-    setCurrentPage(1);
-  };
 
   return (
     <div className="space-y-6 animate-in fade-in select-none">
@@ -701,209 +591,15 @@ export default function AnalyticsView({
 
       </div>
 
-      {/* 3. MEMBER ATTENDANCE & ADHERENCE LEADERBOARD TABLE (WITH PAGINATION & VIEW OPTIONS) */}
-      <div className="p-5 sm:p-6 rounded-2xl bg-white dark:bg-[#0E1B38] border border-slate-200/90 dark:border-slate-800 shadow-2xs">
-        <div className="space-y-4">
-          
-          {/* Table Header & View Controls */}
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-100 dark:border-slate-800">
-            <div className="flex items-center gap-2">
-              <div className="p-2 rounded-xl bg-indigo-50 text-indigo-600 dark:bg-indigo-950/60 dark:text-indigo-400">
-                <Award className="w-4 h-4" />
-              </div>
-              <div>
-                <h3 className="text-sm sm:text-base font-extrabold text-slate-900 dark:text-slate-100">
-                  Member Attendance &amp; Adherence Roster
-                </h3>
-                <span className="text-[10.5px] text-slate-400 block font-medium">
-                  Punctuality rate, shift attendance, and total hours logged per team member
-                </span>
-              </div>
-            </div>
-
-            {/* Page Size View Option Buttons */}
-            <div className="flex items-center gap-2 self-start sm:self-auto">
-              <span className="text-[11px] font-bold text-slate-400">Rows:</span>
-              <div className="inline-flex rounded-xl bg-slate-100 dark:bg-slate-800 p-1 text-xs font-bold">
-                <button
-                  type="button"
-                  onClick={() => handlePageSizeChange(10)}
-                  className={`px-2.5 py-1 rounded-lg transition-all cursor-pointer ${
-                    pageSize === 10
-                      ? 'bg-white dark:bg-slate-700 text-[#24537D] dark:text-blue-300 shadow-2xs'
-                      : 'text-slate-500 hover:text-slate-900 dark:hover:text-white'
-                  }`}
-                >
-                  10
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handlePageSizeChange(25)}
-                  className={`px-2.5 py-1 rounded-lg transition-all cursor-pointer ${
-                    pageSize === 25
-                      ? 'bg-white dark:bg-slate-700 text-[#24537D] dark:text-blue-300 shadow-2xs'
-                      : 'text-slate-500 hover:text-slate-900 dark:hover:text-white'
-                  }`}
-                >
-                  25
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handlePageSizeChange('all')}
-                  className={`px-2.5 py-1 rounded-lg transition-all cursor-pointer ${
-                    pageSize === 'all'
-                      ? 'bg-white dark:bg-slate-700 text-[#24537D] dark:text-blue-300 shadow-2xs'
-                      : 'text-slate-500 hover:text-slate-900 dark:hover:text-white'
-                  }`}
-                >
-                  Show All ({memberLeaderboard.length})
-                </button>
-              </div>
-            </div>
-          </div>
-
-          {/* Table Container */}
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs border-collapse">
-              <thead>
-                <tr className="border-b border-slate-200/80 dark:border-slate-800 bg-slate-50/80 dark:bg-slate-850 text-[10px] font-black uppercase tracking-wider text-slate-400 select-none">
-                  <th className="py-2.5 px-4 font-black">RANK</th>
-                  <th className="py-2.5 px-4 font-black">MEMBER NAME</th>
-                  <th className="py-2.5 px-4 font-black">ROLE</th>
-                  <th className="py-2.5 px-4 font-black">SHIFT SCHEDULE</th>
-                  <th className="py-2.5 px-4 font-black">RECORDED SHIFTS</th>
-                  <th className="py-2.5 px-4 font-black">PUNCTUALITY</th>
-                  <th className="py-2.5 px-4 font-black">LOGGED HOURS</th>
-                  <th className="py-2.5 px-4 font-black">RELIABILITY STATUS</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100 dark:divide-slate-800/70 font-medium">
-                {paginatedMembers.length === 0 ? (
-                  <tr>
-                    <td colSpan={8} className="py-8 text-center text-slate-400 italic">
-                      No member attendance records available.
-                    </td>
-                  </tr>
-                ) : (
-                  paginatedMembers.map((m, idx) => {
-                    const actualRank = pageSize === 'all' ? idx + 1 : (currentPage - 1) * pageSize + idx + 1;
-                    const initials = m.name
-                      .split(' ')
-                      .filter(Boolean)
-                      .slice(0, 2)
-                      .map((n) => n[0].toUpperCase())
-                      .join('');
-
-                    const hasLogs = m.count > 0;
-
-                    return (
-                      <tr key={idx} className="hover:bg-slate-50/70 dark:hover:bg-slate-800/50 transition-colors">
-                        <td className="py-3 px-4 font-black text-slate-400">
-                          #{actualRank}
-                        </td>
-                        <td className="py-3 px-4 whitespace-nowrap">
-                          <div className="flex items-center gap-2.5">
-                            <div className="w-7 h-7 rounded-full bg-[#24537D]/10 text-[#24537D] dark:bg-blue-950/60 dark:text-blue-300 font-extrabold text-[10px] flex items-center justify-center shrink-0 border border-[#24537D]/20">
-                              {initials || 'U'}
-                            </div>
-                            <span className="font-bold text-slate-900 dark:text-slate-100 text-xs">
-                              {m.name}
-                            </span>
-                          </div>
-                        </td>
-                        <td className="py-3 px-4 text-slate-500 dark:text-slate-400 font-semibold whitespace-nowrap">
-                          {m.role}
-                        </td>
-                        <td className="py-3 px-4 whitespace-nowrap">
-                          <span className="px-2 py-0.5 rounded-md font-bold text-[10px] bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300">
-                            {m.shift}
-                          </span>
-                        </td>
-                        <td className={`py-3 px-4 font-bold whitespace-nowrap ${hasLogs ? 'text-[#24537D] dark:text-blue-400' : 'text-slate-400'}`}>
-                          {m.count} {m.count === 1 ? 'shift' : 'shifts'}
-                        </td>
-                        <td className={`py-3 px-4 font-extrabold whitespace-nowrap ${hasLogs ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-400'}`}>
-                          {m.onTimeRate}
-                        </td>
-                        <td className={`py-3 px-4 font-extrabold whitespace-nowrap ${hasLogs ? 'text-slate-900 dark:text-slate-100' : 'text-slate-400 font-normal'}`}>
-                          {m.formattedTime}
-                        </td>
-                        <td className="py-3 px-4 whitespace-nowrap">
-                          <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-extrabold border ${m.badge.color}`}>
-                            {m.badge.text}
-                          </span>
-                        </td>
-                      </tr>
-                    );
-                  })
-                )}
-              </tbody>
-            </table>
-          </div>
-
-          {/* Table Pagination Footer */}
-          {pageSize !== 'all' && totalPages > 1 && (
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-3 border-t border-slate-100 dark:border-slate-800 text-xs">
-              <span className="text-slate-400 font-medium">
-                Showing{' '}
-                <strong className="text-slate-700 dark:text-slate-200">
-                  {(currentPage - 1) * pageSize + 1}
-                </strong>{' '}
-                to{' '}
-                <strong className="text-slate-700 dark:text-slate-200">
-                  {Math.min(currentPage * pageSize, memberLeaderboard.length)}
-                </strong>{' '}
-                of{' '}
-                <strong className="text-slate-700 dark:text-slate-200">
-                  {memberLeaderboard.length}
-                </strong>{' '}
-                members
-              </span>
-
-              {/* Page Controls */}
-              <div className="flex items-center gap-1 self-start sm:self-auto">
-                <button
-                  type="button"
-                  disabled={currentPage === 1}
-                  onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-                  className="p-1.5 rounded-lg border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 disabled:opacity-40 disabled:pointer-events-none cursor-pointer"
-                  title="Previous Page"
-                >
-                  <ChevronLeft className="w-4 h-4" />
-                </button>
-
-                {Array.from({ length: totalPages }, (_, i) => i + 1).map((pageNum) => (
-                  <button
-                    key={pageNum}
-                    type="button"
-                    onClick={() => setCurrentPage(pageNum)}
-                    className={`w-7 h-7 rounded-lg text-xs font-bold transition-all cursor-pointer ${
-                      currentPage === pageNum
-                        ? 'bg-[#24537D] text-white shadow-2xs'
-                        : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'
-                    }`}
-                  >
-                    {pageNum}
-                  </button>
-                ))}
-
-                <button
-                  type="button"
-                  disabled={currentPage === totalPages}
-                  onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
-                  className="p-1.5 rounded-lg border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 disabled:opacity-40 disabled:pointer-events-none cursor-pointer"
-                  title="Next Page"
-                >
-                  <ChevronRight className="w-4 h-4" />
-                </button>
-              </div>
-            </div>
-          )}
-
-        </div>
-      </div>
+      {/* 3. MEMBER ATTENDANCE & ADHERENCE LEADERBOARD TABLE */}
+      <MemberAttendanceRosterTable
+        records={records}
+        employees={employees}
+        accounts={accounts}
+      />
 
     </div>
   );
 }
+
 
