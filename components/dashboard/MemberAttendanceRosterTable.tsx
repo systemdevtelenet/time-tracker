@@ -21,6 +21,8 @@ interface MemberAttendanceRosterTableProps {
   isLoading?: boolean;
   onRefresh?: () => void;
   onOpenCalendar?: (record: PhoneTimeRecord) => void;
+  isHeadOrAdmin?: boolean;
+  currentUserName?: string;
 }
 
 export interface MemberRosterEntry {
@@ -45,6 +47,8 @@ export default function MemberAttendanceRosterTable({
   isLoading = false,
   onRefresh,
   onOpenCalendar,
+  isHeadOrAdmin = true,
+  currentUserName = '',
 }: MemberAttendanceRosterTableProps) {
   // Local state for fetched employees if not passed via props
   const [dbEmployees, setDbEmployees] = useState<any[]>([]);
@@ -77,8 +81,26 @@ export default function MemberAttendanceRosterTable({
     return dbEmployees;
   }, [propEmployees, dbEmployees]);
 
-  // Aggregate member leaderboard data from records and employee roster
+  // Aggregate member leaderboard data from records and employee roster (scoped for non-admins)
   const memberLeaderboard = useMemo(() => {
+    const scopedEmployees = isHeadOrAdmin
+      ? activeEmployees
+      : activeEmployees.filter((emp: any) => {
+          if (!currentUserName) return true;
+          const eName = (emp.name || '').toLowerCase().trim();
+          const uName = currentUserName.toLowerCase().trim();
+          return eName === uName || eName.includes(uName) || uName.includes(eName);
+        });
+
+    const scopedRecords = isHeadOrAdmin
+      ? records
+      : records.filter((r) => {
+          if (!currentUserName) return true;
+          const rName = (r.name || '').toLowerCase().trim();
+          const uName = currentUserName.toLowerCase().trim();
+          return rName === uName || rName.includes(uName) || uName.includes(rName);
+        });
+
     const map: Record<string, { 
       name: string; 
       count: number; 
@@ -90,63 +112,47 @@ export default function MemberAttendanceRosterTable({
       sampleRecord?: PhoneTimeRecord;
     }> = {};
 
-    // 1. Process all time records
-    records.forEach((r) => {
-      const rawName = (r.name || 'Anonymous').trim();
-      if (!rawName) return;
-
-      if (!map[rawName]) {
-        const empMatch = activeEmployees.find((e: any) => {
-          const eName = (e.name || '').toLowerCase().trim();
-          const rName = rawName.toLowerCase().trim();
-          return eName === rName || eName.includes(rName) || rName.includes(eName);
-        });
-
-        const empPosition = (empMatch as any)?.position || empMatch?.role;
-        const actualRole = empPosition && empPosition !== 'User' && empPosition !== 'Admin'
-          ? empPosition
-          : 'Trainer';
-
-        map[rawName] = {
-          name: rawName,
-          count: 0,
-          lateCount: 0,
-          totalSeconds: 0,
-          role: actualRole,
-          shift: (empMatch as any)?.shift || '9:00 PM to 6:00 AM',
-          account: r.account || (empMatch as any)?.account || 'Corporate',
-          sampleRecord: r,
-        };
-      }
-
-      map[rawName].count += 1;
-      map[rawName].totalSeconds += parseDurationToSeconds(r.total_minutes);
-      
-      const text = `${r.tagging || ''} ${r.summary || ''}`.toLowerCase();
-      if (text.includes('late') || text.includes('tardy') || text.includes('delay')) {
-        map[rawName].lateCount += 1;
-      }
-    });
-
-    // 2. Include roster employees with 0 records
-    activeEmployees.forEach((emp: any) => {
+    // 1. Initialize strictly for the official roster employees only
+    scopedEmployees.forEach((emp: any) => {
       const name = (emp.name || '').trim();
       if (!name) return;
-      if (!map[name]) {
-        const empPosition = (emp as any)?.position || emp.role;
-        const actualRole = empPosition && empPosition !== 'User' && empPosition !== 'Admin'
-          ? empPosition
-          : 'Trainer';
+      const empPosition = (emp as any)?.position || emp.role;
+      const actualRole = empPosition && empPosition !== 'User' && empPosition !== 'Admin'
+        ? empPosition
+        : 'Trainer';
 
-        map[name] = {
-          name,
-          count: 0,
-          lateCount: 0,
-          totalSeconds: 0,
-          role: actualRole,
-          shift: (emp as any)?.shift || '9:00 PM to 6:00 AM',
-          account: (emp as any)?.account || (emp as any)?.department || 'Corporate',
-        };
+      map[name] = {
+        name,
+        count: 0,
+        lateCount: 0,
+        totalSeconds: 0,
+        role: actualRole,
+        shift: (emp as any)?.shift || '9:00 PM to 6:00 AM',
+        account: (emp as any)?.account || (emp as any)?.department || 'Corporate',
+      };
+    });
+
+    // 2. Accumulate stats ONLY for matching official roster employees
+    scopedRecords.forEach((r) => {
+      const rawName = (r.name || '').trim();
+      if (!rawName) return;
+
+      // Find if this record matches any official roster employee
+      const matchKey = Object.keys(map).find((empName) => {
+        const e = empName.toLowerCase().trim();
+        const rName = rawName.toLowerCase().trim();
+        return e === rName || e.includes(rName) || rName.includes(e);
+      });
+
+      if (matchKey && map[matchKey]) {
+        map[matchKey].count += 1;
+        map[matchKey].totalSeconds += parseDurationToSeconds(r.total_minutes);
+        if (!map[matchKey].sampleRecord) map[matchKey].sampleRecord = r;
+
+        const text = `${r.tagging || ''} ${r.summary || ''}`.toLowerCase();
+        if (text.includes('late') || text.includes('tardy') || text.includes('delay')) {
+          map[matchKey].lateCount += 1;
+        }
       }
     });
 
@@ -398,7 +404,7 @@ export default function MemberAttendanceRosterTable({
                   className="py-3.5 px-4 font-black cursor-pointer hover:text-slate-600 dark:hover:text-slate-200 whitespace-nowrap"
                 >
                   <div className="flex items-center gap-1">
-                    <span>MEMBER / AGENT</span>
+                    <span>MEMBER</span>
                     <ArrowUpDown className="w-3 h-3 opacity-60" />
                   </div>
                 </th>
@@ -498,7 +504,7 @@ export default function MemberAttendanceRosterTable({
                         {rankBadge}
                       </td>
 
-                      {/* Member / Agent */}
+                      {/* Member */}
                       <td className="py-3 px-4 whitespace-nowrap">
                         <div className="flex items-center gap-2.5 whitespace-nowrap">
                           <div className="w-7 h-7 rounded-full bg-gradient-to-tr from-[#2F6798]/20 to-[#2F6798]/10 dark:from-blue-900/40 dark:to-blue-800/20 text-[#2F6798] dark:text-blue-300 font-black text-[11px] flex items-center justify-center shrink-0 border border-[#2F6798]/20">
@@ -517,11 +523,6 @@ export default function MemberAttendanceRosterTable({
                             >
                               {m.name}
                             </span>
-                            {m.account && (
-                              <span className="text-[10px] text-slate-400 block font-medium whitespace-nowrap">
-                                {m.account}
-                              </span>
-                            )}
                           </div>
                         </div>
                       </td>

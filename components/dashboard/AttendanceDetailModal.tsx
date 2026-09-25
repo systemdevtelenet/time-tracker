@@ -19,7 +19,20 @@ import {
   Briefcase
 } from 'lucide-react';
 
-export type AttendanceStatus = 'P' | 'L' | 'U' | 'A' | 'RD' | null;
+export type AttendanceStatus = 
+  | 'P' 
+  | 'L' 
+  | 'U' 
+  | 'A' 
+  | 'RD' 
+  | 'VL' 
+  | 'SL' 
+  | 'BL' 
+  | 'ML' 
+  | 'PL' 
+  | 'HOL' 
+  | 'SUS' 
+  | null;
 
 export interface TeamMemberDayStatus {
   id: string;
@@ -94,6 +107,9 @@ export default function AttendanceDetailModal({
   const undertimeCount = teamMembers.filter((m) => m.status === 'U').length;
   const absentCount = teamMembers.filter((m) => m.status === 'A').length;
   const restDayCount = teamMembers.filter((m) => m.status === 'RD').length;
+  const leaveCount = teamMembers.filter((m) => 
+    m.status && ['VL', 'SL', 'BL', 'ML', 'PL', 'HOL', 'SUS'].includes(m.status)
+  ).length;
 
   const getStatusLabelAndColor = (status: AttendanceStatus) => {
     switch (status) {
@@ -121,6 +137,41 @@ export default function AttendanceDetailModal({
         return {
           label: 'Rest Day',
           pillBg: 'bg-slate-100 text-slate-600 dark:bg-slate-800/80 dark:text-slate-300 border border-slate-200/70 dark:border-slate-700',
+        };
+      case 'VL':
+        return {
+          label: 'Vacation Leave',
+          pillBg: 'bg-blue-50 text-blue-700 dark:bg-blue-950/60 dark:text-blue-300 border border-blue-200 dark:border-blue-800',
+        };
+      case 'SL':
+        return {
+          label: 'Sick Leave',
+          pillBg: 'bg-red-50 text-red-700 dark:bg-red-950/60 dark:text-red-300 border border-red-200 dark:border-red-800',
+        };
+      case 'BL':
+        return {
+          label: 'Bereavement Leave',
+          pillBg: 'bg-purple-50 text-purple-700 dark:bg-purple-950/60 dark:text-purple-300 border border-purple-200 dark:border-purple-800',
+        };
+      case 'ML':
+        return {
+          label: 'Maternity Leave',
+          pillBg: 'bg-pink-50 text-pink-700 dark:bg-pink-950/60 dark:text-pink-300 border border-pink-200 dark:border-pink-800',
+        };
+      case 'PL':
+        return {
+          label: 'Paternity Leave',
+          pillBg: 'bg-teal-50 text-teal-700 dark:bg-teal-950/60 dark:text-teal-300 border border-teal-200 dark:border-teal-800',
+        };
+      case 'HOL':
+        return {
+          label: 'Holiday',
+          pillBg: 'bg-amber-50 text-amber-700 dark:bg-amber-950/60 dark:text-amber-300 border border-amber-200 dark:border-amber-800',
+        };
+      case 'SUS':
+        return {
+          label: 'Suspension',
+          pillBg: 'bg-slate-100 text-slate-700 dark:bg-slate-800/80 dark:text-slate-300 border border-slate-200/70 dark:border-slate-700',
         };
       default:
         return {

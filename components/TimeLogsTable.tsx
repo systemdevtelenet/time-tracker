@@ -184,7 +184,7 @@ export default function TimeLogsTable({
             {/* Header Row */}
             <thead>
               <tr className="border-b border-slate-200/80 dark:border-slate-800 bg-slate-50/90 dark:bg-[#1D2433] text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-300 select-none">
-                <th className="py-2.5 px-5 font-bold">MEMBER / AGENT</th>
+                <th className="py-2.5 px-5 font-bold">MEMBER</th>
                 <th className="py-2.5 px-4 font-bold">CLIENT ACCOUNT</th>
                 <th className="py-2.5 px-4 font-bold">DATE OF SHIFT</th>
                 <th className="py-2.5 px-4 font-bold">TICKET / REF #</th>

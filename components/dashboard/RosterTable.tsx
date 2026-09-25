@@ -22,7 +22,7 @@ export interface RosterEmployee {
   id: string;
   name: string;
   employeeCode: string;
-  status: 'working' | 'lunch' | 'break' | 'offline';
+  status: 'working' | 'lunch' | 'break' | 'break_1' | 'break_2' | 'offline';
   statusLabel: string;
   totalHoursWorked: number;
   totalHoursFormatted: string;
@@ -116,7 +116,7 @@ export default function RosterTable({
       } else if (activeStatusFilter === 'lunch') {
         matchesStatus = emp.status === 'lunch';
       } else if (activeStatusFilter === 'break') {
-        matchesStatus = emp.status === 'break';
+        matchesStatus = emp.status === 'break' || emp.status === 'break_1' || emp.status === 'break_2';
       } else if (activeStatusFilter === 'late') {
         matchesStatus = emp.trafficLight === 'YELLOW' || emp.trafficLight === 'RED';
       } else if (activeStatusFilter === 'undertime') {
@@ -365,12 +365,18 @@ export default function RosterTable({
                           ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800'
                           : emp.status === 'lunch'
                           ? 'bg-amber-50 text-amber-700 dark:bg-amber-950/60 dark:text-amber-300 border border-amber-200 dark:border-amber-800'
-                          : emp.status === 'break'
+                          : emp.status === 'break' || emp.status === 'break_1' || emp.status === 'break_2'
                           ? 'bg-blue-50 text-blue-700 dark:bg-blue-950/60 dark:text-blue-300 border border-blue-200 dark:border-blue-800'
                           : 'bg-slate-100 text-slate-700 dark:bg-[#272626] dark:text-slate-300 border border-slate-200 dark:border-[#434142]'
                       }`}>
                         <span className={`w-1.5 h-1.5 rounded-full ${
-                          emp.status === 'working' ? 'bg-emerald-500' : emp.status === 'lunch' ? 'bg-amber-500' : 'bg-blue-500'
+                          emp.status === 'working'
+                            ? 'bg-emerald-500'
+                            : emp.status === 'lunch'
+                            ? 'bg-amber-500'
+                            : emp.status === 'break' || emp.status === 'break_1' || emp.status === 'break_2'
+                            ? 'bg-blue-500'
+                            : 'bg-slate-400'
                         }`} />
                         {emp.statusLabel}
                       </span>

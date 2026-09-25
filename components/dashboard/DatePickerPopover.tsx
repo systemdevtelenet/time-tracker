@@ -277,15 +277,17 @@ export default function DatePickerPopover({
     });
   };
 
+  const isFullWidth = className.includes('w-full');
+
   return (
-    <div className={`relative inline-flex items-center ${className}`} ref={popoverRef}>
+    <div className={`relative ${isFullWidth ? 'flex w-full' : 'inline-flex'} items-center ${className}`} ref={popoverRef}>
       {/* Outer wrapper with optional quick-step arrow buttons */}
-      <div className="flex items-center gap-1.5">
+      <div className={`flex items-center gap-1.5 ${isFullWidth ? 'w-full' : ''}`}>
         {showArrows && (
           <button
             type="button"
             onClick={handleStepPrev}
-            className="p-1.5 rounded-lg bg-white dark:bg-[#363435] hover:bg-slate-100 dark:hover:bg-[#434142] text-slate-700 dark:text-[#F8F8F6] text-xs font-semibold shadow-2xs transition-colors cursor-pointer flex items-center justify-center border border-slate-200/80 dark:border-[#434142]"
+            className="p-2 rounded-xl bg-white dark:bg-[#272626] hover:bg-slate-100 dark:hover:bg-[#434142] text-slate-700 dark:text-[#F8F8F6] text-xs font-semibold shadow-2xs transition-colors cursor-pointer flex items-center justify-center border border-slate-200/90 dark:border-[#434142] shrink-0"
             title={effectiveFormat === 'month-year' ? 'Previous Month' : 'Previous Day'}
           >
             <ChevronLeft className="w-3.5 h-3.5" />
@@ -300,7 +302,7 @@ export default function DatePickerPopover({
             setIsMonthDropdownOpen(false);
             setIsYearDropdownOpen(false);
           }}
-          className="flex items-center gap-2 px-3 py-1.5 rounded-xl border border-slate-200 dark:border-[#434142] bg-white dark:bg-[#363435] hover:bg-slate-50 dark:hover:bg-[#2C2A2B] text-slate-800 dark:text-[#F8F8F6] text-xs font-bold shadow-2xs transition-all cursor-pointer group select-none"
+          className={`${isFullWidth ? 'w-full justify-between' : ''} flex items-center gap-2 px-3.5 py-1.5 rounded-xl border border-slate-200/90 dark:border-[#434142] bg-white dark:bg-[#272626] hover:bg-slate-50 dark:hover:bg-[#2C2A2B] text-slate-800 dark:text-[#F8F8F6] text-xs font-bold shadow-2xs transition-all cursor-pointer group select-none`}
         >
           <div className="flex items-center gap-1.5 text-slate-700 dark:text-[#F8F8F6]">
             <CalendarIcon className="w-3.5 h-3.5 text-[#3678B0]" />
@@ -328,7 +330,7 @@ export default function DatePickerPopover({
           <button
             type="button"
             onClick={handleStepNext}
-            className="p-1.5 rounded-lg bg-white dark:bg-[#363435] hover:bg-slate-100 dark:hover:bg-[#434142] text-slate-700 dark:text-[#F8F8F6] text-xs font-semibold shadow-2xs transition-colors cursor-pointer flex items-center justify-center border border-slate-200/80 dark:border-[#434142]"
+            className="p-2 rounded-xl bg-white dark:bg-[#272626] hover:bg-slate-100 dark:hover:bg-[#434142] text-slate-700 dark:text-[#F8F8F6] text-xs font-semibold shadow-2xs transition-colors cursor-pointer flex items-center justify-center border border-slate-200/90 dark:border-[#434142] shrink-0"
             title={effectiveFormat === 'month-year' ? 'Next Month' : 'Next Day'}
           >
             <ChevronRight className="w-3.5 h-3.5" />

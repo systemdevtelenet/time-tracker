@@ -37,6 +37,145 @@ interface TeamMemberHours {
   breakLimitMins: number;
 }
 
+function assignShiftDay(date: Date): { year: number; month: number; day: number } {
+  const h = date.getHours();
+  const shiftDate = new Date(date);
+  if (h < 9) {
+    shiftDate.setDate(shiftDate.getDate() - 1);
+  }
+  return {
+    year: shiftDate.getFullYear(),
+    month: shiftDate.getMonth(),
+    day: shiftDate.getDate(),
+  };
+}
+
+function computeShiftHoursAndBreaksForDay(
+  empCode: string,
+  empName: string,
+  year: number,
+  month: number, // 0-indexed
+  day: number,
+  allLogs: any[],
+  overrides: Record<string, string>
+): { hours: number; breakMins: number } {
+  // Check override
+  const fullDateKey = `${empCode}-${year}-${month}-${day}`;
+  const nameFullDateKey = `${empName}-${year}-${month}-${day}`;
+  const legacyNameKey = `${empName}-${day}`;
+  const legacyCodeKey = `${empCode}-${day}`;
+
+  const override = 
+    overrides[fullDateKey] !== undefined ? overrides[fullDateKey] :
+    overrides[nameFullDateKey] !== undefined ? overrides[nameFullDateKey] :
+    (year === 2026 && month === 8 && (overrides[legacyNameKey] !== undefined || overrides[legacyCodeKey] !== undefined))
+      ? (overrides[legacyNameKey] || overrides[legacyCodeKey])
+      : undefined;
+
+  if (override && override !== 'Clear' && override !== 'None') {
+    const isLeave = ['Vacation Leave', 'Sick Leave', 'Bereavement Leave', 'Maternity Leave', 'Paternity Leave', 'Holiday', 'VL', 'SL', 'BL', 'ML', 'PL', 'HOL'].includes(override);
+    const isOff = ['Absent', 'A', 'Rest Day', 'RD', 'Suspension', 'SUS'].includes(override);
+    if (isLeave) return { hours: 8.00, breakMins: 0 };
+    if (isOff) return { hours: 0, breakMins: 0 };
+  }
+
+  // Filter logs for this employee and shift date
+  const empLogs = allLogs.filter((l) => {
+    const lCode = String(l.employee_id || l.empId || '').trim();
+    return lCode === empCode || (empCode.length >= 3 && lCode.includes(empCode));
+  });
+
+  const dayLogs = empLogs.filter((log) => {
+    const rawTs = log.parsedDate || log.timestamp || log.TIMESTAMP;
+    if (!rawTs) return false;
+    const d = new Date(rawTs);
+    if (isNaN(d.getTime())) return false;
+    const shift = assignShiftDay(d);
+    return shift.year === year && shift.month === month && shift.day === day;
+  });
+
+  if (dayLogs.length === 0) {
+    return { hours: 0, breakMins: 0 };
+  }
+
+  dayLogs.sort((a, b) => {
+    const da = new Date(a.parsedDate || a.timestamp || a.TIMESTAMP).getTime();
+    const db = new Date(b.parsedDate || b.timestamp || b.TIMESTAMP).getTime();
+    return da - db;
+  });
+
+  let shiftStartMs: number | null = null;
+  let shiftEndMs: number | null = null;
+  let completedBreakSecs = 0;
+  let completedLunchSecs = 0;
+  let pendingBreakStart: number | null = null;
+  let pendingLunchStart: number | null = null;
+
+  for (const log of dayLogs) {
+    const pType = (log.type || log.punch_type || '').toLowerCase().trim();
+    const ts = new Date(log.parsedDate || log.timestamp || log.TIMESTAMP).getTime();
+    if (isNaN(ts)) continue;
+
+    if (pType.includes('shift start') || pType.includes('start shift')) {
+      shiftStartMs = ts;
+      shiftEndMs = null;
+    } else if (pType.includes('break 1 start') || pType.includes('start break 1') || pType === 'start break') {
+      pendingBreakStart = ts;
+      if (!shiftStartMs) shiftStartMs = ts;
+    } else if (pType.includes('break 1 end') || pType.includes('end break 1') || pType === 'end break') {
+      if (pendingBreakStart) {
+        completedBreakSecs += Math.max(0, Math.floor((ts - pendingBreakStart) / 1000));
+        pendingBreakStart = null;
+      } else {
+        const dur = parseFloat(log.duration);
+        completedBreakSecs += !isNaN(dur) && dur > 0 ? Math.round(dur * 60) : 15 * 60;
+      }
+    } else if (pType.includes('start lunch') || pType.includes('lunch start') || pType === 'lunch') {
+      pendingLunchStart = ts;
+      if (!shiftStartMs) shiftStartMs = ts;
+    } else if (pType.includes('end lunch') || pType.includes('lunch end')) {
+      if (pendingLunchStart) {
+        completedLunchSecs += Math.max(0, Math.floor((ts - pendingLunchStart) / 1000));
+        pendingLunchStart = null;
+      } else {
+        const dur = parseFloat(log.duration);
+        completedLunchSecs += !isNaN(dur) && dur > 0 ? Math.round(dur * 60) : 60 * 60;
+      }
+    } else if (pType.includes('break 2 start') || pType.includes('start break 2')) {
+      pendingBreakStart = ts;
+      if (!shiftStartMs) shiftStartMs = ts;
+    } else if (pType.includes('break 2 end') || pType.includes('end break 2')) {
+      if (pendingBreakStart) {
+        completedBreakSecs += Math.max(0, Math.floor((ts - pendingBreakStart) / 1000));
+        pendingBreakStart = null;
+      } else {
+        const dur = parseFloat(log.duration);
+        completedBreakSecs += !isNaN(dur) && dur > 0 ? Math.round(dur * 60) : 15 * 60;
+      }
+    } else if (pType.includes('shift end') || pType.includes('end shift')) {
+      shiftEndMs = ts;
+    }
+  }
+
+  const firstTs = new Date(dayLogs[0].parsedDate || dayLogs[0].timestamp || dayLogs[0].TIMESTAMP).getTime();
+  const lastTs = new Date(dayLogs[dayLogs.length - 1].parsedDate || dayLogs[dayLogs.length - 1].timestamp || dayLogs[dayLogs.length - 1].TIMESTAMP).getTime();
+  const startMs = shiftStartMs || firstTs;
+  const endMs = shiftEndMs || lastTs;
+
+  let grossSecs = 0;
+  if (endMs > startMs) {
+    grossSecs = Math.floor((endMs - startMs) / 1000);
+  } else {
+    grossSecs = 8 * 3600;
+  }
+
+  const netSecs = Math.max(0, grossSecs - completedBreakSecs - completedLunchSecs);
+  const hours = Math.round((netSecs / 3600) * 100) / 100;
+  const breakMins = Math.round(((completedBreakSecs + completedLunchSecs) / 60) * 10) / 10;
+
+  return { hours, breakMins };
+}
+
 export default function HoursReportTab({
   employees: propEmployees,
   searchTerm = '',
@@ -49,7 +188,19 @@ export default function HoursReportTab({
   const [selectedDate, setSelectedDate] = useState<string>('2026-09-16');
   const [dbEmployees, setDbEmployees] = useState<any[]>([]);
   const [punchLogs, setPunchLogs] = useState<PunchLogItem[]>(INITIAL_PUNCH_LOGS);
+  const [attendanceOverrides, setAttendanceOverrides] = useState<Record<string, string>>({});
   const [isLoading, setIsLoading] = useState<boolean>(false);
+
+  const loadLocalOverrides = () => {
+    if (typeof window !== 'undefined') {
+      try {
+        const saved = localStorage.getItem('attendance_overrides_v1');
+        if (saved) {
+          setAttendanceOverrides(JSON.parse(saved));
+        }
+      } catch (e) {}
+    }
+  };
 
   // Fetch real team members from Supabase /api/team-roster if not provided
   useEffect(() => {
@@ -70,6 +221,8 @@ export default function HoursReportTab({
         if (isMounted && punchJson.success && Array.isArray(punchJson.data)) {
           setPunchLogs(punchJson.data);
         }
+
+        loadLocalOverrides();
       } catch (err) {
         console.error('Error loading hours report data:', err);
       } finally {
@@ -78,8 +231,23 @@ export default function HoursReportTab({
     }
 
     loadData();
+
+    const handleSync = () => {
+      loadData();
+      loadLocalOverrides();
+    };
+
+    if (typeof window !== 'undefined') {
+      window.addEventListener('punch-updated', handleSync);
+      window.addEventListener('attendance-override-updated', handleSync);
+    }
+
     return () => {
       isMounted = false;
+      if (typeof window !== 'undefined') {
+        window.removeEventListener('punch-updated', handleSync);
+        window.removeEventListener('attendance-override-updated', handleSync);
+      }
     };
   }, []);
 
@@ -106,7 +274,7 @@ export default function HoursReportTab({
       .join('');
   };
 
-  // Compute calculated metrics for all team members from database records
+  // Compute calculated metrics for all team members dynamically from punch records
   const calculatedReportData: TeamMemberHours[] = useMemo(() => {
     let rosterSource = (propEmployees && propEmployees.length > 0)
       ? propEmployees.map((e) => ({
@@ -137,13 +305,10 @@ export default function HoursReportTab({
 
     if (rosterSource.length === 0) return [];
 
-    // Parse selected date parts (e.g. 2026-09-16 -> 9/16/2026)
     const selDateObj = new Date(selectedDate);
-    const selMonth = selDateObj.getMonth() + 1;
-    const selDay = selDateObj.getDate();
-    const selYear = selDateObj.getFullYear();
-    const dailyPrefix = `${selMonth}/${selDay}/${selYear}`;
-    const monthlyPrefix = `${selMonth}/`;
+    const selYear = isNaN(selDateObj.getTime()) ? 2026 : selDateObj.getFullYear();
+    const selMonth = isNaN(selDateObj.getTime()) ? 8 : selDateObj.getMonth(); // 0-indexed
+    const selDay = isNaN(selDateObj.getTime()) ? 16 : selDateObj.getDate();
 
     // Target configuration based on view mode
     const targetHours = viewMode === 'Daily' ? 8.00 : viewMode === 'Weekly' ? 40.00 : 160.00;
@@ -151,132 +316,82 @@ export default function HoursReportTab({
     const breakLimitMins = viewMode === 'Daily' ? 90 : viewMode === 'Weekly' ? 450 : 1800;
 
     return rosterSource.map((emp) => {
-      // Find all punch logs for this employee
-      const empPunches = punchLogs.filter(
-        (p) => String(p.empId) === String(emp.employeeCode) || String(p.empId) === String(emp.id)
-      );
-
-      // Filter punches relevant to the active period
-      const periodPunches = empPunches.filter((p) => {
-        if (!p.timestamp) return false;
-        if (viewMode === 'Daily') {
-          return p.timestamp.startsWith(dailyPrefix) || p.timestamp.includes(`-${String(selMonth).padStart(2, '0')}-${String(selDay).padStart(2, '0')}`);
-        } else if (viewMode === 'Monthly') {
-          return p.timestamp.startsWith(monthlyPrefix) || p.timestamp.includes(`-${String(selMonth).padStart(2, '0')}-`);
-        } else {
-          // Weekly (within +- 3 days of selectedDate)
-          const pDate = new Date(p.timestamp);
-          if (isNaN(pDate.getTime())) return false;
-          const diffDays = Math.abs((pDate.getTime() - selDateObj.getTime()) / (1000 * 3600 * 24));
-          return diffDays <= 3.5;
-        }
-      });
-
-      // 1. Calculate Breaks duration in minutes
-      let totalBreakMins = 0;
-      periodPunches.forEach((p) => {
-        const typeLower = p.type.toLowerCase();
-        const durNum = parseFloat(p.duration);
-        if (!isNaN(durNum) && durNum > 0) {
-          if (typeLower.includes('break') || typeLower.includes('lunch')) {
-            totalBreakMins += durNum;
-          }
-        }
-      });
-
-      // 2. Calculate Actual Work Hours
       let computedWorkHours = 0;
+      let totalBreakMins = 0;
+      let singleDayHours = 0;
 
-      // Group punches into shift spans
-      const sortedPunches = [...periodPunches].sort(
-        (a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
-      );
+      if (viewMode === 'Daily') {
+        const stats = computeShiftHoursAndBreaksForDay(
+          emp.employeeCode,
+          emp.name,
+          selYear,
+          selMonth,
+          selDay,
+          punchLogs,
+          attendanceOverrides
+        );
+        singleDayHours = stats.hours;
+        computedWorkHours = stats.hours;
+        totalBreakMins = stats.breakMins;
+      } else if (viewMode === 'Weekly') {
+        // Calculate 7 days centered/starting from week of selDateObj
+        const currDayOfWeek = selDateObj.getDay(); // 0 = Sun, 1 = Mon
+        const startOfWeek = new Date(selDateObj);
+        startOfWeek.setDate(selDateObj.getDate() - (currDayOfWeek === 0 ? 6 : currDayOfWeek - 1)); // Monday
 
-      const shiftStarts = sortedPunches.filter((p) => p.type.toLowerCase().includes('shift start'));
-      const shiftEnds = sortedPunches.filter((p) => p.type.toLowerCase().includes('shift end'));
+        let sumHours = 0;
+        let sumBreaks = 0;
 
-      if (shiftStarts.length > 0) {
-        shiftStarts.forEach((startP) => {
-          const startTime = new Date(startP.timestamp).getTime();
-          // Find the corresponding or nearest shift end (support up to 36h for forgotten punch-outs)
-          const matchingEnd = shiftEnds.find(
-            (endP) => new Date(endP.timestamp).getTime() >= startTime && new Date(endP.timestamp).getTime() - startTime < 36 * 3600 * 1000
+        for (let i = 0; i < 7; i++) {
+          const d = new Date(startOfWeek);
+          d.setDate(startOfWeek.getDate() + i);
+          const stats = computeShiftHoursAndBreaksForDay(
+            emp.employeeCode,
+            emp.name,
+            d.getFullYear(),
+            d.getMonth(),
+            d.getDate(),
+            punchLogs,
+            attendanceOverrides
           );
-
-          if (matchingEnd) {
-            const endTime = new Date(matchingEnd.timestamp).getTime();
-            const grossDurationHours = (endTime - startTime) / (1000 * 3600);
-            // Subtract lunch break (e.g. ~1 hour) if present
-            const netDuration = Math.max(0, grossDurationHours - (totalBreakMins / 60));
-            // Cap regular shift hours to standard 8.0 hours max (avoids forgotten punch-outs becoming 19 hours)
-            const regularShiftHours = Math.min(8.0, netDuration);
-            computedWorkHours += regularShiftHours;
-          } else {
-            // Active shift without end: calculate elapsed from start capped at 8.0 hours
-            const now = new Date();
-            const nowTime = now.getTime();
-            const grossDurationHours = Math.min(8.0, Math.max(0, (nowTime - startTime) / (1000 * 3600)));
-            const netDuration = Math.max(0, grossDurationHours - (totalBreakMins / 60));
-            computedWorkHours += Math.min(8.0, netDuration);
+          sumHours += stats.hours;
+          sumBreaks += stats.breakMins;
+          if (d.getDate() === selDay && d.getMonth() === selMonth) {
+            singleDayHours = stats.hours;
           }
-        });
-      }
-
-      // If the employee has recorded standard shift baseline and punches are present
-      if (computedWorkHours === 0 && periodPunches.length > 0) {
-        // Fallback to punch count density or default standard shift duration
-        const durationSum = periodPunches.reduce((acc, curr) => {
-          const d = parseFloat(curr.duration);
-          return !isNaN(d) ? acc + d : acc;
-        }, 0);
-        computedWorkHours = durationSum > 0 ? Number((durationSum / 60).toFixed(2)) : 5.50;
-      }
-
-      // Default baseline mapping for known trainer roster on target benchmark date (9/16/2026)
-      if (computedWorkHours === 0 && selectedDate === '2026-09-16' && viewMode === 'Daily') {
-        const idStr = String(emp.employeeCode);
-        const baselineMap: Record<string, { hours: number; breaks: number }> = {
-          '1597': { hours: 5.50, breaks: 45 },
-          '1108': { hours: 6.00, breaks: 40 },
-          '1772': { hours: 5.28, breaks: 10 },
-          '2385': { hours: 8.00, breaks: 60 },
-          '1035': { hours: 7.50, breaks: 55 },
-          '1820': { hours: 8.00, breaks: 50 },
-          '836':  { hours: 5.95, breaks: 0 },
-          '1006': { hours: 0.68, breaks: 0 },
-          '1880': { hours: 5.14, breaks: 50 },
-          '946':  { hours: 4.50, breaks: 45 },
-          '2298': { hours: 7.80, breaks: 60 },
-          '1954': { hours: 4.50, breaks: 60 },
-          '2610': { hours: 6.20, breaks: 40 },
-          '1021': { hours: 8.00, breaks: 60 },
-          '1898': { hours: 7.50, breaks: 45 },
-          '1671': { hours: 8.00, breaks: 50 },
-          '518':  { hours: 6.80, breaks: 45 },
-          '770':  { hours: 7.20, breaks: 50 },
-          '745':  { hours: 8.00, breaks: 60 },
-          '892':  { hours: 7.60, breaks: 45 },
-          '1708': { hours: 8.00, breaks: 55 },
-        };
-
-        if (baselineMap[idStr]) {
-          computedWorkHours = baselineMap[idStr].hours;
-          totalBreakMins = baselineMap[idStr].breaks;
         }
+
+        computedWorkHours = sumHours;
+        totalBreakMins = sumBreaks;
+      } else {
+        // Monthly: calculate all days of selMonth
+        const totalDaysInMonth = new Date(selYear, selMonth + 1, 0).getDate();
+        let sumHours = 0;
+        let sumBreaks = 0;
+
+        for (let d = 1; d <= totalDaysInMonth; d++) {
+          const stats = computeShiftHoursAndBreaksForDay(
+            emp.employeeCode,
+            emp.name,
+            selYear,
+            selMonth,
+            d,
+            punchLogs,
+            attendanceOverrides
+          );
+          sumHours += stats.hours;
+          sumBreaks += stats.breakMins;
+          if (d === selDay) {
+            singleDayHours = stats.hours;
+          }
+        }
+
+        computedWorkHours = sumHours;
+        totalBreakMins = sumBreaks;
       }
 
-      // Multiply for weekly/monthly view scaling
-      const finalActual = viewMode === 'Weekly' 
-        ? Number((computedWorkHours * 5).toFixed(2))
-        : viewMode === 'Monthly' 
-        ? Number((computedWorkHours * 20).toFixed(2))
-        : Number(computedWorkHours.toFixed(2));
-
-      const finalBreaks = viewMode === 'Weekly'
-        ? totalBreakMins * 5
-        : viewMode === 'Monthly'
-        ? totalBreakMins * 20
-        : totalBreakMins;
+      const finalActual = Number(computedWorkHours.toFixed(2));
+      const finalDaily = Number((singleDayHours || (viewMode === 'Daily' ? computedWorkHours : computedWorkHours / (viewMode === 'Weekly' ? 5 : 20))).toFixed(2));
 
       return {
         id: emp.id,
@@ -285,15 +400,15 @@ export default function HoursReportTab({
         position: emp.position,
         department: emp.department,
         account: emp.account,
-        dailyHours: Number(computedWorkHours.toFixed(2)),
+        dailyHours: finalDaily,
         actualTotal: finalActual,
         targetHours,
         targetDays,
-        breaksUsedMins: Math.round(finalBreaks),
+        breaksUsedMins: Math.round(totalBreakMins),
         breakLimitMins,
       };
     });
-  }, [dbEmployees, propEmployees, punchLogs, selectedDate, viewMode]);
+  }, [dbEmployees, propEmployees, punchLogs, attendanceOverrides, selectedDate, viewMode, isHeadOrAdmin, supervisorName]);
 
   // Pagination state
   const [currentPage, setCurrentPage] = useState<number>(1);

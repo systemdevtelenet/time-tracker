@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { 
   Users, 
   CalendarDays, 
@@ -23,6 +23,7 @@ import AttendanceCalendarView from './AttendanceCalendarView';
 import HoursReportTab from './HoursReportTab';
 import EmployeeDetailsTab from './EmployeeDetailsTab';
 import EndShiftModal from './EndShiftModal';
+import DatePickerPopover from './DatePickerPopover';
 import { PhoneTimeRecord } from '@/lib/types';
 import { isHeadOrAdminUser } from './CompanySidebar';
 
@@ -121,216 +122,265 @@ interface AttendanceRosterHubProps {
   initialEmployee?: string | null;
 }
 
-const INITIAL_ROSTER_EMPLOYEES: RosterEmployee[] = [
-  {
-    id: 'emp-1597',
-    name: 'Nissi-Jeh Reguero',
-    employeeCode: '1597',
-    status: 'working',
-    statusLabel: 'Active (Working)',
-    totalHoursWorked: 8.0,
-    totalHoursFormatted: '8.00 hrs',
-    timeElapsed: '8h 00m 00s',
-    totalBreakMinutes: 15.0,
-    totalLunchMinutes: 60.0,
-    lastActive: '9/16/2026, 11:20:00 AM',
-    trafficLight: 'GREEN',
-    department: 'TQA',
-    account: 'TRAINING',
-  },
-  {
-    id: 'emp-1108',
-    name: 'Raymundo Alasagas III',
-    employeeCode: '1108',
-    status: 'offline',
-    statusLabel: 'Offline',
-    totalHoursWorked: 0.0,
-    totalHoursFormatted: '0.00 hrs',
-    timeElapsed: '0h 00m 00s',
-    totalBreakMinutes: 0.0,
-    totalLunchMinutes: 0.0,
-    lastActive: 'Ready to punch',
-    trafficLight: 'GREEN',
-    department: 'TQA',
-    account: 'QUALITY',
-  },
-  {
-    id: 'emp-1772',
-    name: 'Bianca Kaye Ernestine Colonia',
-    employeeCode: '1772',
-    status: 'working',
-    statusLabel: 'Active (Working)',
-    totalHoursWorked: 5.28,
-    totalHoursFormatted: '5.28 hrs',
-    timeElapsed: '5h 16m 40s',
-    totalBreakMinutes: 9.6,
-    totalLunchMinutes: 0.0,
-    lastActive: '9/15/2026, 11:20:04 PM',
-    trafficLight: 'GREEN',
-    department: 'TQA',
-    account: 'TRAINING',
-  },
-  {
-    id: 'emp-2385',
-    name: 'Michelle Yncierto',
-    employeeCode: '2385',
-    status: 'working',
-    statusLabel: 'Active (Working)',
-    totalHoursWorked: 5.50,
-    totalHoursFormatted: '5.50 hrs',
-    timeElapsed: '5h 30m 00s',
-    totalBreakMinutes: 15.0,
-    totalLunchMinutes: 60.0,
-    lastActive: '9/16/2026, 1:45:12 AM',
-    trafficLight: 'GREEN',
-    department: 'TQA',
-    account: 'TRAINING',
-  },
-  {
-    id: 'emp-1035',
-    name: 'Rommel Mendoza',
-    employeeCode: '1035',
-    status: 'working',
-    statusLabel: 'Active (Working)',
-    totalHoursWorked: 6.00,
-    totalHoursFormatted: '6.00 hrs',
-    timeElapsed: '6h 00m 00s',
-    totalBreakMinutes: 15.0,
-    totalLunchMinutes: 60.0,
-    lastActive: '9/16/2026, 1:50:00 AM',
-    trafficLight: 'GREEN',
-    department: 'TQA',
-    account: 'TRAINING',
-  },
-  {
-    id: 'emp-1820',
-    name: 'Ronelyn Baguio',
-    employeeCode: '1820',
-    status: 'working',
-    statusLabel: 'Active (Working)',
-    totalHoursWorked: 5.80,
-    totalHoursFormatted: '5.80 hrs',
-    timeElapsed: '5h 48m 00s',
-    totalBreakMinutes: 15.0,
-    totalLunchMinutes: 60.0,
-    lastActive: '9/16/2026, 1:55:20 AM',
-    trafficLight: 'GREEN',
-    department: 'TQA',
-    account: 'TRAINING',
-  },
-  {
-    id: 'emp-836',
-    name: 'Krisland Pepito',
-    employeeCode: '836',
-    status: 'working',
-    statusLabel: 'Active (Working)',
-    totalHoursWorked: 5.95,
-    totalHoursFormatted: '5.95 hrs',
-    timeElapsed: '5h 57m 19s',
-    totalBreakMinutes: 0.0,
-    totalLunchMinutes: 0.0,
-    lastActive: '9/15/2026, 8:41:29 PM',
-    trafficLight: 'GREEN',
-    department: 'TQA',
-    account: 'TRAINING',
-  },
-  {
-    id: 'emp-1006',
-    name: 'Niño Elijah R. Reyes',
-    employeeCode: '1006',
-    status: 'working',
-    statusLabel: 'Active (Working)',
-    totalHoursWorked: 5.40,
-    totalHoursFormatted: '5.40 hrs',
-    timeElapsed: '5h 24m 00s',
-    totalBreakMinutes: 15.0,
-    totalLunchMinutes: 60.0,
-    lastActive: '9/16/2026, 2:10:00 AM',
-    trafficLight: 'GREEN',
-    department: 'TQA',
-    account: 'TRAINING',
-  },
-  {
-    id: 'emp-1880',
-    name: 'Kier Ariola',
-    employeeCode: '1880',
-    status: 'working',
-    statusLabel: 'Active (Working)',
-    totalHoursWorked: 5.14,
-    totalHoursFormatted: '5.14 hrs',
-    timeElapsed: '5h 08m 36s',
-    totalBreakMinutes: 3.1,
-    totalLunchMinutes: 47.0,
-    lastActive: '9/16/2026, 1:52:08 AM',
-    trafficLight: 'GREEN',
-    department: 'TQA',
-    account: 'TRAINING',
-  },
-  {
-    id: 'emp-946',
-    name: 'Vincent Luis Celdran',
-    employeeCode: '946',
-    status: 'working',
-    statusLabel: 'Active (Working)',
-    totalHoursWorked: 5.50,
-    totalHoursFormatted: '5.50 hrs',
-    timeElapsed: '5h 30m 00s',
-    totalBreakMinutes: 15.0,
-    totalLunchMinutes: 60.0,
-    lastActive: '9/16/2026, 1:40:00 AM',
-    trafficLight: 'GREEN',
-    department: 'TQA',
-    account: 'TRAINING',
-  },
-  {
-    id: 'emp-2298',
-    name: 'Nina Joy Briones',
-    employeeCode: '2298',
-    status: 'working',
-    statusLabel: 'Active (Working)',
-    totalHoursWorked: 5.60,
-    totalHoursFormatted: '5.60 hrs',
-    timeElapsed: '5h 36m 00s',
-    totalBreakMinutes: 15.0,
-    totalLunchMinutes: 60.0,
-    lastActive: '9/16/2026, 1:30:00 AM',
-    trafficLight: 'GREEN',
-    department: 'TQA',
-    account: 'TRAINING',
-  },
-  {
-    id: 'emp-1954',
-    name: 'Matt Riner Balaba',
-    employeeCode: '1954',
-    status: 'working',
-    statusLabel: 'Active (Working)',
-    totalHoursWorked: 4.50,
-    totalHoursFormatted: '4.50 hrs',
-    timeElapsed: '4h 30m 00s',
-    totalBreakMinutes: 15.0,
-    totalLunchMinutes: 45.0,
-    lastActive: '9/16/2026, 1:45:12 AM',
-    trafficLight: 'GREEN',
-    department: 'TQA',
-    account: 'TRAINING',
-  },
-  {
-    id: 'emp-2610',
-    name: 'Maegan Marie Cabardo',
-    employeeCode: '2610',
-    status: 'working',
-    statusLabel: 'Active (Working)',
-    totalHoursWorked: 5.75,
-    totalHoursFormatted: '5.75 hrs',
-    timeElapsed: '5h 45m 00s',
-    totalBreakMinutes: 15.0,
-    totalLunchMinutes: 60.0,
-    lastActive: '9/16/2026, 1:20:00 AM',
-    trafficLight: 'GREEN',
-    department: 'TQA',
-    account: 'TRAINING',
-  },
-];
+export interface EmployeeShiftMeta {
+  id: string;
+  name: string;
+  employeeCode: string;
+  department: string;
+  account: string;
+  trafficLight: 'GREEN' | 'YELLOW' | 'RED';
+  status: 'working' | 'lunch' | 'break_1' | 'break_2' | 'offline';
+  statusLabel: string;
+  shiftStartMs: number | null;
+  shiftEndMs: number | null;
+  completedBreakSecs: number;
+  completedLunchSecs: number;
+  activeBreakStartMs: number | null;
+  activeLunchStartMs: number | null;
+  lastActive: string;
+}
+
+const createInitialMetas = (): EmployeeShiftMeta[] => {
+  const now = Date.now();
+  const t7h45m = now - (7 * 3600 + 45 * 60) * 1000;
+
+  return [
+    {
+      id: 'emp-1597',
+      name: 'Nissi-Jeh Reguero',
+      employeeCode: '1597',
+      department: 'TQA',
+      account: 'TRAINING',
+      trafficLight: 'GREEN',
+      status: 'working',
+      statusLabel: 'Active (Working)',
+      shiftStartMs: t7h45m,
+      shiftEndMs: null,
+      completedBreakSecs: 15 * 60,
+      completedLunchSecs: 0,
+      activeBreakStartMs: null,
+      activeLunchStartMs: null,
+      lastActive: new Date(now - 4 * 60 * 1000).toLocaleString(),
+    },
+    {
+      id: 'emp-1108',
+      name: 'Raymundo Alasagas III',
+      employeeCode: '1108',
+      department: 'TQA',
+      account: 'QUALITY',
+      trafficLight: 'GREEN',
+      status: 'working',
+      statusLabel: 'Active (Working)',
+      shiftStartMs: t7h45m,
+      shiftEndMs: null,
+      completedBreakSecs: 15 * 60,
+      completedLunchSecs: 0,
+      activeBreakStartMs: null,
+      activeLunchStartMs: null,
+      lastActive: new Date(now - 12 * 60 * 1000).toLocaleString(),
+    },
+    {
+      id: 'emp-1772',
+      name: 'Bianca Kaye Ernestine Colonia',
+      employeeCode: '1772',
+      department: 'TQA',
+      account: 'TRAINING',
+      trafficLight: 'GREEN',
+      status: 'working',
+      statusLabel: 'Active (Working)',
+      shiftStartMs: t7h45m,
+      shiftEndMs: null,
+      completedBreakSecs: 15 * 60,
+      completedLunchSecs: 0,
+      activeBreakStartMs: null,
+      activeLunchStartMs: null,
+      lastActive: new Date(now - 15 * 60 * 1000).toLocaleString(),
+    },
+    {
+      id: 'emp-2385',
+      name: 'Michelle Yncierto',
+      employeeCode: '2385',
+      department: 'TQA',
+      account: 'TRAINING',
+      trafficLight: 'GREEN',
+      status: 'working',
+      statusLabel: 'Active (Working)',
+      shiftStartMs: t7h45m,
+      shiftEndMs: null,
+      completedBreakSecs: 15 * 60,
+      completedLunchSecs: 0,
+      activeBreakStartMs: null,
+      activeLunchStartMs: null,
+      lastActive: new Date(now - 20 * 60 * 1000).toLocaleString(),
+    },
+    {
+      id: 'emp-1035',
+      name: 'Rommel Mendoza',
+      employeeCode: '1035',
+      department: 'TQA',
+      account: 'TRAINING',
+      trafficLight: 'GREEN',
+      status: 'working',
+      statusLabel: 'Active (Working)',
+      shiftStartMs: t7h45m,
+      shiftEndMs: null,
+      completedBreakSecs: 15 * 60,
+      completedLunchSecs: 0,
+      activeBreakStartMs: null,
+      activeLunchStartMs: null,
+      lastActive: new Date(now - 8 * 60 * 1000).toLocaleString(),
+    },
+    {
+      id: 'emp-1820',
+      name: 'Ronelyn Baguio',
+      employeeCode: '1820',
+      department: 'TQA',
+      account: 'TRAINING',
+      trafficLight: 'GREEN',
+      status: 'working',
+      statusLabel: 'Active (Working)',
+      shiftStartMs: now - (6 * 3600 + 34 * 60) * 1000,
+      shiftEndMs: null,
+      completedBreakSecs: 12.2 * 60,
+      completedLunchSecs: 73.5 * 60,
+      activeBreakStartMs: null,
+      activeLunchStartMs: null,
+      lastActive: new Date(now - 6 * 60 * 1000).toLocaleString(),
+    },
+    {
+      id: 'emp-836',
+      name: 'Krisland Pepito',
+      employeeCode: '836',
+      department: 'TQA',
+      account: 'TRAINING',
+      trafficLight: 'GREEN',
+      status: 'working',
+      statusLabel: 'Active (Working)',
+      shiftStartMs: t7h45m,
+      shiftEndMs: null,
+      completedBreakSecs: 15 * 60,
+      completedLunchSecs: 0,
+      activeBreakStartMs: null,
+      activeLunchStartMs: null,
+      lastActive: new Date(now - 25 * 60 * 1000).toLocaleString(),
+    },
+    {
+      id: 'emp-1006',
+      name: 'Niño Elijah R. Reyes',
+      employeeCode: '1006',
+      department: 'TQA',
+      account: 'TRAINING',
+      trafficLight: 'GREEN',
+      status: 'working',
+      statusLabel: 'Active (Working)',
+      shiftStartMs: now - (7 * 3600 + 13 * 60) * 1000,
+      shiftEndMs: null,
+      completedBreakSecs: 15 * 60,
+      completedLunchSecs: 31.9 * 60,
+      activeBreakStartMs: null,
+      activeLunchStartMs: null,
+      lastActive: new Date(now - 14 * 60 * 1000).toLocaleString(),
+    },
+    {
+      id: 'emp-1880',
+      name: 'Kier Ariola',
+      employeeCode: '1880',
+      department: 'TQA',
+      account: 'TRAINING',
+      trafficLight: 'GREEN',
+      status: 'working',
+      statusLabel: 'Active (Working)',
+      shiftStartMs: t7h45m,
+      shiftEndMs: null,
+      completedBreakSecs: 15 * 60,
+      completedLunchSecs: 0,
+      activeBreakStartMs: null,
+      activeLunchStartMs: null,
+      lastActive: new Date(now - 18 * 60 * 1000).toLocaleString(),
+    },
+    {
+      id: 'emp-946',
+      name: 'Vincent Luis Celdran',
+      employeeCode: '946',
+      department: 'TQA',
+      account: 'TRAINING',
+      trafficLight: 'GREEN',
+      status: 'working',
+      statusLabel: 'Active (Working)',
+      shiftStartMs: t7h45m,
+      shiftEndMs: null,
+      completedBreakSecs: 15 * 60,
+      completedLunchSecs: 0,
+      activeBreakStartMs: null,
+      activeLunchStartMs: null,
+      lastActive: new Date(now - 30 * 60 * 1000).toLocaleString(),
+    },
+    {
+      id: 'emp-2298',
+      name: 'Nina Joy Briones',
+      employeeCode: '2298',
+      department: 'TQA',
+      account: 'TRAINING',
+      trafficLight: 'GREEN',
+      status: 'working',
+      statusLabel: 'Active (Working)',
+      shiftStartMs: t7h45m,
+      shiftEndMs: null,
+      completedBreakSecs: 15 * 60,
+      completedLunchSecs: 0,
+      activeBreakStartMs: null,
+      activeLunchStartMs: null,
+      lastActive: new Date(now - 22 * 60 * 1000).toLocaleString(),
+    },
+    {
+      id: 'emp-1954',
+      name: 'Matt Riner Balaba',
+      employeeCode: '1954',
+      department: 'TQA',
+      account: 'TRAINING',
+      trafficLight: 'GREEN',
+      status: 'working',
+      statusLabel: 'Active (Working)',
+      shiftStartMs: t7h45m,
+      shiftEndMs: null,
+      completedBreakSecs: 15 * 60,
+      completedLunchSecs: 0,
+      activeBreakStartMs: null,
+      activeLunchStartMs: null,
+      lastActive: new Date(now - 45 * 60 * 1000).toLocaleString(),
+    },
+    {
+      id: 'emp-2610',
+      name: 'Maegan Marie Cabardo',
+      employeeCode: '2610',
+      department: 'TQA',
+      account: 'TRAINING',
+      trafficLight: 'GREEN',
+      status: 'working',
+      statusLabel: 'Active (Working)',
+      shiftStartMs: t7h45m,
+      shiftEndMs: null,
+      completedBreakSecs: 15 * 60,
+      completedLunchSecs: 0,
+      activeBreakStartMs: null,
+      activeLunchStartMs: null,
+      lastActive: new Date(now - 11 * 60 * 1000).toLocaleString(),
+    },
+  ];
+};
+
+function assignShiftDay(date: Date): { year: number; month: number; day: number } {
+  const h = date.getHours();
+  const shiftDate = new Date(date);
+  if (h < 9) {
+    shiftDate.setDate(shiftDate.getDate() - 1);
+  }
+  return {
+    year: shiftDate.getFullYear(),
+    month: shiftDate.getMonth(), // 0-indexed
+    day: shiftDate.getDate(),
+  };
+}
 
 export default function AttendanceRosterHub({
   records,
@@ -376,6 +426,91 @@ export default function AttendanceRosterHub({
   const [selectedCalendarEmployee, setSelectedCalendarEmployee] = useState<string>(
     initialEmployee || supervisorName || 'Nissi-Jeh Reguero'
   );
+
+  // Selected date in Roster DatePicker (defaults to Sept 26, 2026 or current active date)
+  const [filterDate, setFilterDate] = useState<Date | null>(new Date(2026, 8, 26));
+  const [filterQuarter, setFilterQuarter] = useState('all');
+  const [filterMonth, setFilterMonth] = useState('all');
+  const [filterAccount, setFilterAccount] = useState('all');
+
+  // Raw team roster data and punch logs from DB
+  const [dbRoster, setDbRoster] = useState<any[]>([]);
+  const [allPunchLogs, setAllPunchLogs] = useState<any[]>([]);
+  const [attendanceOverrides, setAttendanceOverrides] = useState<Record<string, string>>({});
+
+  // Real-time second-by-second live clock ticker
+  const [currentTimeMs, setCurrentTimeMs] = useState<number>(() => Date.now());
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setCurrentTimeMs(Date.now());
+    }, 1000);
+    return () => clearInterval(timer);
+  }, []);
+
+  // Load manual attendance overrides from local storage
+  const loadLocalOverrides = () => {
+    if (typeof window !== 'undefined') {
+      try {
+        const saved = localStorage.getItem('attendance_overrides_v1');
+        if (saved) {
+          setAttendanceOverrides(JSON.parse(saved));
+        }
+      } catch (e) {}
+    }
+  };
+
+  // Fetch actual live roster and compute live punch metrics from time_tracker_logs
+  const loadRosterFromDb = async () => {
+    try {
+      const [rosterRes, punchRes] = await Promise.all([
+        fetch('/api/team-roster'),
+        fetch('/api/punch-logs?empId=ALL'),
+      ]);
+
+      const [rosterJson, punchJson] = await Promise.all([
+        rosterRes.json(),
+        punchRes.json(),
+      ]);
+
+      if (rosterJson.success && Array.isArray(rosterJson.data) && rosterJson.data.length > 0) {
+        setDbRoster(rosterJson.data);
+      }
+      if (punchJson.success && Array.isArray(punchJson.data)) {
+        setAllPunchLogs(punchJson.data);
+      }
+      loadLocalOverrides();
+    } catch (err) {
+      console.error('Failed to load roster from database:', err);
+    }
+  };
+
+  useEffect(() => {
+    loadRosterFromDb();
+
+    const handleSync = () => {
+      loadRosterFromDb();
+      loadLocalOverrides();
+    };
+
+    if (typeof window !== 'undefined') {
+      window.addEventListener('punch-updated', handleSync);
+      window.addEventListener('attendance-override-updated', handleSync);
+    }
+
+    const pollInterval = setInterval(() => {
+      loadRosterFromDb();
+    }, 4000);
+
+    return () => {
+      if (typeof window !== 'undefined') {
+        window.removeEventListener('punch-updated', handleSync);
+        window.removeEventListener('attendance-override-updated', handleSync);
+      }
+      clearInterval(pollInterval);
+    };
+  }, []);
+
   const sortWithCurrentUserFirst = (list: RosterEmployee[]) => {
     const sName = (supervisorName || supervisor?.name || '').toLowerCase().trim();
     const sId = supervisorId || supervisor?.id;
@@ -396,137 +531,287 @@ export default function AttendanceRosterHub({
     return [...currentUserList, ...otherList];
   };
 
-  const [employeesList, setEmployeesList] = useState<RosterEmployee[]>(() =>
-    sortWithCurrentUserFirst(INITIAL_ROSTER_EMPLOYEES)
-  );
+  // Derive dynamic roster employees list computed directly from punch logs & overrides for the target filterDate
+  const employeesList = useMemo<RosterEmployee[]>(() => {
+    const targetDate = filterDate || new Date();
+    const targetYear = targetDate.getFullYear();
+    const targetMonth = targetDate.getMonth(); // 0-indexed
+    const targetDay = targetDate.getDate();
+
+    const today = new Date();
+    const isToday = (
+      targetYear === today.getFullYear() &&
+      targetMonth === today.getMonth() &&
+      targetDay === today.getDate()
+    );
+
+    const baseMetas = createInitialMetas();
+    const rosterSource = dbRoster.length > 0 ? dbRoster : baseMetas.map((b) => ({
+      employee_id: b.employeeCode,
+      name: b.name,
+      department: b.department,
+      account: b.account,
+      traffic_light_status: b.trafficLight,
+    }));
+
+    const computed: RosterEmployee[] = rosterSource.map((r: any) => {
+      const empCode = String(r.employee_id || r.id || r.employeeCode).trim();
+      const empName = String(r.name || '').trim();
+      const department = r.department || 'TQA';
+      const account = r.account || 'TRAINING';
+      const fallback = baseMetas.find((b) => b.employeeCode === empCode || b.id === `emp-${empCode}`) || baseMetas[0];
+
+      // 1. Check manual attendance overrides for this employee and date
+      const fullDateKey = `${empCode}-${targetYear}-${targetMonth}-${targetDay}`;
+      const nameFullDateKey = `${empName}-${targetYear}-${targetMonth}-${targetDay}`;
+      const legacyNameKey = `${empName}-${targetDay}`;
+      const legacyCodeKey = `${empCode}-${targetDay}`;
+
+      const manualOverride = 
+        attendanceOverrides[fullDateKey] !== undefined ? attendanceOverrides[fullDateKey] :
+        attendanceOverrides[nameFullDateKey] !== undefined ? attendanceOverrides[nameFullDateKey] :
+        (targetYear === 2026 && targetMonth === 8 && (attendanceOverrides[legacyNameKey] !== undefined || attendanceOverrides[legacyCodeKey] !== undefined))
+          ? (attendanceOverrides[legacyNameKey] || attendanceOverrides[legacyCodeKey])
+          : undefined;
+
+      // 2. Filter punch logs belonging to this employee and target shift date
+      const empLogs = allPunchLogs.filter((l) => {
+        const lCode = String(l.employee_id || l.empId || '').trim();
+        const codeMatch = lCode === empCode || (empCode.length >= 3 && lCode.includes(empCode));
+        return codeMatch;
+      });
+
+      const dayShiftLogs = empLogs.filter((log) => {
+        const rawTs = log.parsedDate || log.timestamp || log.TIMESTAMP;
+        if (!rawTs) return false;
+        const d = new Date(rawTs);
+        if (isNaN(d.getTime())) return false;
+        const shift = assignShiftDay(d);
+        return shift.year === targetYear && shift.month === targetMonth && shift.day === targetDay;
+      });
+
+      // Sort logs chronologically
+      dayShiftLogs.sort((a, b) => {
+        const da = new Date(a.parsedDate || a.timestamp || a.TIMESTAMP).getTime();
+        const db = new Date(b.parsedDate || b.timestamp || b.TIMESTAMP).getTime();
+        return da - db;
+      });
+
+      // If manual leave/rest day override exists
+      if (manualOverride && manualOverride !== 'Clear' && manualOverride !== 'None') {
+        const isLeave = ['Vacation Leave', 'Sick Leave', 'Bereavement Leave', 'Maternity Leave', 'Paternity Leave', 'Holiday', 'VL', 'SL', 'BL', 'ML', 'PL', 'HOL'].includes(manualOverride);
+        const isOff = ['Absent', 'A', 'Rest Day', 'RD', 'Suspension', 'SUS'].includes(manualOverride);
+        
+        if (isLeave || isOff) {
+          const totalHoursWorked = isLeave ? 8.00 : 0.00;
+          return {
+            id: `emp-${empCode}`,
+            name: empName,
+            employeeCode: empCode,
+            status: 'offline',
+            statusLabel: manualOverride,
+            totalHoursWorked,
+            totalHoursFormatted: `${totalHoursWorked.toFixed(2)} hrs`,
+            timeElapsed: '0h 00m 00s',
+            totalBreakMinutes: 0,
+            totalLunchMinutes: 0,
+            lastActive: `Scheduled ${manualOverride}`,
+            trafficLight: manualOverride === 'Absent' || manualOverride === 'A' ? 'RED' : 'GREEN',
+            department,
+            account,
+          };
+        }
+      }
+
+      // Compute from actual shift punch logs
+      let shiftStartMs: number | null = null;
+      let shiftEndMs: number | null = null;
+      let completedBreakSecs = 0;
+      let completedLunchSecs = 0;
+      let pendingBreakStart: number | null = null;
+      let pendingLunchStart: number | null = null;
+      let status: 'working' | 'lunch' | 'break_1' | 'break_2' | 'offline' = 'working';
+      let statusLabel = 'Active (Working)';
+      let trafficLight: 'GREEN' | 'YELLOW' | 'RED' = 'GREEN';
+      let lastActive = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+      if (dayShiftLogs.length > 0) {
+        const lastLog = dayShiftLogs[dayShiftLogs.length - 1];
+        lastActive = lastLog.timestamp || lastLog.TIMESTAMP || new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+        for (const log of dayShiftLogs) {
+          const pType = (log.type || log.punch_type || '').toLowerCase().trim();
+          const pStatus = (log.status || '').toLowerCase().trim();
+          const ts = new Date(log.parsedDate || log.timestamp || log.TIMESTAMP).getTime();
+          if (isNaN(ts)) continue;
+
+          if (pStatus.includes('late')) trafficLight = 'YELLOW';
+          if (pStatus.includes('undertime')) trafficLight = 'YELLOW';
+
+          if (pType.includes('shift start') || pType.includes('start shift')) {
+            shiftStartMs = ts;
+            status = 'working';
+            statusLabel = 'Active (Working)';
+            shiftEndMs = null;
+          } else if (pType.includes('break 1 start') || pType.includes('start break 1') || pType === 'start break') {
+            pendingBreakStart = ts;
+            status = 'break_1';
+            statusLabel = 'On Break 1';
+            if (!shiftStartMs) shiftStartMs = ts;
+          } else if (pType.includes('break 1 end') || pType.includes('end break 1') || pType === 'end break') {
+            if (pendingBreakStart) {
+              completedBreakSecs += Math.max(0, Math.floor((ts - pendingBreakStart) / 1000));
+              pendingBreakStart = null;
+            } else {
+              const durNum = parseFloat(log.duration);
+              completedBreakSecs += !isNaN(durNum) && durNum > 0 ? Math.round(durNum * 60) : 15 * 60;
+            }
+            status = 'working';
+            statusLabel = 'Active (Working)';
+          } else if (pType.includes('start lunch') || pType.includes('lunch start') || pType === 'lunch') {
+            pendingLunchStart = ts;
+            status = 'lunch';
+            statusLabel = 'On Lunch';
+            if (!shiftStartMs) shiftStartMs = ts;
+          } else if (pType.includes('end lunch') || pType.includes('lunch end')) {
+            if (pendingLunchStart) {
+              completedLunchSecs += Math.max(0, Math.floor((ts - pendingLunchStart) / 1000));
+              pendingLunchStart = null;
+            } else {
+              const durNum = parseFloat(log.duration);
+              completedLunchSecs += !isNaN(durNum) && durNum > 0 ? Math.round(durNum * 60) : 60 * 60;
+            }
+            status = 'working';
+            statusLabel = 'Active (Working)';
+          } else if (pType.includes('break 2 start') || pType.includes('start break 2')) {
+            pendingBreakStart = ts;
+            status = 'break_2';
+            statusLabel = 'On Break 2';
+            if (!shiftStartMs) shiftStartMs = ts;
+          } else if (pType.includes('break 2 end') || pType.includes('end break 2')) {
+            if (pendingBreakStart) {
+              completedBreakSecs += Math.max(0, Math.floor((ts - pendingBreakStart) / 1000));
+              pendingBreakStart = null;
+            } else {
+              const durNum = parseFloat(log.duration);
+              completedBreakSecs += !isNaN(durNum) && durNum > 0 ? Math.round(durNum * 60) : 15 * 60;
+            }
+            status = 'working';
+            statusLabel = 'Active (Working)';
+          } else if (pType.includes('shift end') || pType.includes('end shift')) {
+            shiftEndMs = ts;
+            status = 'offline';
+            statusLabel = 'Shift Ended';
+            pendingBreakStart = null;
+            pendingLunchStart = null;
+          }
+        }
+      }
+
+      // Calculate durations
+      let shiftElapsedSecs = 0;
+      let breakSecs = completedBreakSecs;
+      let lunchSecs = completedLunchSecs;
+
+      if (isToday) {
+        // Today's live tracking
+        if (!shiftStartMs && fallback && fallback.shiftStartMs) {
+          shiftStartMs = fallback.shiftStartMs;
+          breakSecs = fallback.completedBreakSecs;
+          lunchSecs = fallback.completedLunchSecs;
+          status = fallback.status;
+          statusLabel = fallback.statusLabel;
+        }
+
+        if (shiftStartMs) {
+          if (status === 'offline' && shiftEndMs) {
+            shiftElapsedSecs = Math.max(0, Math.floor((shiftEndMs - shiftStartMs) / 1000));
+          } else {
+            shiftElapsedSecs = Math.max(0, Math.floor((currentTimeMs - shiftStartMs) / 1000));
+            if (pendingBreakStart) {
+              breakSecs += Math.max(0, Math.floor((currentTimeMs - pendingBreakStart) / 1000));
+            }
+            if (pendingLunchStart) {
+              lunchSecs += Math.max(0, Math.floor((currentTimeMs - pendingLunchStart) / 1000));
+            }
+          }
+        }
+      } else {
+        // Past / specified date calculations
+        if (dayShiftLogs.length > 0) {
+          status = 'offline';
+          statusLabel = manualOverride || 'Shift Ended';
+          const firstTs = new Date(dayShiftLogs[0].parsedDate || dayShiftLogs[0].timestamp || dayShiftLogs[0].TIMESTAMP).getTime();
+          const lastTs = new Date(dayShiftLogs[dayShiftLogs.length - 1].parsedDate || dayShiftLogs[dayShiftLogs.length - 1].timestamp || dayShiftLogs[dayShiftLogs.length - 1].TIMESTAMP).getTime();
+          const startMs = shiftStartMs || firstTs;
+          const endMs = shiftEndMs || lastTs;
+
+          if (endMs > startMs) {
+            shiftElapsedSecs = Math.floor((endMs - startMs) / 1000);
+          } else {
+            // Default 8-hour shift if single punch recorded
+            shiftElapsedSecs = 8 * 3600;
+          }
+        } else {
+          // No punches on this past date
+          const isWeekend = targetDate.getDay() === 0 || targetDate.getDay() === 6;
+          status = 'offline';
+          statusLabel = isWeekend ? 'Rest Day' : 'Absent';
+          trafficLight = isWeekend ? 'GREEN' : 'RED';
+          shiftElapsedSecs = 0;
+          breakSecs = 0;
+          lunchSecs = 0;
+        }
+      }
+
+      const totalBreakMinutes = Math.round((breakSecs / 60) * 10) / 10;
+      const totalLunchMinutes = Math.round((lunchSecs / 60) * 10) / 10;
+      const netWorkedSecs = Math.max(0, shiftElapsedSecs - breakSecs - lunchSecs);
+      const totalHoursWorked = Math.round((netWorkedSecs / 3600) * 100) / 100;
+      const totalHoursFormatted = `${totalHoursWorked.toFixed(2)} hrs`;
+
+      const wholeHours = Math.floor(shiftElapsedSecs / 3600);
+      const mins = Math.floor((shiftElapsedSecs % 3600) / 60);
+      const secs = shiftElapsedSecs % 60;
+      const timeElapsed = `${wholeHours}h ${mins.toString().padStart(2, '0')}m ${secs.toString().padStart(2, '0')}s`;
+
+      return {
+        id: `emp-${empCode}`,
+        name: empName,
+        employeeCode: empCode,
+        status,
+        statusLabel,
+        totalHoursWorked,
+        totalHoursFormatted,
+        timeElapsed,
+        totalBreakMinutes,
+        totalLunchMinutes,
+        lastActive,
+        trafficLight,
+        department,
+        account,
+      };
+    });
+
+    if (!isHeadOrAdmin) {
+      const sName = (supervisorName || supervisor?.name || '').toLowerCase().trim();
+      const sId = supervisorId || supervisor?.id;
+      const filtered = computed.filter((r) => {
+        const rName = (r.name || '').toLowerCase().trim();
+        return (sName && (rName === sName || rName.includes(sName) || sName.includes(rName))) || (sId && r.employeeCode === sId);
+      });
+      return sortWithCurrentUserFirst(filtered.length > 0 ? filtered : computed.slice(0, 1));
+    }
+
+    return sortWithCurrentUserFirst(computed);
+  }, [dbRoster, allPunchLogs, attendanceOverrides, filterDate, currentTimeMs, isHeadOrAdmin, supervisorName, supervisorId, supervisor]);
+
   const [selectedDate, setSelectedDate] = useState<string>('2026-09-22');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [searchTerm, setSearchTerm] = useState<string>('');
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [endShiftTarget, setEndShiftTarget] = useState<RosterEmployee | null>(null);
   const [toastMsg, setToastMsg] = useState<string | null>(null);
-
-  // Fetch actual live roster and compute live punch metrics from time_tracker_logs
-  const loadRosterFromDb = async () => {
-    try {
-      const [rosterRes, punchRes] = await Promise.all([
-        fetch('/api/team-roster'),
-        fetch('/api/punch-logs?empId=ALL'),
-      ]);
-
-      const [rosterJson, punchJson] = await Promise.all([
-        rosterRes.json(),
-        punchRes.json(),
-      ]);
-
-      if (rosterJson.success && Array.isArray(rosterJson.data) && rosterJson.data.length > 0) {
-        const allLogs: any[] = punchJson.success && Array.isArray(punchJson.data) ? punchJson.data : [];
-
-        const mapped: RosterEmployee[] = rosterJson.data.map((r: any) => {
-          const empCode = String(r.employee_id || r.id).trim();
-          const empLogs = allLogs
-            .filter((l) => String(l.employee_id || l.empId || '').trim() === empCode)
-            .sort((a, b) => {
-              const da = a.parsedDate ? new Date(a.parsedDate).getTime() : new Date(a.timestamp || a.TIMESTAMP).getTime();
-              const db = b.parsedDate ? new Date(b.parsedDate).getTime() : new Date(b.timestamp || b.TIMESTAMP).getTime();
-              return db - da;
-            });
-          
-          let status: 'working' | 'lunch' | 'break_1' | 'break_2' | 'offline' = 'working';
-          let statusLabel = 'Active (Working)';
-          let lastActive = 'Never';
-          let totalBreakMinutes = 15.0;
-          let totalLunchMinutes = 60.0;
-          let totalHoursWorked = 8.0;
-
-          if (empLogs.length > 0) {
-            const latest = empLogs[0];
-            lastActive = latest.timestamp || new Date().toLocaleString();
-            const typeLower = (latest.type || latest.punch_type || '').toLowerCase();
-
-            if (typeLower.includes('shift end') || typeLower.includes('end shift')) {
-              status = 'offline';
-              statusLabel = 'Shift Ended';
-            } else if (typeLower.includes('start lunch') || typeLower === 'lunch') {
-              status = 'lunch';
-              statusLabel = 'On Lunch';
-            } else if (typeLower.includes('break 1 start') || typeLower.includes('start break')) {
-              status = 'break_1';
-              statusLabel = 'On Break 1';
-            } else if (typeLower.includes('break 2 start')) {
-              status = 'break_2';
-              statusLabel = 'On Break 2';
-            } else {
-              status = 'working';
-              statusLabel = 'Active (Working)';
-            }
-
-            // Sum actual break and lunch durations from the latest shift logs
-            let breakSecs = 0;
-            let lunchSecs = 0;
-            empLogs.slice(0, 8).forEach((l) => {
-              const pType = (l.type || l.punch_type || '').toLowerCase();
-              const durSecs = l.duration_seconds || (l.duration && l.duration !== 'N/A' ? Math.round(parseFloat(l.duration) * 60) : 0);
-              if (pType.includes('break') && durSecs) breakSecs += durSecs;
-              if (pType.includes('lunch') && durSecs) lunchSecs += durSecs;
-            });
-
-            totalBreakMinutes = breakSecs > 0 ? Math.round((breakSecs / 60) * 10) / 10 : 15.0;
-            totalLunchMinutes = lunchSecs > 0 ? Math.round((lunchSecs / 60) * 10) / 10 : (status === 'lunch' ? 45.0 : 0.0);
-            totalHoursWorked = Math.max(1.0, Math.min(8.0, 8.0 - (totalBreakMinutes + totalLunchMinutes) / 60));
-          } else {
-            // Employee with 0 existing logs (ready to punch)
-            status = 'offline';
-            statusLabel = 'Offline';
-            lastActive = 'Ready to punch';
-            totalHoursWorked = 0.0;
-            totalBreakMinutes = 0.0;
-            totalLunchMinutes = 0.0;
-          }
-
-          const hoursFormatted = `${totalHoursWorked.toFixed(2)} hrs`;
-          const wholeHours = Math.floor(totalHoursWorked);
-          const mins = Math.round((totalHoursWorked - wholeHours) * 60);
-          const timeElapsed = `${wholeHours}h ${mins.toString().padStart(2, '0')}m 00s`;
-
-          return {
-            id: `emp-${empCode}`,
-            name: r.name,
-            employeeCode: empCode,
-            status,
-            statusLabel,
-            totalHoursWorked,
-            totalHoursFormatted: hoursFormatted,
-            timeElapsed,
-            totalBreakMinutes,
-            totalLunchMinutes,
-            lastActive,
-            trafficLight: r.traffic_light_status || 'GREEN',
-            department: r.department || 'TQA',
-            account: r.account || 'TRAINING',
-          };
-        });
-
-        if (!isHeadOrAdmin) {
-          const sName = (supervisorName || supervisor?.name || '').toLowerCase().trim();
-          const sId = supervisorId || supervisor?.id;
-          const filtered = mapped.filter((r) => {
-            const rName = (r.name || '').toLowerCase().trim();
-            return (sName && (rName === sName || rName.includes(sName) || sName.includes(rName))) || (sId && r.employeeCode === sId);
-          });
-          setEmployeesList(sortWithCurrentUserFirst(filtered.length > 0 ? filtered : mapped.slice(0, 1)));
-        } else {
-          setEmployeesList(sortWithCurrentUserFirst(mapped));
-        }
-      }
-    } catch (err) {
-      console.error('Failed to load roster from database:', err);
-    }
-  };
-
-  useEffect(() => {
-    loadRosterFromDb();
-  }, []);
 
   const handleRefresh = () => {
     setIsRefreshing(true);
@@ -536,7 +821,7 @@ export default function AttendanceRosterHub({
       setIsRefreshing(false);
     }, 600);
     setTimeout(() => {
-      setToastMsg(null), 2500;
+      setToastMsg(null);
     }, 2500);
   };
 
@@ -545,26 +830,34 @@ export default function AttendanceRosterHub({
     setActiveSubTab('calendar');
   };
 
-  const handleConfirmEndShift = (empId: string) => {
-    setEmployeesList((prev) =>
-      prev.map((e) =>
-        e.id === empId
-          ? { ...e, status: 'offline', statusLabel: 'Shift Ended', trafficLight: 'RED' }
-          : e
-      )
-    );
-    setToastMsg('Employee shift successfully ended.');
+  const handleConfirmEndShift = async (empId: string) => {
+    try {
+      const targetEmp = employeesList.find((e) => e.id === empId || e.employeeCode === empId);
+      if (targetEmp) {
+        await fetch('/api/punch-logs', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            empId: targetEmp.employeeCode,
+            type: 'Shift End',
+            status: 'On Time',
+            duration: 'N/A',
+            timestamp: new Date().toLocaleString(),
+          }),
+        });
+      }
+      loadRosterFromDb();
+      setToastMsg('Employee shift successfully ended.');
+    } catch (err) {
+      console.error('Failed to end shift:', err);
+    }
     setTimeout(() => setToastMsg(null), 2500);
   };
-
-  const [filterQuarter, setFilterQuarter] = useState('all');
-  const [filterMonth, setFilterMonth] = useState('all');
-  const [filterAccount, setFilterAccount] = useState('all');
 
   // KPI calculations for Roster
   const totalEmployees = employeesList.length;
   const activeCount = employeesList.filter((e) => e.status === 'working').length;
-  const onBreakCount = employeesList.filter((e) => e.status === 'break').length;
+  const onBreakCount = employeesList.filter((e) => e.status === 'break_1' || e.status === 'break_2' || e.status === 'break').length;
   const onLunchCount = employeesList.filter((e) => e.status === 'lunch').length;
   const lateArrivalsCount = employeesList.filter((e) => e.trafficLight === 'YELLOW' || e.trafficLight === 'RED').length;
   const undertimeCount = employeesList.filter((e) => e.totalHoursWorked < 4 && e.status !== 'working').length;
@@ -730,9 +1023,9 @@ export default function AttendanceRosterHub({
       {/* 3. ONE Unified External White Container for Filters, Tabs & Content */}
       <div className="rounded-2xl bg-white dark:bg-[#363435] border border-slate-200/90 dark:border-[#434142] shadow-xs overflow-visible">
         
-        {/* Row A: Top Filters Bar (Dropdowns reduced by 2, search bar lengthened by 2 -> 2 + 2 + 3 + 5 cols) */}
+        {/* Row A: Top Filters Bar (4 filters: 2 + 2 + 3 + 5 = 12 cols) */}
         <div className="p-4 sm:p-5 border-b border-slate-100 dark:border-[#434142]">
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-12 gap-3 sm:gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-12 gap-3 sm:gap-4 items-end">
             
             {/* Quarter Filter (Span 2) */}
             <div className="md:col-span-2">
@@ -785,7 +1078,7 @@ export default function AttendanceRosterHub({
               />
             </div>
 
-            {/* Search Employee / Trainee (Span 5 - lengthened by 2) */}
+            {/* Search Employee / Trainee (Span 5) */}
             <div className="md:col-span-5">
               <label className="block text-[10px] font-extrabold text-slate-500 dark:text-[#94A3B8] uppercase tracking-wider mb-1.5 flex items-center gap-1.5 select-none">
                 <Search className="w-3.5 h-3.5 text-[#3678B0]" />
@@ -814,60 +1107,76 @@ export default function AttendanceRosterHub({
           </div>
         </div>
 
-        {/* Row B: Sub-Navigation Tabs Placed BELOW the Filters (font-semibold only) */}
-        <div className="px-4 sm:px-5 py-2.5 bg-slate-50/60 dark:bg-[#272626]/60 border-b border-slate-100 dark:border-[#434142] flex items-center gap-2 overflow-x-auto">
+        {/* Row B: Sub-Navigation Tabs Placed BELOW the Filters with Date Picker exclusively on Roster Tab */}
+        <div className="px-4 sm:px-5 py-2.5 bg-slate-50/60 dark:bg-[#272626]/60 border-b border-slate-100 dark:border-[#434142] flex flex-wrap items-center justify-between gap-3">
           
-          {/* Tab 1: Roster */}
-          <button
-            type="button"
-            onClick={() => setActiveSubTab('roster')}
-            className={`px-4 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
-              activeSubTab === 'roster'
-                ? 'bg-[#3678B0] text-white shadow-xs'
-                : 'bg-white dark:bg-[#363435] text-slate-700 dark:text-[#F8F8F6] hover:bg-slate-100 dark:hover:bg-[#2C2A2B] border border-slate-200 dark:border-[#434142]'
-            }`}
-          >
-            Roster
-          </button>
+          {/* Left: Tab Buttons */}
+          <div className="flex items-center gap-2 overflow-x-auto">
+            {/* Tab 1: Roster */}
+            <button
+              type="button"
+              onClick={() => setActiveSubTab('roster')}
+              className={`px-4 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+                activeSubTab === 'roster'
+                  ? 'bg-[#3678B0] text-white shadow-xs'
+                  : 'bg-white dark:bg-[#363435] text-slate-700 dark:text-[#F8F8F6] hover:bg-slate-100 dark:hover:bg-[#2C2A2B] border border-slate-200 dark:border-[#434142]'
+              }`}
+            >
+              Roster
+            </button>
 
-          {/* Tab 2: Attendance Calendar */}
-          <button
-            type="button"
-            onClick={() => setActiveSubTab('calendar')}
-            className={`px-4 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
-              activeSubTab === 'calendar'
-                ? 'bg-[#2F6798] text-white shadow-xs'
-                : 'bg-white dark:bg-[#0E1A38] text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-[#132247] border border-slate-200 dark:border-[#1E2E4E]'
-            }`}
-          >
-            Attendance Calendar
-          </button>
+            {/* Tab 2: Attendance Calendar */}
+            <button
+              type="button"
+              onClick={() => setActiveSubTab('calendar')}
+              className={`px-4 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+                activeSubTab === 'calendar'
+                  ? 'bg-[#2F6798] text-white shadow-xs'
+                  : 'bg-white dark:bg-[#0E1A38] text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-[#132247] border border-slate-200 dark:border-[#1E2E4E]'
+              }`}
+            >
+              Attendance Calendar
+            </button>
 
-          {/* Tab 3: Hours Report */}
-          <button
-            type="button"
-            onClick={() => setActiveSubTab('hours')}
-            className={`px-4 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
-              activeSubTab === 'hours'
-                ? 'bg-[#2F6798] text-white shadow-xs'
-                : 'bg-white dark:bg-[#0E1A38] text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-[#132247] border border-slate-200 dark:border-[#1E2E4E]'
-            }`}
-          >
-            Hours Report
-          </button>
+            {/* Tab 3: Hours Report */}
+            <button
+              type="button"
+              onClick={() => setActiveSubTab('hours')}
+              className={`px-4 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+                activeSubTab === 'hours'
+                  ? 'bg-[#2F6798] text-white shadow-xs'
+                  : 'bg-white dark:bg-[#0E1A38] text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-[#132247] border border-slate-200 dark:border-[#1E2E4E]'
+              }`}
+            >
+              Hours Report
+            </button>
 
-          {/* Tab 4: Employee Details */}
-          <button
-            type="button"
-            onClick={() => setActiveSubTab('details')}
-            className={`px-4 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
-              activeSubTab === 'details'
-                ? 'bg-[#2F6798] text-white shadow-xs'
+            {/* Tab 4: Employee Details */}
+            <button
+              type="button"
+              onClick={() => setActiveSubTab('details')}
+              className={`px-4 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+                activeSubTab === 'details'
+                  ? 'bg-[#2F6798] text-white shadow-xs'
                 : 'bg-white dark:bg-[#0E1A38] text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-[#132247] border border-slate-200 dark:border-[#1E2E4E]'
-            }`}
-          >
-            Employee Details
-          </button>
+              }`}
+            >
+              Employee Details
+            </button>
+          </div>
+
+          {/* Right: Date Picker ONLY visible when on Roster tab (activeSubTab === 'roster') */}
+          {activeSubTab === 'roster' && (
+            <div className="flex items-center gap-2 shrink-0 animate-in fade-in duration-200">
+              <DatePickerPopover
+                selectedDate={filterDate}
+                onSelectDate={(d) => setFilterDate(d)}
+                format="date"
+                showArrows
+                align="right"
+              />
+            </div>
+          )}
 
         </div>
 

@@ -101,7 +101,7 @@ const flowHubData: Record<string, FlowHubStore> = {
       },
       {
         id: 'h4',
-        name: 'Reconcile call logs & phone times',
+        name: 'Reconcile shift punch logs & attendance hours',
         category: 'tracker',
         categoryLabel: 'Time Tracker',
         duration: '15 min',

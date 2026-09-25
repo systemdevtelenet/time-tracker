@@ -27,7 +27,8 @@ import {
   Trash2,
   Save,
   PlusCircle,
-  LogIn
+  LogIn,
+  LayoutGrid
 } from 'lucide-react';
 import { PhoneTimeRecord } from '@/lib/types';
 import { logAttendanceUpdate } from '@/lib/activityLogs';
@@ -110,6 +111,34 @@ const STATUS_PILL_CONFIG: Record<string, { active: string; inactive: string }> =
     inactive: 'bg-[#FCE8E6] text-[#C5221F] border-rose-200/80 hover:bg-rose-100/80 hover:border-rose-300 dark:bg-rose-950/40 dark:text-rose-300 dark:border-rose-800/60',
   },
   'Rest Day': {
+    active: 'bg-slate-700 text-white border-slate-700 shadow-xs ring-2 ring-slate-400/30 dark:bg-slate-600 dark:border-slate-500',
+    inactive: 'bg-slate-100 text-slate-700 border-slate-200/80 hover:bg-slate-200/80 hover:border-slate-300 dark:bg-slate-800/80 dark:text-slate-300 dark:border-slate-700',
+  },
+  'Vacation': {
+    active: 'bg-blue-600 text-white border-blue-600 shadow-xs ring-2 ring-blue-400/30',
+    inactive: 'bg-blue-50 text-blue-700 border-blue-200/80 hover:bg-blue-100/80 hover:border-blue-300 dark:bg-blue-950/40 dark:text-blue-300 dark:border-blue-800/60',
+  },
+  'Sick': {
+    active: 'bg-red-600 text-white border-red-600 shadow-xs ring-2 ring-red-400/30',
+    inactive: 'bg-red-50 text-red-700 border-red-200/80 hover:bg-red-100/80 hover:border-red-300 dark:bg-red-950/40 dark:text-red-300 dark:border-red-800/60',
+  },
+  'Bereavement': {
+    active: 'bg-purple-600 text-white border-purple-600 shadow-xs ring-2 ring-purple-400/30',
+    inactive: 'bg-purple-50 text-purple-700 border-purple-200/80 hover:bg-purple-100/80 hover:border-purple-300 dark:bg-purple-950/40 dark:text-purple-300 dark:border-purple-800/60',
+  },
+  'Maternity': {
+    active: 'bg-pink-600 text-white border-pink-600 shadow-xs ring-2 ring-pink-400/30',
+    inactive: 'bg-pink-50 text-pink-700 border-pink-200/80 hover:bg-pink-100/80 hover:border-pink-300 dark:bg-pink-950/40 dark:text-pink-300 dark:border-pink-800/60',
+  },
+  'Paternity': {
+    active: 'bg-teal-600 text-white border-teal-600 shadow-xs ring-2 ring-teal-400/30',
+    inactive: 'bg-teal-50 text-teal-700 border-teal-200/80 hover:bg-teal-100/80 hover:border-teal-300 dark:bg-teal-950/40 dark:text-teal-300 dark:border-teal-800/60',
+  },
+  'Holiday': {
+    active: 'bg-amber-600 text-white border-amber-600 shadow-xs ring-2 ring-amber-400/30',
+    inactive: 'bg-amber-50 text-amber-700 border-amber-200/80 hover:bg-amber-100/80 hover:border-amber-300 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-800/60',
+  },
+  'Suspension': {
     active: 'bg-slate-700 text-white border-slate-700 shadow-xs ring-2 ring-slate-400/30 dark:bg-slate-600 dark:border-slate-500',
     inactive: 'bg-slate-100 text-slate-700 border-slate-200/80 hover:bg-slate-200/80 hover:border-slate-300 dark:bg-slate-800/80 dark:text-slate-300 dark:border-slate-700',
   },
@@ -239,6 +268,32 @@ export function getFullStatusLabel(status: DayAttendanceStatus): string {
     case 'RD':
     case 'Rest Day':
       return 'Rest Day';
+    case 'VL':
+    case 'Vacation':
+    case 'Vacation Leave':
+      return 'Vacation Leave';
+    case 'SL':
+    case 'Sick':
+    case 'Sick Leave':
+      return 'Sick Leave';
+    case 'BL':
+    case 'Bereavement':
+    case 'Bereavement Leave':
+      return 'Bereavement Leave';
+    case 'ML':
+    case 'Maternity':
+    case 'Maternity Leave':
+      return 'Maternity Leave';
+    case 'PL':
+    case 'Paternity':
+    case 'Paternity Leave':
+      return 'Paternity Leave';
+    case 'HOL':
+    case 'Holiday':
+      return 'Holiday';
+    case 'SUS':
+    case 'Suspension':
+      return 'Suspension';
     case 'Clear':
     case 'None':
     case 'null':
@@ -370,6 +425,28 @@ export default function AttendanceCalendarView({
 
   useEffect(() => {
     loadLogsForEmployee();
+
+    const handleExternalSync = () => {
+      if (typeof window !== 'undefined') {
+        try {
+          const saved = localStorage.getItem('attendance_overrides_v1');
+          if (saved) setAttendanceOverrides(JSON.parse(saved));
+        } catch (e) {}
+      }
+      loadLogsForEmployee();
+    };
+
+    if (typeof window !== 'undefined') {
+      window.addEventListener('attendance-override-updated', handleExternalSync);
+      window.addEventListener('punch-updated', handleExternalSync);
+    }
+
+    return () => {
+      if (typeof window !== 'undefined') {
+        window.removeEventListener('attendance-override-updated', handleExternalSync);
+        window.removeEventListener('punch-updated', handleExternalSync);
+      }
+    };
   }, [activeEmployee.id]);
 
   // Group punches by shift date key across all months (YYYY-M-D)
@@ -427,25 +504,32 @@ export default function AttendanceCalendarView({
     const key = `${year}-${monthIndex}-${day}`;
     const dayPunches = punchesByDateKey[key] || [];
 
-    // Check manual overrides for current month or specific date key
-    const nameKey = `${activeEmployee.name}-${day}`;
-    const codeKey = `${activeEmployee.id}-${day}`;
+    // Check manual overrides for specific date key
     const fullDateKey = `${activeEmployee.id}-${year}-${monthIndex}-${day}`;
+    const nameFullDateKey = `${activeEmployee.name}-${year}-${monthIndex}-${day}`;
+    const legacyNameKey = `${activeEmployee.name}-${day}`;
+    const legacyCodeKey = `${activeEmployee.id}-${day}`;
 
-    if (monthIndex === currentMonthIndex && year === currentYear) {
-      const manualOverride = (attendanceOverrides[nameKey] || attendanceOverrides[codeKey] || attendanceOverrides[fullDateKey]) as DayAttendanceStatus;
-      if (manualOverride !== undefined) {
-        if (manualOverride === 'Clear' || manualOverride === 'None' || manualOverride === null) {
-          return { status: null, punches: [] };
-        }
-        return { status: getFullStatusLabel(manualOverride), punches: dayPunches };
-      }
-    } else if (attendanceOverrides[fullDateKey]) {
-      const manualOverride = attendanceOverrides[fullDateKey] as DayAttendanceStatus;
+    const manualOverride = 
+      attendanceOverrides[fullDateKey] !== undefined ? attendanceOverrides[fullDateKey] :
+      attendanceOverrides[nameFullDateKey] !== undefined ? attendanceOverrides[nameFullDateKey] :
+      (year === 2026 && monthIndex === 8 && (attendanceOverrides[legacyNameKey] !== undefined || attendanceOverrides[legacyCodeKey] !== undefined))
+        ? (attendanceOverrides[legacyNameKey] || attendanceOverrides[legacyCodeKey])
+        : undefined;
+
+    if (manualOverride !== undefined) {
       if (manualOverride === 'Clear' || manualOverride === 'None' || manualOverride === null) {
         return { status: null, punches: [] };
       }
-      return { status: getFullStatusLabel(manualOverride), punches: dayPunches };
+      const fullLabel = getFullStatusLabel(manualOverride as DayAttendanceStatus);
+      const isLeaveOrOff = [
+        'Vacation Leave', 'Sick Leave', 'Bereavement Leave', 'Maternity Leave', 
+        'Paternity Leave', 'Holiday', 'Suspension', 'Absent', 'Rest Day'
+      ].includes(fullLabel);
+      return { 
+        status: fullLabel as DayAttendanceStatus, 
+        punches: isLeaveOrOff ? [] : dayPunches 
+      };
     }
 
     const d = new Date(year, monthIndex, day);
@@ -468,8 +552,15 @@ export default function AttendanceCalendarView({
       return { status: 'Rest Day', punches: [] };
     } else {
       const now = new Date();
-      const isPast = new Date(year, monthIndex, day) <= new Date(now.getFullYear(), now.getMonth(), now.getDate());
-      if (isPast) {
+      const isFutureDate = 
+        year > now.getFullYear() || 
+        (year === now.getFullYear() && monthIndex > now.getMonth()) ||
+        (year === now.getFullYear() && monthIndex === now.getMonth() && day > now.getDate());
+      
+      if (isFutureDate) {
+        return { status: null, punches: [] };
+      }
+      if (year === 2026 && monthIndex === 8) {
         return { status: 'Absent', punches: [] };
       }
       return { status: null, punches: [] };
@@ -571,6 +662,13 @@ export default function AttendanceCalendarView({
   const totalUndertimes = useMemo(() => Object.values(dayStatusMap).filter((s) => s === 'Undertime' || s === 'Late / UT' || s === 'U').length, [dayStatusMap]);
   const totalAbsents = useMemo(() => Object.values(dayStatusMap).filter((s) => s === 'Absent' || s === 'A').length, [dayStatusMap]);
   const totalRestDays = useMemo(() => Object.values(dayStatusMap).filter((s) => s === 'Rest Day' || s === 'RD').length, [dayStatusMap]);
+  const totalVacation = useMemo(() => Object.values(dayStatusMap).filter((s) => s === 'Vacation Leave' || s === 'Vacation' || s === 'VL').length, [dayStatusMap]);
+  const totalSick = useMemo(() => Object.values(dayStatusMap).filter((s) => s === 'Sick Leave' || s === 'Sick' || s === 'SL').length, [dayStatusMap]);
+  const totalBereavement = useMemo(() => Object.values(dayStatusMap).filter((s) => s === 'Bereavement Leave' || s === 'Bereavement' || s === 'BL').length, [dayStatusMap]);
+  const totalMaternity = useMemo(() => Object.values(dayStatusMap).filter((s) => s === 'Maternity Leave' || s === 'Maternity' || s === 'ML').length, [dayStatusMap]);
+  const totalPaternity = useMemo(() => Object.values(dayStatusMap).filter((s) => s === 'Paternity Leave' || s === 'Paternity' || s === 'PL').length, [dayStatusMap]);
+  const totalHoliday = useMemo(() => Object.values(dayStatusMap).filter((s) => s === 'Holiday' || s === 'HOL').length, [dayStatusMap]);
+  const totalSuspension = useMemo(() => Object.values(dayStatusMap).filter((s) => s === 'Suspension' || s === 'SUS').length, [dayStatusMap]);
 
   // Open Day Panel in either View or Edit mode
   const handleOpenDayPanel = (
@@ -628,6 +726,8 @@ export default function AttendanceCalendarView({
     const dayNumber = selectedDayDetail.dayNumber;
     const nameKey = `${activeEmployee.name}-${dayNumber}`;
     const codeKey = `${activeEmployee.id}-${dayNumber}`;
+    const fullDateKey = `${activeEmployee.id}-${currentYear}-${currentMonthIndex}-${dayNumber}`;
+    const nameFullDateKey = `${activeEmployee.name}-${currentYear}-${currentMonthIndex}-${dayNumber}`;
 
     try {
       // 1. Update local overrides & notes
@@ -635,10 +735,14 @@ export default function AttendanceCalendarView({
       if (editStatus) {
         updatedOverrides[nameKey] = editStatus;
         updatedOverrides[codeKey] = editStatus;
+        updatedOverrides[fullDateKey] = editStatus;
+        updatedOverrides[nameFullDateKey] = editStatus;
       } else {
         // User explicitly set to Clear -> mark as Clear so no status or fallback badge displays
         updatedOverrides[nameKey] = 'Clear';
         updatedOverrides[codeKey] = 'Clear';
+        updatedOverrides[fullDateKey] = 'Clear';
+        updatedOverrides[nameFullDateKey] = 'Clear';
       }
       setAttendanceOverrides(updatedOverrides);
       if (typeof window !== 'undefined') {
@@ -652,6 +756,8 @@ export default function AttendanceCalendarView({
           ...attendanceNotes,
           [nameKey]: editNote,
           [codeKey]: editNote,
+          [fullDateKey]: editNote,
+          [nameFullDateKey]: editNote,
         };
         setAttendanceNotes(updatedNotes);
         if (typeof window !== 'undefined') {
@@ -711,7 +817,21 @@ export default function AttendanceCalendarView({
         note: editNote || undefined,
       });
 
-      // 5. Update current open panel view
+      // 5. Broadcast to Matrix View, Roster Table, and KPI cards
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(
+          new CustomEvent('punch-updated', {
+            detail: { empId: activeEmployee.id, date: dayNumber, month: currentMonthIndex, year: currentYear },
+          })
+        );
+        window.dispatchEvent(
+          new CustomEvent('attendance-override-updated', {
+            detail: { empId: activeEmployee.id, day: dayNumber, status: editStatus, monthIndex: currentMonthIndex, year: currentYear },
+          })
+        );
+      }
+
+      // 6. Update current open panel view
       setSelectedDayDetail({
         dayNumber,
         status: editStatus,
@@ -742,32 +862,79 @@ export default function AttendanceCalendarView({
       case 'Present':
       case 'P':
         return {
-          banner: 'bg-[#D1FAE5] text-[#065F46] dark:bg-emerald-950 dark:text-emerald-300 border border-emerald-300/60 dark:border-emerald-800/80',
+          banner: 'bg-[#D1FAE5] text-[#065F46] dark:bg-emerald-950 dark:text-emerald-300 border border-emerald-300/60 dark:border-emerald-800/80 font-bold',
           punchPill: 'bg-[#E6F4EA] text-[#137333] dark:bg-emerald-950/60 dark:text-emerald-200 border border-emerald-200/80 dark:border-emerald-800/50',
         };
       case 'Late':
       case 'L':
         return {
-          banner: 'bg-[#FEF3C7] text-[#92400E] dark:bg-amber-950 dark:text-amber-300 border border-amber-300/60 dark:border-amber-800/80',
+          banner: 'bg-[#FEF3C7] text-[#92400E] dark:bg-amber-950 dark:text-amber-300 border border-amber-300/60 dark:border-amber-800/80 font-bold',
           punchPill: 'bg-[#FEF7E0] text-[#B06000] dark:bg-amber-950/60 dark:text-amber-200 border border-amber-200/80 dark:border-amber-800/50',
         };
       case 'Undertime':
       case 'U':
       case 'Late / UT':
         return {
-          banner: 'bg-[#FFEDD5] text-[#9A3412] dark:bg-orange-950 dark:text-orange-300 border border-orange-300/60 dark:border-orange-800/80',
+          banner: 'bg-[#FFEDD5] text-[#9A3412] dark:bg-orange-950 dark:text-orange-300 border border-orange-300/60 dark:border-orange-800/80 font-bold',
           punchPill: 'bg-[#FFF0E0] text-[#C2410C] dark:bg-orange-950/60 dark:text-orange-200 border border-orange-200/80 dark:border-orange-800/50',
         };
       case 'Absent':
       case 'A':
         return {
-          banner: 'bg-[#FFE4E6] text-[#9F1239] dark:bg-rose-950 dark:text-rose-300 border border-rose-300/60 dark:border-rose-800/80',
+          banner: 'bg-[#FFE4E6] text-[#9F1239] dark:bg-rose-950 dark:text-rose-300 border border-rose-300/60 dark:border-rose-800/80 font-bold',
           punchPill: 'bg-[#FCE8E6] text-[#C5221F] dark:bg-rose-950/60 dark:text-rose-200 border border-rose-200/80 dark:border-rose-800/50',
         };
       case 'Rest Day':
       case 'RD':
         return {
-          banner: 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300 border border-slate-300/60 dark:border-slate-700',
+          banner: 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300 border border-slate-300/60 dark:border-slate-700 font-bold',
+          punchPill: 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300 border border-slate-200 dark:border-slate-700',
+        };
+      case 'Vacation':
+      case 'Vacation Leave':
+      case 'VL':
+        return {
+          banner: 'bg-[#2563eb] text-white shadow-xs font-bold border-transparent',
+          punchPill: 'bg-blue-50 text-blue-700 dark:bg-blue-950/60 dark:text-blue-200 border border-blue-200/80 dark:border-blue-800/50',
+        };
+      case 'Sick':
+      case 'Sick Leave':
+      case 'SL':
+        return {
+          banner: 'bg-[#ef4444] text-white shadow-xs font-bold border-transparent',
+          punchPill: 'bg-red-50 text-red-700 dark:bg-red-950/60 dark:text-red-200 border border-red-200/80 dark:border-red-800/50',
+        };
+      case 'Bereavement':
+      case 'Bereavement Leave':
+      case 'BL':
+        return {
+          banner: 'bg-[#8b5cf6] text-white shadow-xs font-bold border-transparent',
+          punchPill: 'bg-purple-50 text-purple-700 dark:bg-purple-950/60 dark:text-purple-200 border border-purple-200/80 dark:border-purple-800/50',
+        };
+      case 'Maternity':
+      case 'Maternity Leave':
+      case 'ML':
+        return {
+          banner: 'bg-[#ec4899] text-white shadow-xs font-bold border-transparent',
+          punchPill: 'bg-pink-50 text-pink-700 dark:bg-pink-950/60 dark:text-pink-200 border border-pink-200/80 dark:border-pink-800/50',
+        };
+      case 'Paternity':
+      case 'Paternity Leave':
+      case 'PL':
+        return {
+          banner: 'bg-[#0d9488] text-white shadow-xs font-bold border-transparent',
+          punchPill: 'bg-teal-50 text-teal-700 dark:bg-teal-950/60 dark:text-teal-200 border border-teal-200/80 dark:border-teal-800/50',
+        };
+      case 'Holiday':
+      case 'HOL':
+        return {
+          banner: 'bg-[#f59e0b] text-white shadow-xs font-bold border-transparent',
+          punchPill: 'bg-amber-50 text-amber-700 dark:bg-amber-950/60 dark:text-amber-200 border border-amber-200/80 dark:border-amber-800/50',
+        };
+      case 'Suspension':
+      case 'SUS':
+        return {
+          banner: 'bg-[#334155] text-white shadow-xs font-bold border-transparent',
           punchPill: 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300 border border-slate-200 dark:border-slate-700',
         };
       default:
@@ -857,8 +1024,27 @@ export default function AttendanceCalendarView({
           )}
         </div>
 
-        {/* Right: Refresh + Unified DatePicker + View Dropdown */}
+        {/* Right: View Format Toggle (All Employees vs Calendar View) + Refresh + Unified DatePicker + View Dropdown */}
         <div className="flex items-center gap-2 flex-wrap">
+          {/* View Format Toggle (Matching All Employees Position) */}
+          <div className="flex items-center p-1 rounded-xl bg-slate-100 dark:bg-[#111C3D] border border-slate-200 dark:border-slate-700 text-xs font-semibold">
+            <button
+              type="button"
+              onClick={onBackToRoster}
+              className="px-3 py-1.5 rounded-lg flex items-center gap-1.5 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-[#F8F8F6] transition-all cursor-pointer"
+            >
+              <LayoutGrid className="w-3.5 h-3.5" />
+              <span>All Employees</span>
+            </button>
+            <button
+              type="button"
+              className="px-3 py-1.5 rounded-lg flex items-center gap-1.5 bg-[#2F6798] dark:bg-[#3678B0] text-white shadow-xs font-semibold transition-all cursor-pointer"
+            >
+              <CalendarDays className="w-3.5 h-3.5" />
+              <span>Calendar View</span>
+            </button>
+          </div>
+
           {/* Refresh Database Logs Button */}
           <button
             type="button"
@@ -919,28 +1105,56 @@ export default function AttendanceCalendarView({
 
       </div>
 
-      {/* ================= METRIC BADGES BAR ================= */}
-      <div className="flex items-center justify-between px-3.5 py-2 bg-slate-50 dark:bg-[#111C3D] rounded-xl border border-slate-200/80 dark:border-slate-800 shadow-2xs">
-        <div className="flex items-center gap-3 text-xs font-bold flex-wrap">
-          <span className="flex items-center gap-1.5 text-emerald-600 dark:text-emerald-400">
-            <span className="w-2.5 h-2.5 rounded-full bg-emerald-500" />
+      {/* ================= METRIC BADGES BAR WITH FULL LEGENDS ================= */}
+      <div className="flex items-center justify-between px-3.5 py-2.5 bg-slate-50 dark:bg-[#111C3D] rounded-xl border border-slate-200/80 dark:border-slate-800 shadow-2xs overflow-x-auto">
+        <div className="flex items-center gap-3.5 text-xs font-bold flex-wrap">
+          <span className="flex items-center gap-1.5 text-emerald-600 dark:text-emerald-400 shrink-0">
+            <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 shrink-0" />
             <span>{totalPresents} Present</span>
           </span>
-          <span className="flex items-center gap-1.5 text-amber-600 dark:text-amber-400">
-            <span className="w-2.5 h-2.5 rounded-full bg-amber-500" />
+          <span className="flex items-center gap-1.5 text-amber-600 dark:text-amber-400 shrink-0">
+            <span className="w-2.5 h-2.5 rounded-full bg-amber-500 shrink-0" />
             <span>{totalLates} Late</span>
           </span>
-          <span className="flex items-center gap-1.5 text-orange-600 dark:text-orange-400">
-            <span className="w-2.5 h-2.5 rounded-full bg-orange-500" />
+          <span className="flex items-center gap-1.5 text-orange-600 dark:text-orange-400 shrink-0">
+            <span className="w-2.5 h-2.5 rounded-full bg-orange-500 shrink-0" />
             <span>{totalUndertimes} Undertime</span>
           </span>
-          <span className="flex items-center gap-1.5 text-rose-600 dark:text-rose-400">
-            <span className="w-2.5 h-2.5 rounded-full bg-rose-500" />
+          <span className="flex items-center gap-1.5 text-rose-600 dark:text-rose-400 shrink-0">
+            <span className="w-2.5 h-2.5 rounded-full bg-rose-500 shrink-0" />
             <span>{totalAbsents} Absent</span>
           </span>
-          <span className="flex items-center gap-1.5 text-slate-500 dark:text-slate-400">
-            <span className="w-2.5 h-2.5 rounded-full bg-slate-400" />
-            <span>{totalRestDays} Rest Days</span>
+          <span className="flex items-center gap-1.5 text-slate-500 dark:text-slate-400 shrink-0">
+            <span className="w-2.5 h-2.5 rounded-full bg-slate-400 shrink-0" />
+            <span>{totalRestDays} Rest Day</span>
+          </span>
+          <span className="flex items-center gap-1.5 text-blue-600 dark:text-blue-400 shrink-0">
+            <span className="w-2.5 h-2.5 rounded-full bg-[#2563eb] shrink-0" />
+            <span>{totalVacation} Vacation Leave</span>
+          </span>
+          <span className="flex items-center gap-1.5 text-red-600 dark:text-red-400 shrink-0">
+            <span className="w-2.5 h-2.5 rounded-full bg-[#ef4444] shrink-0" />
+            <span>{totalSick} Sick Leave</span>
+          </span>
+          <span className="flex items-center gap-1.5 text-purple-600 dark:text-purple-400 shrink-0">
+            <span className="w-2.5 h-2.5 rounded-full bg-[#8b5cf6] shrink-0" />
+            <span>{totalBereavement} Bereavement Leave</span>
+          </span>
+          <span className="flex items-center gap-1.5 text-pink-600 dark:text-pink-400 shrink-0">
+            <span className="w-2.5 h-2.5 rounded-full bg-[#ec4899] shrink-0" />
+            <span>{totalMaternity} Maternity Leave</span>
+          </span>
+          <span className="flex items-center gap-1.5 text-teal-600 dark:text-teal-400 shrink-0">
+            <span className="w-2.5 h-2.5 rounded-full bg-[#0d9488] shrink-0" />
+            <span>{totalPaternity} Paternity Leave</span>
+          </span>
+          <span className="flex items-center gap-1.5 text-amber-600 dark:text-amber-400 shrink-0">
+            <span className="w-2.5 h-2.5 rounded-full bg-[#f59e0b] shrink-0" />
+            <span>{totalHoliday} Holiday</span>
+          </span>
+          <span className="flex items-center gap-1.5 text-slate-700 dark:text-slate-300 shrink-0">
+            <span className="w-2.5 h-2.5 rounded-full bg-[#334155] shrink-0" />
+            <span>{totalSuspension} Suspension</span>
           </span>
         </div>
       </div>
@@ -966,10 +1180,21 @@ export default function AttendanceCalendarView({
             {calendarGrid.map((cell, idx) => {
               const colIndex = idx % 7;
               const isRightmost = colIndex === 6;
+              const isLeaveOrOffOrAbsent = Boolean(
+                cell.status && [
+                  'Absent', 'A', 'Rest Day', 'RD',
+                  'Vacation Leave', 'VL', 'Vacation',
+                  'Sick Leave', 'SL', 'Sick',
+                  'Bereavement Leave', 'BL', 'Bereavement',
+                  'Maternity Leave', 'ML', 'Maternity',
+                  'Paternity Leave', 'PL', 'Paternity',
+                  'Holiday', 'HOL', 'Suspension', 'SUS'
+                ].includes(cell.status)
+              );
 
               if (!cell.isCurrentMonth) {
                 const styles = getStatusColorStyles(cell.status);
-                const hasPunches = cell.punches && cell.punches.length > 0;
+                const hasPunches = !isLeaveOrOffOrAbsent && cell.punches && cell.punches.length > 0;
 
                 return (
                   <div
@@ -998,7 +1223,7 @@ export default function AttendanceCalendarView({
                     )}
 
                     {/* Stack of Punch Action Pills or Rest Day / No Logs */}
-                    {hasPunches ? (
+                    {hasPunches && (
                       <div className="flex flex-col gap-1 mt-0.5 overflow-hidden max-h-[185px] pr-0.5">
                         {cell.punches.map((punch) => (
                           <div
@@ -1010,26 +1235,18 @@ export default function AttendanceCalendarView({
                           </div>
                         ))}
                       </div>
-                    ) : (cell.status === 'Absent' || cell.status === 'A') ? (
-                      <div className="flex-1 flex items-center justify-center p-1 text-center text-[10px] text-rose-500/60 font-medium">
-                        No time logs
-                      </div>
-                    ) : (cell.status === 'Rest Day' || cell.status === 'RD') ? (
-                      <div className="flex-1 flex items-center justify-center p-1 text-center text-[10px] text-slate-400 font-medium">
-                        Scheduled Rest Day
-                      </div>
-                    ) : null}
+                    )}
                   </div>
                 );
               }
 
               const styles = getStatusColorStyles(cell.status);
-              const hasPunches = cell.punches && cell.punches.length > 0;
+              const hasPunches = !isLeaveOrOffOrAbsent && cell.punches && cell.punches.length > 0;
 
               return (
                 <div
                   key={`day-${cell.dayNum}`}
-                  onClick={() => handleOpenDayPanel(cell.dayNum, cell.status, cell.punches, 'view')}
+                  onClick={() => handleOpenDayPanel(cell.dayNum, cell.status, isLeaveOrOffOrAbsent ? [] : cell.punches, 'view')}
                   className={`min-h-[160px] p-2 flex flex-col justify-start gap-1 border-b border-r ${
                     isRightmost ? 'border-r-0' : ''
                   } border-slate-200 dark:border-slate-800 bg-white dark:bg-[#0E1B38] hover:bg-blue-50/30 dark:hover:bg-slate-800/30 transition-colors cursor-pointer relative group ${
@@ -1052,7 +1269,7 @@ export default function AttendanceCalendarView({
                         type="button"
                         onClick={(e) => {
                           e.stopPropagation();
-                          handleOpenDayPanel(cell.dayNum, cell.status || 'Present', cell.punches, 'edit');
+                          handleOpenDayPanel(cell.dayNum, cell.status || 'Present', isLeaveOrOffOrAbsent ? [] : cell.punches, 'edit');
                         }}
                         className="opacity-0 group-hover:opacity-100 p-1 rounded-md bg-slate-100 dark:bg-slate-700 hover:bg-[#2F6798] hover:text-white text-slate-600 dark:text-slate-300 transition-all cursor-pointer shadow-2xs"
                         title={hasPunches || cell.status ? "Edit shift data for this day" : "Add shift punches / attendance for this day"}
@@ -1076,16 +1293,16 @@ export default function AttendanceCalendarView({
                     </div>
                   </div>
 
-                  {/* Top Status Badge */}
+                  {/* Top Status Badge with Full Words */}
                   {cell.status && (
                     <div
-                      className={`w-full py-0.5 px-1.5 rounded-md font-extrabold text-[10.5px] text-center truncate shadow-2xs select-none ${styles.banner}`}
+                      className={`w-full py-1 px-1.5 rounded-md font-extrabold text-[10.5px] text-center truncate shadow-2xs select-none ${styles.banner}`}
                     >
                       {getFullStatusLabel(cell.status)}
                     </div>
                   )}
 
-                  {/* Stack of Punch Action Pills or Interactive Empty State */}
+                  {/* Stack of Punch Action Pills (Only shown for Present / Late / Undertime) */}
                   {hasPunches ? (
                     <div className="flex flex-col gap-1 mt-0.5 overflow-y-auto max-h-[185px] pr-0.5 custom-scrollbar">
                       {cell.punches.map((punch) => (
@@ -1101,23 +1318,7 @@ export default function AttendanceCalendarView({
                         </div>
                       ))}
                     </div>
-                  ) : (cell.status === 'Absent' || cell.status === 'A') ? (
-                    <div className="flex-1 flex flex-col items-center justify-center p-1 text-center group/empty">
-                      <span className="text-[10px] text-rose-500/80 font-bold group-hover:hidden">No time logs</span>
-                      <div className="hidden group-hover:flex items-center gap-1 text-[10px] font-bold text-[#2F6798] dark:text-blue-400 bg-blue-50/80 dark:bg-blue-950/50 px-2 py-1 rounded-lg border border-blue-200/60 dark:border-blue-800/60">
-                        <Plus className="w-3 h-3" />
-                        <span>Add Logs</span>
-                      </div>
-                    </div>
-                  ) : (cell.status === 'Rest Day' || cell.status === 'RD') ? (
-                    <div className="flex-1 flex flex-col items-center justify-center p-1 text-center group/empty">
-                      <span className="text-[10px] text-slate-400 font-semibold group-hover:hidden">Scheduled Rest Day</span>
-                      <div className="hidden group-hover:flex items-center gap-1 text-[10px] font-bold text-[#2F6798] dark:text-blue-400 bg-blue-50/80 dark:bg-blue-950/50 px-2 py-1 rounded-lg border border-blue-200/60 dark:border-blue-800/60">
-                        <Plus className="w-3 h-3" />
-                        <span>Add Shift</span>
-                      </div>
-                    </div>
-                  ) : (
+                  ) : !cell.status && (
                     /* Blank / Future Empty Dates */
                     <div className="flex-1 flex flex-col items-center justify-center p-2 rounded-xl border border-dashed border-transparent group-hover:border-blue-300/80 dark:group-hover:border-blue-700/60 group-hover:bg-blue-50/30 dark:group-hover:bg-blue-950/20 transition-all cursor-pointer">
                       <div className="w-6 h-6 rounded-full bg-slate-100 dark:bg-slate-800 group-hover:bg-[#2F6798] text-slate-400 group-hover:text-white flex items-center justify-center transition-all shadow-2xs">
@@ -1301,9 +1502,10 @@ export default function AttendanceCalendarView({
                       Change Day Attendance Status
                     </label>
                     <div className="flex flex-wrap items-center gap-2">
-                      {(['Present', 'Late', 'Undertime', 'Absent', 'Rest Day'] as const).map((st) => {
+                      {(['Present', 'Late', 'Undertime', 'Absent', 'Rest Day', 'Vacation', 'Sick', 'Bereavement', 'Maternity', 'Paternity', 'Holiday', 'Suspension'] as const).map((st) => {
                         const isSelected = editStatus === st;
                         const colors = STATUS_PILL_CONFIG[st];
+                        if (!colors) return null;
                         return (
                           <button
                             key={st}

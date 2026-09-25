@@ -34,7 +34,20 @@ interface AttendanceCalendarTabProps {
   supervisorId?: string;
 }
 
-export type AttendanceStatus = 'P' | 'L' | 'U' | 'A' | 'RD' | null;
+export type AttendanceStatus = 
+  | 'P' 
+  | 'L' 
+  | 'U' 
+  | 'A' 
+  | 'RD' 
+  | 'VL' 
+  | 'SL' 
+  | 'BL' 
+  | 'ML' 
+  | 'PL' 
+  | 'HOL' 
+  | 'SUS' 
+  | null;
 
 interface EmployeeAttendanceRow {
   id: string;
@@ -265,23 +278,44 @@ export default function AttendanceCalendarTab({
   const [attendanceNotes, setAttendanceNotes] = useState<Record<string, string>>({});
 
   useEffect(() => {
+    const syncOverrides = () => {
+      if (typeof window !== 'undefined') {
+        try {
+          const saved = localStorage.getItem('attendance_overrides_v1');
+          if (saved) setAttendanceOverrides(JSON.parse(saved));
+        } catch (e) {}
+        try {
+          const savedNotes = localStorage.getItem('attendance_notes_v1');
+          if (savedNotes) setAttendanceNotes(JSON.parse(savedNotes));
+        } catch (e) {}
+      }
+    };
+
+    syncOverrides();
+
     if (typeof window !== 'undefined') {
-      try {
-        const saved = localStorage.getItem('attendance_overrides_v1');
-        if (saved) setAttendanceOverrides(JSON.parse(saved));
-      } catch (e) {}
-      try {
-        const savedNotes = localStorage.getItem('attendance_notes_v1');
-        if (savedNotes) setAttendanceNotes(JSON.parse(savedNotes));
-      } catch (e) {}
+      window.addEventListener('attendance-override-updated', syncOverrides);
+      window.addEventListener('punch-updated', syncOverrides);
     }
+    return () => {
+      if (typeof window !== 'undefined') {
+        window.removeEventListener('attendance-override-updated', syncOverrides);
+        window.removeEventListener('punch-updated', syncOverrides);
+      }
+    };
   }, []);
 
   const handleOpenCellPopover = (emp: EmployeeAttendanceRow, dayNum: number) => {
-    const key = `${emp.name}-${dayNum}`;
+    const key = `${emp.name}-${currentYear}-${currentMonthIndex}-${dayNum}`;
     const empCode = emp.id.replace(/^emp-/, '');
-    const overrideKey = `${empCode}-${dayNum}`;
-    const currentNote = attendanceNotes[key] || attendanceNotes[overrideKey] || '';
+    const overrideKey = `${empCode}-${currentYear}-${currentMonthIndex}-${dayNum}`;
+    const legacyKey = `${emp.name}-${dayNum}`;
+    const legacyIdKey = `${empCode}-${dayNum}`;
+    const currentNote = 
+      attendanceNotes[key] || 
+      attendanceNotes[overrideKey] || 
+      (currentMonthIndex === 8 && currentYear === 2026 ? (attendanceNotes[legacyKey] || attendanceNotes[legacyIdKey]) : '') || 
+      '';
     
     setCellPopover({
       isOpen: true,
@@ -297,9 +331,9 @@ export default function AttendanceCalendarTab({
 
   const handleSelectCellStatus = async (newStatus: AttendanceStatus, note?: string) => {
     const { employeeName, dayNumber, employeeId } = cellPopover;
-    const nameKey = `${employeeName}-${dayNumber}`;
+    const nameKey = `${employeeName}-${currentYear}-${currentMonthIndex}-${dayNumber}`;
     const cleanEmpId = (employeeId || '').replace(/^emp-/, '');
-    const idKey = `${cleanEmpId}-${dayNumber}`;
+    const idKey = `${cleanEmpId}-${currentYear}-${currentMonthIndex}-${dayNumber}`;
 
     // 1. Update React state immediately
     setAttendanceDataList((prev) =>
@@ -322,6 +356,10 @@ export default function AttendanceCalendarTab({
       ...attendanceOverrides,
       [nameKey]: newStatus,
       [idKey]: newStatus,
+      ...(currentMonthIndex === 8 && currentYear === 2026 ? {
+        [`${employeeName}-${dayNumber}`]: newStatus,
+        [`${cleanEmpId}-${dayNumber}`]: newStatus,
+      } : {}),
     };
     setAttendanceOverrides(updatedOverrides);
     if (typeof window !== 'undefined') {
@@ -335,6 +373,10 @@ export default function AttendanceCalendarTab({
         ...attendanceNotes,
         [nameKey]: note,
         [idKey]: note,
+        ...(currentMonthIndex === 8 && currentYear === 2026 ? {
+          [`${employeeName}-${dayNumber}`]: note,
+          [`${cleanEmpId}-${dayNumber}`]: note,
+        } : {}),
       };
       setAttendanceNotes(updatedNotes);
       if (typeof window !== 'undefined') {
@@ -347,18 +389,31 @@ export default function AttendanceCalendarTab({
     // 3. Persist to Supabase time_tracker_logs
     if (cleanEmpId) {
       try {
-        const punchType = newStatus === 'P' ? 'Shift Start' : newStatus === 'L' ? 'Shift Start' : newStatus === 'U' ? 'Shift End' : 'Attendance Override';
-        const statusStr = newStatus === 'P' ? 'On Time' : newStatus === 'L' ? 'Late' : newStatus === 'U' ? 'Undertime' : newStatus === 'A' ? 'Absent' : 'Rest Day';
+        const statusMapLabel: Record<string, string> = {
+          P: 'On Time',
+          L: 'Late',
+          U: 'Undertime',
+          A: 'Absent',
+          RD: 'Rest Day',
+          VL: 'Vacation Leave',
+          SL: 'Sick Leave',
+          BL: 'Bereavement Leave',
+          ML: 'Maternity Leave',
+          PL: 'Paternity Leave',
+          HOL: 'Holiday',
+          SUS: 'Suspension',
+        };
+        const statusStr = newStatus ? (statusMapLabel[newStatus] || 'Attendance Override') : 'Cleared';
 
         await fetch('/api/punch-logs', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             empId: cleanEmpId,
-            type: punchType,
+            type: 'Shift Start',
             status: statusStr,
             duration: 'N/A',
-            timestamp: `9/${dayNumber}/2026 8:00:00`,
+            timestamp: `${currentMonthIndex + 1}/${dayNumber}/${currentYear} 8:00:00`,
           }),
         });
       } catch (err) {
@@ -367,7 +422,21 @@ export default function AttendanceCalendarTab({
     }
 
     // 4. Record to Activity Logs
-    const fullStatusLabel = newStatus === 'P' ? 'Present' : newStatus === 'L' ? 'Late' : newStatus === 'U' ? 'Undertime' : newStatus === 'A' ? 'Absent' : newStatus === 'RD' ? 'Rest Day' : String(newStatus || 'Updated');
+    const fullStatusLabelMap: Record<string, string> = {
+      P: 'Present',
+      L: 'Late',
+      U: 'Undertime',
+      A: 'Absent',
+      RD: 'Rest Day',
+      VL: 'Vacation Leave (VL)',
+      SL: 'Sick Leave (SL)',
+      BL: 'Bereavement Leave (BL)',
+      ML: 'Maternity Leave (ML)',
+      PL: 'Paternity Leave (PL)',
+      HOL: 'Holiday (HOL)',
+      SUS: 'Suspension (SUS)',
+    };
+    const fullStatusLabel = newStatus ? (fullStatusLabelMap[newStatus] || String(newStatus)) : 'Cleared';
     logAttendanceUpdate({
       employeeName: employeeName,
       dateStr: `${monthNames[currentMonthIndex]} ${dayNumber}, ${currentYear}`,
@@ -375,6 +444,20 @@ export default function AttendanceCalendarTab({
       performedBy: supervisorName || 'Supervisor',
       note: note || undefined,
     });
+
+    // 5. Broadcast changes across all views
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(
+        new CustomEvent('punch-updated', {
+          detail: { empId: cleanEmpId, date: dayNumber, month: currentMonthIndex, year: currentYear },
+        })
+      );
+      window.dispatchEvent(
+        new CustomEvent('attendance-override-updated', {
+          detail: { empId: cleanEmpId, day: dayNumber, status: newStatus, monthIndex: currentMonthIndex, year: currentYear },
+        })
+      );
+    }
   };
 
   const scrollContainerRef = useRef<HTMLDivElement>(null);
@@ -485,86 +568,133 @@ export default function AttendanceCalendarTab({
           punchRes.json(),
         ]);
 
-        if (rosterJson.success && Array.isArray(rosterJson.data) && rosterJson.data.length > 0) {
-          const punchLogs: any[] = punchJson.success && Array.isArray(punchJson.data) ? punchJson.data : [];
+        const rosterData: any[] = rosterJson.success && Array.isArray(rosterJson.data) && rosterJson.data.length > 0
+          ? rosterJson.data
+          : TEAM_ATTENDANCE_DATA.map((e) => ({
+              employee_id: e.id,
+              name: e.name,
+              position: e.position,
+              hire_date: e.startDate,
+            }));
 
-          // Load local overrides
-          let savedOverrides: Record<string, AttendanceStatus> = {};
-          if (typeof window !== 'undefined') {
-            try {
-              const saved = localStorage.getItem('attendance_overrides_v1');
-              if (saved) savedOverrides = JSON.parse(saved);
-            } catch (e) {}
-          }
+        const punchLogs: any[] = punchJson.success && Array.isArray(punchJson.data) ? punchJson.data : [];
 
-          const mapped: EmployeeAttendanceRow[] = rosterJson.data.map((r: any) => {
-            const empCode = String(r.employee_id || r.id).trim();
-            const empLogs = punchLogs.filter((l) => String(l.employee_id || l.empId || '').trim() === empCode);
+        // Load local overrides
+        let savedOverrides: Record<string, AttendanceStatus> = {};
+        if (typeof window !== 'undefined') {
+          try {
+            const saved = localStorage.getItem('attendance_overrides_v1');
+            if (saved) savedOverrides = JSON.parse(saved);
+          } catch (e) {}
+        }
 
-            // Compute exact daily attendance status for days 1 to 30
-            const attendanceMap: Record<number, AttendanceStatus> = {};
-            for (let d = 1; d <= 30; d++) {
-              const isWeekend = d % 7 === 5 || d % 7 === 6;
-              const overrideKey = `${empCode}-${d}`;
-              const nameOverrideKey = `${r.name}-${d}`;
-              const manualOverride = savedOverrides[overrideKey] !== undefined ? savedOverrides[overrideKey] : savedOverrides[nameOverrideKey];
+        const now = new Date();
+        const liveTodayDate = now.getDate();
+        const liveTodayMonth = now.getMonth();
+        const liveTodayYear = now.getFullYear();
 
-              if (manualOverride !== undefined) {
-                attendanceMap[d] = manualOverride;
-                continue;
-              }
+        const mapped: EmployeeAttendanceRow[] = rosterData.map((r: any) => {
+          const empCode = String(r.employee_id || r.id).trim();
+          const empLogs = punchLogs.filter((l) => String(l.employee_id || l.empId || '').trim() === empCode);
 
-              const dayLogs = empLogs.filter((l) => {
-                const ts = l.timestamp || l.TIMESTAMP;
-                const parsed = l.parsedDate ? new Date(l.parsedDate) : new Date(ts);
-                return parsed.getMonth() === 8 && parsed.getDate() === d;
-              });
+          // Compute exact daily attendance status for days 1 to totalDaysInMonth
+          const attendanceMap: Record<number, AttendanceStatus> = {};
+          for (let d = 1; d <= totalDaysInMonth; d++) {
+            const cellDate = new Date(currentYear, currentMonthIndex, d);
+            const dayOfWeek = cellDate.getDay(); // 0 = Sunday, 6 = Saturday
+            const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
 
-              if (dayLogs.length > 0) {
-                const hasLate = dayLogs.some((l) => {
-                  const s = (l.status || '').toLowerCase();
-                  const t = (l.type || l.punch_type || '').toLowerCase();
-                  return s === 'late' || t.includes('late');
-                });
-                const hasUndertime = dayLogs.some((l) => (l.status || '').toLowerCase() === 'undertime');
-                if (hasLate) attendanceMap[d] = 'L';
-                else if (hasUndertime) attendanceMap[d] = 'U';
-                else attendanceMap[d] = 'P';
-              } else if (isWeekend) {
-                attendanceMap[d] = 'RD';
-              } else if (d <= 22) {
-                attendanceMap[d] = 'A';
-              } else {
-                attendanceMap[d] = null;
-              }
+            const overrideKey = `${empCode}-${currentYear}-${currentMonthIndex}-${d}`;
+            const nameOverrideKey = `${r.name}-${currentYear}-${currentMonthIndex}-${d}`;
+            const legacyKey = `${empCode}-${d}`;
+            const legacyNameKey = `${r.name}-${d}`;
+
+            const manualOverride = 
+              savedOverrides[overrideKey] !== undefined ? savedOverrides[overrideKey] :
+              savedOverrides[nameOverrideKey] !== undefined ? savedOverrides[nameOverrideKey] :
+              (currentMonthIndex === 8 && currentYear === 2026 && savedOverrides[legacyKey] !== undefined) ? savedOverrides[legacyKey] :
+              (currentMonthIndex === 8 && currentYear === 2026 && savedOverrides[legacyNameKey] !== undefined) ? savedOverrides[legacyNameKey] :
+              undefined;
+
+            if (manualOverride !== undefined) {
+              attendanceMap[d] = manualOverride;
+              continue;
             }
 
-            return {
-              id: `emp-${empCode}`,
-              name: r.name,
-              startDate: r.hire_date || '1/3/2024',
-              position: r.position || 'Trainer',
-              attendanceByDay: attendanceMap,
-            };
-          });
+            // Saturday & Sunday are ALWAYS automatically Rest Day (RD) for any month
+            if (isWeekend) {
+              attendanceMap[d] = 'RD';
+              continue;
+            }
 
-          if (!isHeadOrAdmin) {
-            const sName = (supervisorName || '').toLowerCase().trim();
-            const filtered = mapped.filter((r) => {
-              const rName = (r.name || '').toLowerCase().trim();
-              return (sName && (rName === sName || rName.includes(sName) || sName.includes(rName))) || (supervisorId && r.id === `emp-${supervisorId}`);
+            // Check if there are real punch logs for this specific date and month
+            const dayLogs = empLogs.filter((l) => {
+              const ts = l.timestamp || l.TIMESTAMP;
+              const parsed = l.parsedDate ? new Date(l.parsedDate) : new Date(ts);
+              return parsed.getFullYear() === currentYear && parsed.getMonth() === currentMonthIndex && parsed.getDate() === d;
             });
-            setAttendanceDataList(filtered.length > 0 ? filtered : mapped.slice(0, 1));
-          } else {
-            setAttendanceDataList(mapped);
+
+            if (dayLogs.length > 0) {
+              const hasLate = dayLogs.some((l) => {
+                const s = (l.status || '').toLowerCase();
+                const t = (l.type || l.punch_type || '').toLowerCase();
+                return s === 'late' || t.includes('late');
+              });
+              const hasUndertime = dayLogs.some((l) => (l.status || '').toLowerCase() === 'undertime');
+              if (hasLate) attendanceMap[d] = 'L';
+              else if (hasUndertime) attendanceMap[d] = 'U';
+              else attendanceMap[d] = 'P';
+              continue;
+            }
+
+            // Check if this date is in the future
+            const isFutureDate = 
+              currentYear > liveTodayYear || 
+              (currentYear === liveTodayYear && currentMonthIndex > liveTodayMonth) ||
+              (currentYear === liveTodayYear && currentMonthIndex === liveTodayMonth && d > liveTodayDate);
+
+            if (isFutureDate) {
+              // Future weekdays MUST be a clear tag (-) unless manually assigned
+              attendanceMap[d] = null;
+            } else if (currentMonthIndex === 8 && currentYear === 2026) {
+              // Baseline historical demo data for past days in September 2026
+              const baseData = TEAM_ATTENDANCE_DATA.find((t) => t.name.toLowerCase() === r.name.toLowerCase());
+              if (baseData?.attendanceByDay[d]) {
+                attendanceMap[d] = baseData.attendanceByDay[d];
+              } else {
+                attendanceMap[d] = 'A';
+              }
+            } else {
+              // Other past dates without logs default to clear
+              attendanceMap[d] = null;
+            }
           }
+
+          return {
+            id: `emp-${empCode}`,
+            name: r.name,
+            startDate: r.hire_date || '1/3/2024',
+            position: r.position || 'Trainer',
+            attendanceByDay: attendanceMap,
+          };
+        });
+
+        if (!isHeadOrAdmin) {
+          const sName = (supervisorName || '').toLowerCase().trim();
+          const filtered = mapped.filter((r) => {
+            const rName = (r.name || '').toLowerCase().trim();
+            return (sName && (rName === sName || rName.includes(sName) || sName.includes(rName))) || (supervisorId && r.id === `emp-${supervisorId}`);
+          });
+          setAttendanceDataList(filtered.length > 0 ? filtered : mapped.slice(0, 1));
+        } else {
+          setAttendanceDataList(mapped);
         }
       } catch (err) {
         console.error('Failed to load database roster in calendar tab:', err);
       }
     }
     loadDbTeam();
-  }, [isHeadOrAdmin, supervisorName, supervisorId]);
+  }, [currentMonthIndex, currentYear, totalDaysInMonth, isHeadOrAdmin, supervisorName, supervisorId, attendanceOverrides]);
 
   const isCurrentUser = (emp: EmployeeAttendanceRow) => {
     if (!supervisorName && !supervisorId) return false;
@@ -638,6 +768,48 @@ export default function AttendanceCalendarTab({
         return (
           <span className="w-5 h-5 sm:w-6 sm:h-6 rounded-md bg-slate-100 text-slate-600 dark:bg-[#272626] dark:text-slate-400 dark:border dark:border-[#434142] font-extrabold text-[9.5px] sm:text-[10px] flex items-center justify-center shadow-2xs">
             RD
+          </span>
+        );
+      case 'VL':
+        return (
+          <span className="w-5 h-5 sm:w-6 sm:h-6 rounded-md bg-[#2563eb] text-white font-extrabold text-[9px] sm:text-[10px] flex items-center justify-center shadow-xs">
+            VL
+          </span>
+        );
+      case 'SL':
+        return (
+          <span className="w-5 h-5 sm:w-6 sm:h-6 rounded-md bg-[#ef4444] text-white font-extrabold text-[9px] sm:text-[10px] flex items-center justify-center shadow-xs">
+            SL
+          </span>
+        );
+      case 'BL':
+        return (
+          <span className="w-5 h-5 sm:w-6 sm:h-6 rounded-md bg-[#8b5cf6] text-white font-extrabold text-[9px] sm:text-[10px] flex items-center justify-center shadow-xs">
+            BL
+          </span>
+        );
+      case 'ML':
+        return (
+          <span className="w-5 h-5 sm:w-6 sm:h-6 rounded-md bg-[#ec4899] text-white font-extrabold text-[9px] sm:text-[10px] flex items-center justify-center shadow-xs">
+            ML
+          </span>
+        );
+      case 'PL':
+        return (
+          <span className="w-5 h-5 sm:w-6 sm:h-6 rounded-md bg-[#0d9488] text-white font-extrabold text-[9px] sm:text-[10px] flex items-center justify-center shadow-xs">
+            PL
+          </span>
+        );
+      case 'HOL':
+        return (
+          <span className="w-5 h-5 sm:w-6 sm:h-6 rounded-md bg-[#f59e0b] text-white font-extrabold text-[8px] sm:text-[8.5px] flex items-center justify-center shadow-xs">
+            HOL
+          </span>
+        );
+      case 'SUS':
+        return (
+          <span className="w-5 h-5 sm:w-6 sm:h-6 rounded-md bg-[#334155] text-white font-extrabold text-[8px] sm:text-[8.5px] flex items-center justify-center shadow-xs">
+            SUS
           </span>
         );
       default:
@@ -788,27 +960,55 @@ export default function AttendanceCalendarTab({
 
             </div>
 
-            {/* Legend Row (Redundant Search Bar Removed) */}
-            <div className="flex items-center gap-4 text-xs font-semibold flex-wrap pt-0.5">
-              <span className="flex items-center gap-1.5 text-emerald-700 dark:text-emerald-400">
-                <span className="w-2.5 h-2.5 rounded-full bg-[#10b981]" />
+            {/* Legend Row with Full Word Colors and Dashes Matching User Request */}
+            <div className="flex items-center gap-x-4 gap-y-2 text-[11px] sm:text-xs font-semibold flex-wrap pt-0.5 border-t border-slate-100 dark:border-[#434142] pt-2">
+              <span className="flex items-center gap-1.5 text-[#059669] dark:text-emerald-400">
+                <span className="w-2.5 h-2.5 rounded-full bg-[#10b981] shrink-0" />
                 <span>P - Present</span>
               </span>
-              <span className="flex items-center gap-1.5 text-amber-700 dark:text-amber-400">
-                <span className="w-2.5 h-2.5 rounded-full bg-[#f59e0b]" />
+              <span className="flex items-center gap-1.5 text-[#d97706] dark:text-amber-400">
+                <span className="w-2.5 h-2.5 rounded-full bg-[#f59e0b] shrink-0" />
                 <span>L - Late</span>
               </span>
-              <span className="flex items-center gap-1.5 text-orange-700 dark:text-orange-400">
-                <span className="w-2.5 h-2.5 rounded-full bg-[#f97316]" />
+              <span className="flex items-center gap-1.5 text-[#ea580c] dark:text-orange-400">
+                <span className="w-2.5 h-2.5 rounded-full bg-[#f97316] shrink-0" />
                 <span>U - Undertime</span>
               </span>
-              <span className="flex items-center gap-1.5 text-rose-700 dark:text-rose-400">
-                <span className="w-2.5 h-2.5 rounded-full bg-[#f43f5e]" />
+              <span className="flex items-center gap-1.5 text-[#e11d48] dark:text-rose-400">
+                <span className="w-2.5 h-2.5 rounded-full bg-[#f43f5e] shrink-0" />
                 <span>A - Absent</span>
               </span>
-              <span className="flex items-center gap-1.5 text-slate-600 dark:text-slate-400">
-                <span className="w-2.5 h-2.5 rounded-full bg-slate-400 dark:bg-slate-500" />
+              <span className="flex items-center gap-1.5 text-[#64748b] dark:text-slate-400">
+                <span className="w-2.5 h-2.5 rounded-full bg-slate-400 dark:bg-slate-500 shrink-0" />
                 <span>RD - Rest Day</span>
+              </span>
+              <span className="flex items-center gap-1.5 text-[#2563eb] dark:text-blue-400">
+                <span className="w-2.5 h-2.5 rounded-full bg-[#2563eb] shrink-0" />
+                <span>VL - Vacation Leave</span>
+              </span>
+              <span className="flex items-center gap-1.5 text-[#ef4444] dark:text-red-400">
+                <span className="w-2.5 h-2.5 rounded-full bg-[#ef4444] shrink-0" />
+                <span>SL - Sick Leave</span>
+              </span>
+              <span className="flex items-center gap-1.5 text-[#8b5cf6] dark:text-purple-400">
+                <span className="w-2.5 h-2.5 rounded-full bg-[#8b5cf6] shrink-0" />
+                <span>BL - Bereavement Leave</span>
+              </span>
+              <span className="flex items-center gap-1.5 text-[#ec4899] dark:text-pink-400">
+                <span className="w-2.5 h-2.5 rounded-full bg-[#ec4899] shrink-0" />
+                <span>ML - Maternity Leave</span>
+              </span>
+              <span className="flex items-center gap-1.5 text-[#0d9488] dark:text-teal-400">
+                <span className="w-2.5 h-2.5 rounded-full bg-[#0d9488] shrink-0" />
+                <span>PL - Paternity Leave</span>
+              </span>
+              <span className="flex items-center gap-1.5 text-[#d97706] dark:text-amber-400">
+                <span className="w-2.5 h-2.5 rounded-full bg-[#f59e0b] shrink-0" />
+                <span>HOL - Holiday</span>
+              </span>
+              <span className="flex items-center gap-1.5 text-[#334155] dark:text-slate-300">
+                <span className="w-2.5 h-2.5 rounded-full bg-[#334155] dark:bg-slate-400 shrink-0" />
+                <span>SUS - Suspension</span>
               </span>
             </div>
 
@@ -856,7 +1056,7 @@ export default function AttendanceCalendarTab({
                   })}
 
                   {/* Monthly Summary Header */}
-                  <th className="py-2.5 px-3 bg-[#24537C] dark:bg-[#161D2B] text-white dark:text-[#F8F8F6] font-semibold text-center border-l border-white/20 dark:border-[#434142] uppercase tracking-wider min-w-[90px]">
+                  <th className="py-2.5 px-3 bg-[#24537C] dark:bg-[#161D2B] text-white dark:text-[#F8F8F6] font-semibold text-center border-l border-white/20 dark:border-[#434142] uppercase tracking-wider min-w-[130px]">
                     Monthly Totals
                   </th>
                 </tr>
@@ -889,8 +1089,8 @@ export default function AttendanceCalendarTab({
                     );
                   })}
 
-                  <th className="py-1.5 px-3 bg-[#1D4568] dark:bg-[#121722] text-white/80 dark:text-slate-400 text-[9px] font-semibold text-center uppercase tracking-wider">
-                    P / L / A
+                  <th className="py-1.5 px-3 bg-[#1D4568] dark:bg-[#121722] text-white/90 dark:text-slate-300 text-[9px] font-bold text-center uppercase tracking-wider min-w-[130px]">
+                    P / L / U / A / VL / SL
                   </th>
                 </tr>
               </thead>
@@ -902,7 +1102,16 @@ export default function AttendanceCalendarTab({
                   const allStatuses = Object.values(emp.attendanceByDay);
                   const countP = allStatuses.filter((s) => s === 'P').length;
                   const countL = allStatuses.filter((s) => s === 'L').length;
+                  const countU = allStatuses.filter((s) => s === 'U').length;
                   const countA = allStatuses.filter((s) => s === 'A').length;
+                  const countVL = allStatuses.filter((s) => s === 'VL').length;
+                  const countSL = allStatuses.filter((s) => s === 'SL').length;
+                  const countBL = allStatuses.filter((s) => s === 'BL').length;
+                  const countML = allStatuses.filter((s) => s === 'ML').length;
+                  const countPL = allStatuses.filter((s) => s === 'PL').length;
+                  const countHOL = allStatuses.filter((s) => s === 'HOL').length;
+                  const countSUS = allStatuses.filter((s) => s === 'SUS').length;
+                  const hasLeaves = countVL > 0 || countSL > 0 || countBL > 0 || countML > 0 || countPL > 0 || countHOL > 0 || countSUS > 0;
                   const initials = emp.name.split(' ').filter(Boolean).slice(0, 2).map((n) => n[0]).join('');
 
                   return (
@@ -958,13 +1167,65 @@ export default function AttendanceCalendarTab({
                         );
                       })}
 
-                      {/* Monthly Summary Column */}
-                      <td className="py-2.5 px-2.5 text-center font-bold text-[11px] bg-slate-50/60 dark:bg-[#272626] border-l border-slate-200 dark:border-[#434142] whitespace-nowrap">
-                        <span className="text-emerald-600 dark:text-emerald-400 font-black">{countP}P</span>
-                        <span className="text-slate-300 dark:text-slate-600 mx-1">•</span>
-                        <span className="text-amber-600 dark:text-amber-400 font-black">{countL}L</span>
-                        <span className="text-slate-300 dark:text-slate-600 mx-1">•</span>
-                        <span className="text-rose-600 dark:text-rose-400 font-black">{countA}A</span>
+                      {/* Monthly Summary Column with Style A Clean 2-Row Layout */}
+                      <td className="py-2 px-2 text-center font-bold text-[11px] bg-slate-50/60 dark:bg-[#272626] border-l border-slate-200 dark:border-[#434142] min-w-[130px]">
+                        <div className="flex flex-col items-center justify-center gap-1">
+                          {/* Row 1: Core Attendance Counts */}
+                          <div className="flex items-center justify-center gap-1 whitespace-nowrap text-[11px]">
+                            <span className="text-emerald-600 dark:text-emerald-400 font-black">{countP}P</span>
+                            <span className="text-slate-300 dark:text-slate-600">•</span>
+                            <span className="text-amber-600 dark:text-amber-400 font-black">{countL}L</span>
+                            {countU > 0 && (
+                              <>
+                                <span className="text-slate-300 dark:text-slate-600">•</span>
+                                <span className="text-orange-600 dark:text-orange-400 font-black">{countU}U</span>
+                              </>
+                            )}
+                            <span className="text-slate-300 dark:text-slate-600">•</span>
+                            <span className="text-rose-600 dark:text-rose-400 font-black">{countA}A</span>
+                          </div>
+
+                          {/* Row 2: Dynamic Leave & Special Status Badges */}
+                          {hasLeaves && (
+                            <div className="flex items-center justify-center gap-1 flex-wrap pt-0.5">
+                              {countVL > 0 && (
+                                <span className="px-1.5 py-0.5 rounded bg-[#2563eb] text-white text-[9px] font-black shadow-2xs">
+                                  {countVL}VL
+                                </span>
+                              )}
+                              {countSL > 0 && (
+                                <span className="px-1.5 py-0.5 rounded bg-[#ef4444] text-white text-[9px] font-black shadow-2xs">
+                                  {countSL}SL
+                                </span>
+                              )}
+                              {countBL > 0 && (
+                                <span className="px-1.5 py-0.5 rounded bg-[#8b5cf6] text-white text-[9px] font-black shadow-2xs">
+                                  {countBL}BL
+                                </span>
+                              )}
+                              {countML > 0 && (
+                                <span className="px-1.5 py-0.5 rounded bg-[#ec4899] text-white text-[9px] font-black shadow-2xs">
+                                  {countML}ML
+                                </span>
+                              )}
+                              {countPL > 0 && (
+                                <span className="px-1.5 py-0.5 rounded bg-[#0d9488] text-white text-[9px] font-black shadow-2xs">
+                                  {countPL}PL
+                                </span>
+                              )}
+                              {countHOL > 0 && (
+                                <span className="px-1.5 py-0.5 rounded bg-[#f59e0b] text-white text-[9px] font-black shadow-2xs">
+                                  {countHOL}HOL
+                                </span>
+                              )}
+                              {countSUS > 0 && (
+                                <span className="px-1.5 py-0.5 rounded bg-[#334155] text-white text-[9px] font-black shadow-2xs">
+                                  {countSUS}SUS
+                                </span>
+                              )}
+                            </div>
+                          )}
+                        </div>
                       </td>
 
                     </tr>

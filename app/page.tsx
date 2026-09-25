@@ -62,17 +62,17 @@ function HomePageContent() {
   const [filterAccount, setFilterAccount] = useState('ALL');
   const [filterSearch, setFilterSearch] = useState('');
 
-  // Supervisor Profile matching exact system content (Dynamic state linked to team_roster & logged-in user)
+  // Supervisor / Active User Profile (Dynamic state linked to team_roster & logged-in user)
   const [supervisor, setSupervisor] = useState({
-    name: 'Nissi-Jeh Reguero',
-    id: '1597',
-    role: 'ADMIN',
-    position: 'Head of Training',
-    shift: '9:00 PM to 6:00 AM',
-    account: 'Corporate',
-    tenure: '32 mos',
-    directSupervisor: 'June Babe Caballes',
-    email: 'nreguero.telenet@gmail.com',
+    name: '',
+    id: '',
+    role: 'USER',
+    position: '',
+    shift: '',
+    account: '',
+    tenure: '',
+    directSupervisor: '',
+    email: '',
     avatarUrl: undefined as string | undefined,
     firstName: undefined as string | undefined,
     middleName: undefined as string | undefined,
@@ -138,26 +138,26 @@ function HomePageContent() {
       if (savedUser) {
         try {
           const parsed = JSON.parse(savedUser);
-          if (parsed && (parsed.name || parsed.email)) {
+          if (parsed && (parsed.name || parsed.email || parsed.id)) {
             setSupervisor({
-              name: parsed.name || 'User',
-              id: parsed.id || parsed.employee_id || '1597',
-              role: (parsed.role || 'Admin').toUpperCase(),
-              position: parsed.position || 'Head of Training',
-              shift: parsed.shift || '9:00 PM to 6:00 AM',
-              account: parsed.account || 'Corporate',
-              tenure: parsed.tenure || '32 mos',
-              directSupervisor: parsed.directSupervisor || 'June Babe Caballes',
-              email: parsed.email || (parsed.name ? `${parsed.name.toLowerCase().replace(/\s+/g, '.')}@cebutelenet.com` : 'nreguero.telenet@gmail.com'),
+              name: parsed.name || '',
+              id: String(parsed.id || parsed.employee_id || parsed.employee_num || ''),
+              role: (parsed.role || 'User').toUpperCase(),
+              position: parsed.position || parsed.primaryTask || '',
+              shift: parsed.shift || '',
+              account: parsed.account || parsed.accounts || '',
+              tenure: parsed.tenure ? (String(parsed.tenure).includes('mos') ? parsed.tenure : `${parsed.tenure} mos`) : '',
+              directSupervisor: parsed.directSupervisor || parsed.supervisor || '',
+              email: parsed.email || (parsed.name ? `${parsed.name.toLowerCase().replace(/\s+/g, '.')}@cebutelenet.com` : ''),
               avatarUrl: parsed.avatar_url || parsed.avatarUrl || undefined,
-              firstName: parsed.firstName,
-              middleName: parsed.middleName,
-              lastName: parsed.lastName,
-              suffix: parsed.suffix,
-              department: parsed.department,
-              startDate: parsed.startDate || '1/3/2024',
-              accounts: parsed.accounts || parsed.account || 'CORP',
-              primaryTask: parsed.position || 'Head of Training',
+              firstName: parsed.firstName || (parsed.name ? parsed.name.split(' ').slice(0, -1).join(' ') || parsed.name : ''),
+              middleName: parsed.middleName || '—',
+              lastName: parsed.lastName || (parsed.name ? parsed.name.split(' ').slice(-1).join('') : ''),
+              suffix: parsed.suffix || 'N/A',
+              department: parsed.department || '',
+              startDate: parsed.startDate || parsed.hire_date || '',
+              accounts: parsed.accounts || parsed.account || '',
+              primaryTask: parsed.position || parsed.primaryTask || '',
             });
             if (parsed.name) {
               setCurrentAgent(parsed.name);
@@ -246,29 +246,41 @@ function HomePageContent() {
       if (dataMeta.employees) {
         setEmployees(dataMeta.employees);
 
-        let activeId = '1597';
+        let activeId = '';
+        let activeName = '';
+        let activeEmail = '';
         if (typeof window !== 'undefined') {
           const savedUser = localStorage.getItem('ctnp_current_user');
           if (savedUser) {
             try {
               const parsed = JSON.parse(savedUser);
               if (parsed?.id) activeId = String(parsed.id);
+              if (parsed?.name) activeName = String(parsed.name).toLowerCase();
+              if (parsed?.email) activeEmail = String(parsed.email).toLowerCase();
             } catch (e) {}
           }
         }
 
-        const activeEmp = dataMeta.employees.find((e: any) => String(e.id) === String(activeId)) || 
-                          dataMeta.employees.find((e: any) => String(e.id) === '1597');
+        const activeEmp = dataMeta.employees.find((e: any) => 
+          (activeId && String(e.id) === String(activeId)) ||
+          (activeName && e.name && String(e.name).toLowerCase() === activeName) ||
+          (activeEmail && e.email && String(e.email).toLowerCase() === activeEmail)
+        ) || (activeId ? null : dataMeta.employees[0]);
+
         if (activeEmp) {
           setSupervisor((prev) => ({
             ...prev,
-            name: activeEmp.name || prev.name,
-            role: (activeEmp.userRole || activeEmp.role || 'Admin').toUpperCase(),
-            position: activeEmp.position || activeEmp.role || prev.position,
-            shift: activeEmp.shift || prev.shift,
-            account: activeEmp.account || prev.account,
-            tenure: activeEmp.tenure ? `${activeEmp.tenure} mos` : prev.tenure,
-            directSupervisor: activeEmp.supervisor || prev.directSupervisor,
+            id: String(activeEmp.id || prev.id || ''),
+            name: activeEmp.name || prev.name || '',
+            role: (activeEmp.userRole || activeEmp.role || prev.role || 'User').toUpperCase(),
+            position: activeEmp.position || activeEmp.role || prev.position || '',
+            shift: activeEmp.shift || prev.shift || '',
+            account: activeEmp.account || prev.account || '',
+            tenure: activeEmp.tenure ? (String(activeEmp.tenure).includes('mos') ? activeEmp.tenure : `${activeEmp.tenure} mos`) : prev.tenure || '',
+            directSupervisor: activeEmp.supervisor || prev.directSupervisor || '',
+            startDate: activeEmp.hire_date || prev.startDate || '',
+            accounts: activeEmp.account || prev.accounts || '',
+            primaryTask: activeEmp.position || prev.primaryTask || '',
           }));
         }
 
@@ -545,9 +557,11 @@ function HomePageContent() {
               <HeroKpiCards 
                 records={filteredDashboardRecords} 
                 kpiStats={kpiStats} 
+                isHeadOrAdmin={isHeadOrAdmin}
+                userShift={supervisor.shift}
                 stats={{ 
-                  activeCount: employees.length > 0 ? employees.length : 13,
-                  totalEmployees: employees.length > 0 ? employees.length : 13
+                  activeCount: isHeadOrAdmin ? (employees.length > 0 ? employees.length : 13) : 1,
+                  totalEmployees: isHeadOrAdmin ? (employees.length > 0 ? employees.length : 13) : 1
                 }} 
               />
 
@@ -585,6 +599,8 @@ function HomePageContent() {
                     accounts={accounts}
                     isLoading={isLoading}
                     onRefresh={fetchData}
+                    isHeadOrAdmin={isHeadOrAdmin}
+                    currentUserName={supervisor.name}
                     onOpenCalendar={(rec) => {
                       if (isHeadOrAdmin) {
                         setActiveCalendarRecord(rec);

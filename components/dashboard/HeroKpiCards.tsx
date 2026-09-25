@@ -18,6 +18,8 @@ interface HeroKpiCardsProps {
   records?: PhoneTimeRecord[];
   activeFilter?: string;
   onSelectFilter?: (filter: string) => void;
+  isHeadOrAdmin?: boolean;
+  userShift?: string;
 }
 
 export default function HeroKpiCards({
@@ -26,11 +28,13 @@ export default function HeroKpiCards({
   records = [],
   activeFilter,
   onSelectFilter,
+  isHeadOrAdmin = true,
+  userShift = '9:00 PM to 6:00 AM',
 }: HeroKpiCardsProps) {
   const heroImageUrl = 'https://zhdmsmwrskxowvytedgh.supabase.co/storage/v1/object/public/Images/design%20(1).png';
 
   // Calculate live dynamic metrics from activity logs or kpiStats
-  const totalActivityLogs = records.length > 0 ? records.length : (kpiStats?.totalRecords ?? 31);
+  const totalActivityLogs = records.length;
   
   // Calculate total seconds
   const totalSeconds = kpiStats?.totalSeconds ?? records.reduce((acc, r) => {
@@ -40,18 +44,18 @@ export default function HeroKpiCards({
   const formattedHours = kpiStats?.totalDurationFormatted ?? (
     totalSeconds > 0 
       ? `${Math.floor(totalSeconds / 3600)}h ${Math.floor((totalSeconds % 3600) / 60)}m`
-      : '34h 48m'
+      : '0h 0m'
   );
 
-  const avgTaskDurationFormatted = kpiStats?.averageDurationFormatted ?? '15m 00s';
+  const avgTaskDurationFormatted = kpiStats?.averageDurationFormatted ?? '0m 00s';
 
-  const totalAgents = stats?.totalEmployees ?? kpiStats?.uniqueAgentsCount ?? (new Set(records.map(r => r.name).filter(Boolean)).size || 13);
-  const totalAccounts = kpiStats?.uniqueAccountsCount ?? (new Set(records.map(r => r.account).filter(Boolean)).size || 7);
+  const totalAgents = stats?.totalEmployees ?? kpiStats?.uniqueAgentsCount ?? (new Set(records.map(r => r.name).filter(Boolean)).size || 1);
+  const totalAccounts = kpiStats?.uniqueAccountsCount ?? (new Set(records.map(r => r.account).filter(Boolean)).size || 1);
 
   const cards = [
     {
       id: 'logged_time',
-      title: 'TOTAL LOGGED WORK TIME',
+      title: isHeadOrAdmin ? 'TOTAL LOGGED WORK TIME' : 'MY LOGGED WORK TIME',
       value: formattedHours,
       subtext: `${totalActivityLogs} Recorded Entries`,
       valueColor: 'text-[#24537D] dark:text-blue-400',
@@ -60,7 +64,7 @@ export default function HeroKpiCards({
     },
     {
       id: 'activity_entries',
-      title: 'LOGGED TASK ACTIVITIES',
+      title: isHeadOrAdmin ? 'LOGGED TASK ACTIVITIES' : 'MY TASK ACTIVITIES',
       value: `${totalActivityLogs} Entries`,
       subtext: `Avg Task Time: ${avgTaskDurationFormatted}`,
       valueColor: 'text-slate-900 dark:text-slate-100',
@@ -69,22 +73,32 @@ export default function HeroKpiCards({
     },
     {
       id: 'active_accounts',
-      title: 'ACTIVE CLIENT ACCOUNTS',
-      value: `${totalAccounts} Accounts`,
-      subtext: kpiStats?.topTag ? `Top Tag: ${kpiStats.topTag}` : 'Multi-Account Coverage',
+      title: isHeadOrAdmin ? 'ACTIVE CLIENT ACCOUNTS' : 'MY ACTIVE ACCOUNTS',
+      value: `${totalAccounts} Account${totalAccounts > 1 ? 's' : ''}`,
+      subtext: kpiStats?.topTag ? `Top Tag: ${kpiStats.topTag}` : 'Assigned Accounts',
       valueColor: 'text-emerald-600 dark:text-emerald-400',
       icon: UserCheck,
       iconBg: 'bg-emerald-50 dark:bg-emerald-950/50 text-emerald-600 dark:text-emerald-400 border border-emerald-100 dark:border-emerald-900/40',
     },
-    {
-      id: 'active_headcount',
-      title: 'WORKFORCE ROSTER',
-      value: `${totalAgents} Members`,
-      subtext: 'Operations & Training Staff',
-      valueColor: 'text-[#C8A54B] dark:text-amber-400',
-      icon: Users,
-      iconBg: 'bg-amber-50 dark:bg-amber-950/50 text-[#C8A54B] dark:text-amber-300 border border-amber-100 dark:border-amber-900/40',
-    },
+    isHeadOrAdmin
+      ? {
+          id: 'active_headcount',
+          title: 'WORKFORCE ROSTER',
+          value: `${totalAgents} Members`,
+          subtext: 'Operations & Training Staff',
+          valueColor: 'text-[#C8A54B] dark:text-amber-400',
+          icon: Users,
+          iconBg: 'bg-amber-50 dark:bg-amber-950/50 text-[#C8A54B] dark:text-amber-300 border border-amber-100 dark:border-amber-900/40',
+        }
+      : {
+          id: 'shift_schedule',
+          title: 'MY SHIFT SCHEDULE',
+          value: userShift || '9:00 PM – 6:00 AM',
+          subtext: 'Assigned Work Window',
+          valueColor: 'text-[#C8A54B] dark:text-amber-400',
+          icon: Clock,
+          iconBg: 'bg-amber-50 dark:bg-amber-950/50 text-[#C8A54B] dark:text-amber-300 border border-amber-100 dark:border-amber-900/40',
+        },
   ];
 
   return (

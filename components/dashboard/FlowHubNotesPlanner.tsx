@@ -8,15 +8,9 @@ import {
   Copy, 
   Check, 
   Clock, 
-  Calendar, 
   Edit3, 
-  CheckCircle2,
-  AlertCircle,
-  FileCheck2,
-  CalendarDays,
-  ShieldCheck,
-  Save,
-  Tag
+  FileCheck2, 
+  Save 
 } from 'lucide-react';
 import ConfirmActionModal from './ConfirmActionModal';
 
@@ -30,17 +24,8 @@ interface AttendanceStickyNote {
   timestamp: string;
 }
 
-interface ShiftPunchMilestone {
-  id: string;
-  timeRange: string;
-  activity: string;
-  category: 'Punch-In' | 'Paid Break' | 'Meal Break' | 'Verification' | 'Punch-Out';
-  completed: boolean;
-  note?: string;
-}
-
 export default function FlowHubNotesPlanner() {
-  const [activeTab, setActiveTab] = useState<'stickies' | 'schedule' | 'memo'>('stickies');
+  const [activeTab, setActiveTab] = useState<'stickies' | 'memo'>('stickies');
 
   // 1. Attendance Sticky Notes State
   const [stickyNotes, setStickyNotes] = useState<AttendanceStickyNote[]>([
@@ -89,59 +74,7 @@ export default function FlowHubNotesPlanner() {
   const [isAddingSticky, setIsAddingSticky] = useState(false);
   const [stickyToDelete, setStickyToDelete] = useState<string | null>(null);
 
-  // 2. Shift Attendance Timeline (9:00 PM to 6:00 AM Shift Schedule)
-  const [shiftMilestones, setShiftMilestones] = useState<ShiftPunchMilestone[]>([
-    { 
-      id: 'tb1', 
-      timeRange: '09:00 PM', 
-      activity: 'Shift Start & Live Punch In', 
-      category: 'Punch-In', 
-      completed: true, 
-      note: 'Supervisor and team clock-in on portal' 
-    },
-    { 
-      id: 'tb2', 
-      timeRange: '11:00 PM – 11:15 PM', 
-      activity: '1st Paid Rest Period (15 mins)', 
-      category: 'Paid Break', 
-      completed: true, 
-      note: 'Paid rest interval — No punch deduction' 
-    },
-    { 
-      id: 'tb3', 
-      timeRange: '01:00 AM – 02:00 AM', 
-      activity: 'Unpaid Meal / Lunch Break (1 Hour)', 
-      category: 'Meal Break', 
-      completed: true, 
-      note: 'Staggered lunch window — 60m deduction' 
-    },
-    { 
-      id: 'tb4', 
-      timeRange: '03:30 AM – 03:45 AM', 
-      activity: '2nd Paid Rest Period (15 mins)', 
-      category: 'Paid Break', 
-      completed: false, 
-      note: 'Final 15-minute rest interval' 
-    },
-    { 
-      id: 'tb5', 
-      timeRange: '05:45 AM – 06:00 AM', 
-      activity: 'Daily Shift Audit & Unclosed Punch Check', 
-      category: 'Verification', 
-      completed: false, 
-      note: 'Verify missing punches to avoid auto-cap flags' 
-    },
-    { 
-      id: 'tb6', 
-      timeRange: '06:00 AM', 
-      activity: 'Shift End & Live Punch Out', 
-      category: 'Punch-Out', 
-      completed: false, 
-      note: '8.0 regular work hours logged' 
-    },
-  ]);
-
-  // 3. Attendance Shift Memo State
+  // 2. Attendance Shift Memo State
   const [memoTitle, setMemoTitle] = useState('Daily Shift Attendance & Adherence Memo');
   const [memoText, setMemoText] = useState(
     `CEBU TELE-NET OPERATIONS — DAILY ATTENDANCE SUMMARY
@@ -196,10 +129,6 @@ Supervisor / Head of Training: Nissi-Jeh Reguero
     setStickyNotes(prev => prev.map(s => s.id === id ? { ...s, isPinned: !s.isPinned } : s));
   };
 
-  const handleToggleMilestone = (id: string) => {
-    setShiftMilestones(prev => prev.map(b => b.id === id ? { ...b, completed: !b.completed } : b));
-  };
-
   const handleSaveMemo = () => {
     setIsSavedMemo(true);
     setTimeout(() => setIsSavedMemo(false), 2000);
@@ -244,20 +173,6 @@ Supervisor / Head of Training: Nissi-Jeh Reguero
     }
   };
 
-  const getCategoryClass = (cat: ShiftPunchMilestone['category']) => {
-    switch (cat) {
-      case 'Punch-In':
-      case 'Punch-Out':
-        return 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 border-emerald-300 dark:border-emerald-800';
-      case 'Meal Break':
-        return 'bg-blue-100 text-blue-800 dark:bg-blue-950 dark:text-blue-300 border-blue-300 dark:border-blue-800';
-      case 'Paid Break':
-        return 'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300 border-amber-300 dark:border-amber-800';
-      case 'Verification':
-        return 'bg-indigo-100 text-indigo-800 dark:bg-indigo-950 dark:text-indigo-300 border-indigo-300 dark:border-indigo-800';
-    }
-  };
-
   return (
     <div className="rounded-2xl bg-white dark:bg-[#101D3D] border border-slate-200/90 dark:border-slate-800 shadow-sm overflow-hidden flex flex-col space-y-4 p-5 sm:p-6">
       
@@ -274,11 +189,11 @@ Supervisor / Head of Training: Nissi-Jeh Reguero
             </h3>
           </div>
           <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-            Attendance exception flags, scheduled shift punch timeline &amp; audit shift memo
+            Attendance exception flags &amp; audit shift memo
           </p>
         </div>
 
-        {/* 3 Focused Attendance Tabs */}
+        {/* 2 Focused Attendance Tabs */}
         <div className="flex items-center p-1 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold overflow-x-auto">
           
           <button
@@ -292,19 +207,6 @@ Supervisor / Head of Training: Nissi-Jeh Reguero
           >
             <Pin className="w-3.5 h-3.5" />
             <span>Attendance Flags &amp; Notes ({stickyNotes.length})</span>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => setActiveTab('schedule')}
-            className={`px-3.5 py-1.5 rounded-lg flex items-center gap-1.5 transition-all cursor-pointer whitespace-nowrap ${
-              activeTab === 'schedule'
-                ? 'bg-[#2F6798] text-white shadow-xs font-black'
-                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
-            }`}
-          >
-            <Clock className="w-3.5 h-3.5" />
-            <span>Shift Punch Timeline</span>
           </button>
 
           <button
@@ -482,77 +384,7 @@ Supervisor / Head of Training: Nissi-Jeh Reguero
         </div>
       )}
 
-      {/* 3. TAB 2: SHIFT PUNCH & BREAK TIMELINE */}
-      {activeTab === 'schedule' && (
-        <div className="space-y-4 animate-in fade-in">
-          
-          <div className="flex items-center justify-between pb-1">
-            <div className="flex items-center gap-2">
-              <span className="text-xs font-bold text-slate-700 dark:text-slate-300">
-                Scheduled Shift Punch &amp; Break Schedule (9:00 PM – 6:00 AM)
-              </span>
-              <span className="text-[11px] px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 font-black">
-                {shiftMilestones.filter(m => m.completed).length}/{shiftMilestones.length} Milestones Checked
-              </span>
-            </div>
-
-            <span className="text-[11px] text-slate-400 font-medium">
-              Standard 8.0h Regular Work + 1.0h Meal
-            </span>
-          </div>
-
-          <div className="space-y-2.5">
-            {shiftMilestones.map((item, idx) => (
-              <div
-                key={item.id}
-                onClick={() => handleToggleMilestone(item.id)}
-                className={`p-3.5 rounded-xl border transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-3 cursor-pointer ${
-                  item.completed
-                    ? 'bg-emerald-50/70 dark:bg-emerald-950/20 border-emerald-300/80 dark:border-emerald-800/60 text-slate-700 dark:text-slate-300'
-                    : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-800 dark:text-slate-200 hover:border-[#2F6798]'
-                }`}
-              >
-                <div className="flex items-center gap-3">
-                  <div className={`w-5 h-5 rounded-lg border flex items-center justify-center transition-colors shrink-0 ${
-                    item.completed 
-                      ? 'bg-emerald-500 border-emerald-500 text-white' 
-                      : 'border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800'
-                  }`}>
-                    {item.completed && <Check className="w-3.5 h-3.5 stroke-[3]" />}
-                  </div>
-
-                  <div>
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <span className={`font-extrabold text-xs ${item.completed ? 'line-through text-slate-500' : 'text-slate-900 dark:text-slate-100'}`}>
-                        {item.activity}
-                      </span>
-                      <span className={`px-2 py-0.2 rounded text-[10px] font-bold border ${getCategoryClass(item.category)}`}>
-                        {item.category}
-                      </span>
-                    </div>
-
-                    {item.note && (
-                      <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
-                        {item.note}
-                      </p>
-                    )}
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-3 self-start sm:self-auto shrink-0">
-                  <div className="flex items-center gap-1.5 text-xs font-bold text-slate-600 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 px-2.5 py-1 rounded-lg">
-                    <Clock className="w-3.5 h-3.5 text-[#2F6798]" />
-                    <span>{item.timeRange}</span>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-
-        </div>
-      )}
-
-      {/* 4. TAB 3: DAILY ATTENDANCE MEMO */}
+      {/* 3. TAB 2: DAILY ATTENDANCE MEMO */}
       {activeTab === 'memo' && (
         <div className="space-y-4 animate-in fade-in">
           

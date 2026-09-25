@@ -1860,11 +1860,9 @@ export default function FlowHubView({ onBackToPortal, supervisorId = '1597' }: F
                             </h5>
                           </div>
                           <div className="flex items-center gap-2 mt-0.5 text-[10px] text-slate-500 dark:text-slate-400">
-                            <span className="font-semibold text-amber-600 dark:text-amber-400">
-                              Streak {habit.streak} days
+                            <span className="font-medium text-slate-500 dark:text-slate-400">
+                              {habit.timeOfDay}
                             </span>
-                            <span>•</span>
-                            <span>{habit.timeOfDay}</span>
                           </div>
                         </div>
                       </div>
@@ -2048,9 +2046,9 @@ export default function FlowHubView({ onBackToPortal, supervisorId = '1597' }: F
                   </div>
                   <div className="p-2 rounded-xl bg-slate-50 dark:bg-slate-800/60 text-center">
                     <span className="block text-xs font-black text-emerald-600 dark:text-emerald-400">
-                      {Math.max(...habits.map(h => h.streak), 0)}d
+                      {habits.length}
                     </span>
-                    <span className="text-[9px] font-bold text-slate-400 uppercase">Top Streak</span>
+                    <span className="text-[9px] font-bold text-slate-400 uppercase">Total Items</span>
                   </div>
                 </div>
               </div>

@@ -80,7 +80,7 @@ export default function AttendanceCellPopover({
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-xs animate-in fade-in duration-150">
       <div
         ref={popoverRef}
-        className="w-full max-w-[310px] bg-white dark:bg-[#101D3D] rounded-2xl shadow-2xl border border-slate-200/90 dark:border-slate-800 p-4 space-y-3.5 animate-in zoom-in-95 fade-in duration-150 text-slate-900 dark:text-slate-100"
+        className="w-full max-w-[320px] max-h-[90vh] overflow-y-auto bg-white dark:bg-[#101D3D] rounded-2xl shadow-2xl border border-slate-200/90 dark:border-slate-800 p-4 space-y-3.5 animate-in zoom-in-95 fade-in duration-150 text-slate-900 dark:text-slate-100"
       >
         {/* Header */}
         <div className="flex items-start justify-between gap-2 border-b border-slate-100 dark:border-slate-800 pb-2.5">
@@ -108,13 +108,13 @@ export default function AttendanceCellPopover({
           <button
             type="button"
             onClick={() => handleStatusClick('P')}
-            className={`w-full px-2.5 py-2 rounded-xl flex items-center justify-between transition-all cursor-pointer ${
+            className={`w-full px-2.5 py-1.5 rounded-xl flex items-center justify-between transition-all cursor-pointer ${
               selectedStatus === 'P'
                 ? 'bg-emerald-50 dark:bg-emerald-950/50 ring-1.5 ring-emerald-500/40'
                 : 'hover:bg-slate-50 dark:hover:bg-slate-800/60'
             }`}
           >
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2.5">
               <span className="w-6 h-6 rounded-md bg-[#d1fae5] text-[#065f46] dark:bg-emerald-950 dark:text-emerald-300 font-extrabold text-[11px] flex items-center justify-center shadow-2xs">
                 P
               </span>
@@ -129,13 +129,13 @@ export default function AttendanceCellPopover({
           <button
             type="button"
             onClick={() => handleStatusClick('L')}
-            className={`w-full px-2.5 py-2 rounded-xl flex items-center justify-between transition-all cursor-pointer ${
+            className={`w-full px-2.5 py-1.5 rounded-xl flex items-center justify-between transition-all cursor-pointer ${
               selectedStatus === 'L'
                 ? 'bg-amber-50 dark:bg-amber-950/50 ring-1.5 ring-amber-500/40'
                 : 'hover:bg-slate-50 dark:hover:bg-slate-800/60'
             }`}
           >
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2.5">
               <span className="w-6 h-6 rounded-md bg-[#fef3c7] text-[#92400e] dark:bg-amber-950 dark:text-amber-300 font-extrabold text-[11px] flex items-center justify-center shadow-2xs">
                 L
               </span>
@@ -150,13 +150,13 @@ export default function AttendanceCellPopover({
           <button
             type="button"
             onClick={() => handleStatusClick('U')}
-            className={`w-full px-2.5 py-2 rounded-xl flex items-center justify-between transition-all cursor-pointer ${
+            className={`w-full px-2.5 py-1.5 rounded-xl flex items-center justify-between transition-all cursor-pointer ${
               selectedStatus === 'U'
                 ? 'bg-orange-50 dark:bg-orange-950/50 ring-1.5 ring-orange-500/40'
                 : 'hover:bg-slate-50 dark:hover:bg-slate-800/60'
             }`}
           >
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2.5">
               <span className="w-6 h-6 rounded-md bg-[#ffedd5] text-[#9a3412] dark:bg-orange-950 dark:text-orange-300 font-extrabold text-[11px] flex items-center justify-center shadow-2xs">
                 U
               </span>
@@ -171,13 +171,13 @@ export default function AttendanceCellPopover({
           <button
             type="button"
             onClick={() => handleStatusClick('A')}
-            className={`w-full px-2.5 py-2 rounded-xl flex items-center justify-between transition-all cursor-pointer ${
+            className={`w-full px-2.5 py-1.5 rounded-xl flex items-center justify-between transition-all cursor-pointer ${
               selectedStatus === 'A'
                 ? 'bg-rose-50 dark:bg-rose-950/50 ring-1.5 ring-rose-500/40'
                 : 'hover:bg-slate-50 dark:hover:bg-slate-800/60'
             }`}
           >
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2.5">
               <span className="w-6 h-6 rounded-md bg-[#ffe4e6] text-[#9f1239] dark:bg-rose-950 dark:text-rose-300 font-extrabold text-[11px] flex items-center justify-center shadow-2xs">
                 A
               </span>
@@ -192,13 +192,13 @@ export default function AttendanceCellPopover({
           <button
             type="button"
             onClick={() => handleStatusClick('RD')}
-            className={`w-full px-2.5 py-2 rounded-xl flex items-center justify-between transition-all cursor-pointer ${
+            className={`w-full px-2.5 py-1.5 rounded-xl flex items-center justify-between transition-all cursor-pointer ${
               selectedStatus === 'RD'
                 ? 'bg-slate-100 dark:bg-slate-800 ring-1.5 ring-slate-400/50'
                 : 'hover:bg-slate-50 dark:hover:bg-slate-800/60'
             }`}
           >
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2.5">
               <span className="w-6 h-6 rounded-md bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-200 font-extrabold text-[10px] flex items-center justify-center shadow-2xs border border-slate-200/80 dark:border-slate-700">
                 RD
               </span>
@@ -209,17 +209,164 @@ export default function AttendanceCellPopover({
             {selectedStatus === 'RD' && <Check className="w-4 h-4 text-slate-600 dark:text-slate-300 stroke-[2.5]" />}
           </button>
 
+          {/* VL - Vacation Leave */}
+          <button
+            type="button"
+            onClick={() => handleStatusClick('VL')}
+            className={`w-full px-2.5 py-1.5 rounded-xl flex items-center justify-between transition-all cursor-pointer ${
+              selectedStatus === 'VL'
+                ? 'bg-blue-50 dark:bg-blue-950/50 ring-1.5 ring-blue-500/40'
+                : 'hover:bg-slate-50 dark:hover:bg-slate-800/60'
+            }`}
+          >
+            <div className="flex items-center gap-2.5">
+              <span className="w-6 h-6 rounded-md bg-[#2563eb] text-white font-extrabold text-[10px] flex items-center justify-center shadow-xs">
+                VL
+              </span>
+              <span className="text-xs font-bold text-slate-800 dark:text-slate-200">
+                VL – Vacation Leave
+              </span>
+            </div>
+            {selectedStatus === 'VL' && <Check className="w-4 h-4 text-blue-600 dark:text-blue-400 stroke-[2.5]" />}
+          </button>
+
+          {/* SL - Sick Leave */}
+          <button
+            type="button"
+            onClick={() => handleStatusClick('SL')}
+            className={`w-full px-2.5 py-1.5 rounded-xl flex items-center justify-between transition-all cursor-pointer ${
+              selectedStatus === 'SL'
+                ? 'bg-red-50 dark:bg-red-950/50 ring-1.5 ring-red-500/40'
+                : 'hover:bg-slate-50 dark:hover:bg-slate-800/60'
+            }`}
+          >
+            <div className="flex items-center gap-2.5">
+              <span className="w-6 h-6 rounded-md bg-[#ef4444] text-white font-extrabold text-[10px] flex items-center justify-center shadow-xs">
+                SL
+              </span>
+              <span className="text-xs font-bold text-slate-800 dark:text-slate-200">
+                SL – Sick Leave
+              </span>
+            </div>
+            {selectedStatus === 'SL' && <Check className="w-4 h-4 text-red-600 dark:text-red-400 stroke-[2.5]" />}
+          </button>
+
+          {/* BL - Bereavement Leave */}
+          <button
+            type="button"
+            onClick={() => handleStatusClick('BL')}
+            className={`w-full px-2.5 py-1.5 rounded-xl flex items-center justify-between transition-all cursor-pointer ${
+              selectedStatus === 'BL'
+                ? 'bg-purple-50 dark:bg-purple-950/50 ring-1.5 ring-purple-500/40'
+                : 'hover:bg-slate-50 dark:hover:bg-slate-800/60'
+            }`}
+          >
+            <div className="flex items-center gap-2.5">
+              <span className="w-6 h-6 rounded-md bg-[#8b5cf6] text-white font-extrabold text-[10px] flex items-center justify-center shadow-xs">
+                BL
+              </span>
+              <span className="text-xs font-bold text-slate-800 dark:text-slate-200">
+                BL – Bereavement Leave
+              </span>
+            </div>
+            {selectedStatus === 'BL' && <Check className="w-4 h-4 text-purple-600 dark:text-purple-400 stroke-[2.5]" />}
+          </button>
+
+          {/* ML - Maternity Leave */}
+          <button
+            type="button"
+            onClick={() => handleStatusClick('ML')}
+            className={`w-full px-2.5 py-1.5 rounded-xl flex items-center justify-between transition-all cursor-pointer ${
+              selectedStatus === 'ML'
+                ? 'bg-pink-50 dark:bg-pink-950/50 ring-1.5 ring-pink-500/40'
+                : 'hover:bg-slate-50 dark:hover:bg-slate-800/60'
+            }`}
+          >
+            <div className="flex items-center gap-2.5">
+              <span className="w-6 h-6 rounded-md bg-[#ec4899] text-white font-extrabold text-[10px] flex items-center justify-center shadow-xs">
+                ML
+              </span>
+              <span className="text-xs font-bold text-slate-800 dark:text-slate-200">
+                ML – Maternity Leave
+              </span>
+            </div>
+            {selectedStatus === 'ML' && <Check className="w-4 h-4 text-pink-600 dark:text-pink-400 stroke-[2.5]" />}
+          </button>
+
+          {/* PL - Paternity Leave */}
+          <button
+            type="button"
+            onClick={() => handleStatusClick('PL')}
+            className={`w-full px-2.5 py-1.5 rounded-xl flex items-center justify-between transition-all cursor-pointer ${
+              selectedStatus === 'PL'
+                ? 'bg-teal-50 dark:bg-teal-950/50 ring-1.5 ring-teal-500/40'
+                : 'hover:bg-slate-50 dark:hover:bg-slate-800/60'
+            }`}
+          >
+            <div className="flex items-center gap-2.5">
+              <span className="w-6 h-6 rounded-md bg-[#0d9488] text-white font-extrabold text-[10px] flex items-center justify-center shadow-xs">
+                PL
+              </span>
+              <span className="text-xs font-bold text-slate-800 dark:text-slate-200">
+                PL – Paternity Leave
+              </span>
+            </div>
+            {selectedStatus === 'PL' && <Check className="w-4 h-4 text-teal-600 dark:text-teal-400 stroke-[2.5]" />}
+          </button>
+
+          {/* HOL - Holiday */}
+          <button
+            type="button"
+            onClick={() => handleStatusClick('HOL')}
+            className={`w-full px-2.5 py-1.5 rounded-xl flex items-center justify-between transition-all cursor-pointer ${
+              selectedStatus === 'HOL'
+                ? 'bg-amber-50 dark:bg-amber-950/50 ring-1.5 ring-amber-500/40'
+                : 'hover:bg-slate-50 dark:hover:bg-slate-800/60'
+            }`}
+          >
+            <div className="flex items-center gap-2.5">
+              <span className="w-6 h-6 rounded-md bg-[#f59e0b] text-white font-extrabold text-[9px] flex items-center justify-center shadow-xs">
+                HOL
+              </span>
+              <span className="text-xs font-bold text-slate-800 dark:text-slate-200">
+                HOL – Holiday
+              </span>
+            </div>
+            {selectedStatus === 'HOL' && <Check className="w-4 h-4 text-amber-600 dark:text-amber-400 stroke-[2.5]" />}
+          </button>
+
+          {/* SUS - Suspension */}
+          <button
+            type="button"
+            onClick={() => handleStatusClick('SUS')}
+            className={`w-full px-2.5 py-1.5 rounded-xl flex items-center justify-between transition-all cursor-pointer ${
+              selectedStatus === 'SUS'
+                ? 'bg-slate-100 dark:bg-slate-800 ring-1.5 ring-slate-400/50'
+                : 'hover:bg-slate-50 dark:hover:bg-slate-800/60'
+            }`}
+          >
+            <div className="flex items-center gap-2.5">
+              <span className="w-6 h-6 rounded-md bg-[#334155] text-white font-extrabold text-[9px] flex items-center justify-center shadow-xs">
+                SUS
+              </span>
+              <span className="text-xs font-bold text-slate-800 dark:text-slate-200">
+                SUS – Suspension
+              </span>
+            </div>
+            {selectedStatus === 'SUS' && <Check className="w-4 h-4 text-slate-600 dark:text-slate-300 stroke-[2.5]" />}
+          </button>
+
           {/* Clear Tag */}
           <button
             type="button"
             onClick={() => handleStatusClick(null)}
-            className={`w-full px-2.5 py-2 rounded-xl flex items-center justify-between transition-all cursor-pointer ${
+            className={`w-full px-2.5 py-1.5 rounded-xl flex items-center justify-between transition-all cursor-pointer ${
               selectedStatus === null
                 ? 'bg-slate-100 dark:bg-slate-800 ring-1.5 ring-slate-400/40'
                 : 'hover:bg-slate-50 dark:hover:bg-slate-800/60'
             }`}
           >
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2.5">
               <span className="w-6 h-6 rounded-full border border-slate-300 dark:border-slate-600 text-slate-400 dark:text-slate-500 font-bold text-xs flex items-center justify-center shadow-2xs">
                 ✕
               </span>

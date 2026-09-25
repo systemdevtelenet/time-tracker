@@ -12,7 +12,6 @@ import {
   Upload,
   Trash2,
   Mail, 
-  Building2, 
   Calendar, 
   Clock, 
   Briefcase, 
@@ -85,24 +84,24 @@ export default function SettingsView({
   }, []);
 
   const activeUser = {
-    ...localUser,
     ...supervisor,
+    ...localUser,
   };
 
-  const displayName = activeUser.name || 'User';
+  const displayName = activeUser.name || '';
   const nameParts = displayName.trim().split(/\s+/);
   const firstName = activeUser.firstName || (nameParts.length > 1 ? nameParts.slice(0, -1).join(' ') : displayName);
   const lastName = activeUser.lastName || (nameParts.length > 1 ? nameParts[nameParts.length - 1] : '');
   const middleName = activeUser.middleName || '—';
   const suffixName = activeUser.suffix || 'N/A';
-  const employeeId = activeUser.id || activeUser.employeeNumber || '—';
-  const positionTitle = activeUser.position || activeUser.primaryTask || 'Team Member';
-  const emailContact = activeUser.email || (displayName ? `${displayName.toLowerCase().replace(/\s+/g, '.')}@cebutelenet.com` : 'user@cebutelenet.com');
+  const employeeId = activeUser.id || activeUser.employee_id || activeUser.employeeNumber || '—';
+  const positionTitle = activeUser.position || activeUser.primaryTask || activeUser.role || '—';
+  const emailContact = activeUser.email || (displayName ? `${displayName.toLowerCase().replace(/\s+/g, '.')}@cebutelenet.com` : '—');
   const department = activeUser.department || (activeUser.account ? `${activeUser.account} Operations` : 'Operations');
-  const assignedShift = activeUser.shift || '9:00 PM to 6:00 AM';
-  const directSupervisor = activeUser.directSupervisor || 'June Babe Caballes';
-  const accountLOB = activeUser.accounts || activeUser.account || 'CORP';
-  const startDate = activeUser.startDate || '1/3/2024';
+  const assignedShift = activeUser.shift || '—';
+  const directSupervisor = activeUser.directSupervisor || activeUser.supervisor || '—';
+  const accountLOB = activeUser.accounts || activeUser.account || '—';
+  const startDate = activeUser.startDate || activeUser.hire_date || '—';
 
   // Photo state & dropdown
   const [avatarPhoto, setAvatarPhoto] = useState<string | null>(supervisor.avatarUrl || null);
@@ -505,10 +504,10 @@ export default function SettingsView({
                       </span>
                     </div>
 
-                    {/* Col 4: Primary Task */}
+                    {/* Col 4: Position */}
                     <div className="pt-2 sm:pt-0 sm:pl-2">
                       <span className="block text-[10px] font-black uppercase tracking-widest text-white/60 dark:text-[#94A3B8]">
-                        PRIMARY TASK
+                        POSITION
                       </span>
                       <span className="block text-xs font-bold text-white dark:text-[#F8F8F6] mt-0.5 truncate">
                         {positionTitle}
@@ -610,20 +609,6 @@ export default function SettingsView({
               />
             </div>
 
-            {/* Department / Program */}
-            <div className="space-y-2">
-              <label className="flex items-center gap-1.5 text-xs font-bold text-slate-400 dark:text-[#94A3B8]">
-                <Building2 className="w-3.5 h-3.5 text-slate-400 dark:text-[#94A3B8]" />
-                <span>Department / Program</span>
-              </label>
-              <input
-                type="text"
-                readOnly
-                value={department}
-                className="w-full py-3 px-4 rounded-xl border-none bg-[#f1f1f1] dark:bg-[#272626] dark:border dark:border-[#434142] text-sm font-medium text-slate-800 dark:text-[#F8F8F6] cursor-default select-none pointer-events-none outline-none"
-              />
-            </div>
-
             {/* Assigned Shift */}
             <div className="space-y-2">
               <label className="flex items-center gap-1.5 text-xs font-bold text-slate-400 dark:text-[#94A3B8]">
@@ -638,11 +623,11 @@ export default function SettingsView({
               />
             </div>
 
-            {/* Reporting Lead */}
+            {/* Direct Supervisor */}
             <div className="space-y-2">
               <label className="flex items-center gap-1.5 text-xs font-bold text-slate-400 dark:text-[#94A3B8]">
                 <Briefcase className="w-3.5 h-3.5 text-slate-400 dark:text-[#94A3B8]" />
-                <span>Reporting Manager / Lead</span>
+                <span>Direct Supervisor</span>
               </label>
               <input
                 type="text"
@@ -652,11 +637,11 @@ export default function SettingsView({
               />
             </div>
 
-            {/* Account / Line of Business */}
+            {/* Account */}
             <div className="space-y-2">
               <label className="flex items-center gap-1.5 text-xs font-bold text-slate-400 dark:text-[#94A3B8]">
                 <Layers className="w-3.5 h-3.5 text-slate-400 dark:text-[#94A3B8]" />
-                <span>Account / Line of Business</span>
+                <span>Account</span>
               </label>
               <input
                 type="text"
