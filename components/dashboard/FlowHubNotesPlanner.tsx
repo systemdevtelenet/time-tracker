@@ -41,7 +41,7 @@ export default function FlowHubNotesPlanner() {
     {
       id: 's2',
       title: 'Meal / Lunch Break Coverage',
-      content: 'Badz covered Neil\'s 1-hour lunch period from 04:47 AM to 05:47 AM on ONO account.',
+      content: 'Michelle Yncierto covered the 1-hour lunch period from 04:47 AM to 05:47 AM on Corporate queue.',
       color: 'blue',
       tag: 'Meal Coverage',
       isPinned: true,
@@ -49,8 +49,8 @@ export default function FlowHubNotesPlanner() {
     },
     {
       id: 's3',
-      title: 'Schedule Swap — Fleet Account',
-      content: 'Charles Espinosa approved for 8.0 hrs shift coverage on Fleet queue. Attendance logged and verified.',
+      title: 'Schedule Swap — Corporate Training',
+      content: 'Raymundo Alasagas III approved for 8.0 hrs shift coverage on QA queue. Attendance logged and verified.',
       color: 'green',
       tag: 'Shift Swap',
       isPinned: true,

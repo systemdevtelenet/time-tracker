@@ -69,9 +69,9 @@ export const INITIAL_ACTIVITY_LOGS: SystemActivityLog[] = [
   {
     id: 'act-timelog-2',
     title: 'Task Activity Recorded',
-    description: 'Logged 8 hours for FLEET (Ticket #FLEET ).',
+    description: 'Logged 8 hours for Corporate (Ticket #CORP-TR-01).',
     timestamp: new Date(Date.now() - 23 * 60 * 60 * 1000 - 5 * 60 * 1000).toISOString(),
-    performedBy: 'Charles Espinosa',
+    performedBy: 'Nissi-Jeh Reguero',
     category: 'TIME LOG',
     type: 'timelog',
     isRead: true,

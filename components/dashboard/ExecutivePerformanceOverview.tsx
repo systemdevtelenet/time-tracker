@@ -63,6 +63,19 @@ export default function ExecutivePerformanceOverview({
     })).sort((a, b) => b.count - a.count);
   }, [records]);
 
+  const punctualityRate = useMemo(() => {
+    if (totalLogs === 0) return '—';
+    let lateCount = 0;
+    records.forEach((r) => {
+      const text = `${r.tagging || ''} ${r.summary || ''}`.toLowerCase();
+      if (text.includes('late') || text.includes('tardy') || text.includes('delay')) {
+        lateCount += 1;
+      }
+    });
+    const onTimeCount = Math.max(0, totalLogs - lateCount);
+    return `${Math.round((onTimeCount / totalLogs) * 100)}%`;
+  }, [records, totalLogs]);
+
   // Operational Shift Summary based on actual database logs
   const shiftSummary = useMemo(() => {
     if (totalLogs === 0) {
@@ -78,7 +91,7 @@ export default function ExecutivePerformanceOverview({
     const fullShiftRate = Math.round((fullShiftsCount / totalLogs) * 100);
 
     return {
-      headline: `${uniqueMembers.length} Active Members • ${totalDuration} Total Shift Hours Logged`,
+      headline: `${uniqueMembers.length} Active Member${uniqueMembers.length === 1 ? '' : 's'} • ${totalDuration} Total Shift Hours Logged`,
       detail: `${fullShiftsCount} of ${totalLogs} recorded logs (${fullShiftRate}%) meet or exceed the standard 8-hour shift. Average logged session is ${avgShiftTime} per shift record.`,
       recommendation: topMember 
         ? `Lead contributor is ${topMember.name} with ${topMember.count} shifts logged (${topMember.totalFormatted}). Attendance reliability is optimal.`
@@ -126,7 +139,7 @@ export default function ExecutivePerformanceOverview({
           </span>
           <div className="mt-1 flex items-center justify-center gap-1.5 text-base sm:text-lg font-black text-slate-900 dark:text-slate-100">
             <CalendarCheck className="w-4 h-4 text-emerald-500" />
-            <span>{totalLogs} logs</span>
+            <span>{totalLogs} {totalLogs === 1 ? 'log' : 'logs'}</span>
           </div>
         </div>
 
@@ -136,7 +149,7 @@ export default function ExecutivePerformanceOverview({
           </span>
           <div className="mt-1 flex items-center justify-center gap-1.5 text-base sm:text-lg font-black text-emerald-600 dark:text-emerald-400">
             <ShieldCheck className="w-4 h-4 text-emerald-500" />
-            <span>{totalLogs > 0 ? '100%' : '—'}</span>
+            <span>{punctualityRate}</span>
           </div>
         </div>
 
