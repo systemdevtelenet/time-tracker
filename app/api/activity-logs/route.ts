@@ -106,9 +106,6 @@ export async function POST(request: NextRequest) {
     // Strictly keep only the top 10 logs in runtime memory
     runtimeLogs = [newLog, ...runtimeLogs.filter((l) => l.id !== newLog.id)].slice(0, MAX_ACTIVITY_LOGS);
 
-    // Auto-prune database past 10 logs
-    await autoPruneDatabaseLogs(supabase);
-
     return NextResponse.json({ success: true, data: newLog }, { status: 201 });
   } catch (err: any) {
     console.error('Error in POST /api/activity-logs:', err);
@@ -118,12 +115,11 @@ export async function POST(request: NextRequest) {
 
 export async function DELETE() {
   try {
-    const supabase = getSupabaseAdmin();
     runtimeLogs = [];
-    await supabase.from('phone_time_tracker').delete().neq('date_of_shift', '1900-01-01');
-    return NextResponse.json({ success: true, message: 'Activity logs cleared from database and memory' });
+    return NextResponse.json({ success: true, message: 'Activity feed cleared from memory' });
   } catch (err: any) {
     return NextResponse.json({ error: err.message }, { status: 500 });
   }
 }
+
 
