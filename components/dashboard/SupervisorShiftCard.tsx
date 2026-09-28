@@ -550,246 +550,235 @@ export default function SupervisorShiftCard({
         </div>
       )}
 
-      {/* 2. Main Horizontal Grid: Left (TIME CLOCK & PUNCH with 8-Action Grid) + Right (POSITION & ASSIGNMENT) */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-3.5">
-        
-        {/* TIME CLOCK & PUNCH SECTION (Left Side - Expanded to fit all punch buttons clearly) */}
-        <div className="lg:col-span-8 xl:col-span-9 p-3.5 sm:p-4 rounded-2xl bg-white dark:bg-[#0E1B38] border border-slate-200/90 dark:border-slate-800 space-y-2.5 flex flex-col justify-between shadow-2xs">
-          
-          <div className="flex items-center justify-between">
-            <span className="text-[10px] font-extrabold text-slate-700 dark:text-slate-300 uppercase tracking-wider flex items-center gap-1.5">
-              <Clock className="w-3.5 h-3.5 text-[#2F6798]" />
-              <span>TIME CLOCK &amp; PUNCH</span>
-            </span>
-            <span className="text-[10px] font-bold text-[#2F6798] dark:text-blue-400">
-              Live Shift Timer
-            </span>
-          </div>
+      {/* 2. Position & Assignment Section (Full Width Bar Above Time Clock & Punch) */}
+      <div className="p-3.5 sm:p-4 rounded-2xl bg-white dark:bg-[#0E1B38] border border-slate-200/90 dark:border-slate-800 space-y-3 shadow-2xs">
+        <div className="flex items-center justify-between flex-wrap gap-2">
+          <span className="text-[10px] font-extrabold text-slate-700 dark:text-slate-300 uppercase tracking-wider flex items-center gap-1.5">
+            <Building2 className="w-3.5 h-3.5 text-[#2F6798]" />
+            <span>POSITION &amp; ASSIGNMENT</span>
+          </span>
 
-          {/* 2-Column Duration and Last Punch in Light Gray */}
-          <div className="grid grid-cols-2 gap-2.5">
-            <div className="p-2.5 rounded-xl bg-slate-100 dark:bg-slate-800/90 border border-slate-200/80 dark:border-slate-700/80 shadow-2xs">
-              <span className="text-[9px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider block">
-                {currentStatus === 'lunch' 
-                  ? 'LUNCH DURATION' 
-                  : currentStatus === 'break_1' 
-                  ? '1ST BREAK DURATION' 
-                  : currentStatus === 'break_2' 
-                  ? '2ND BREAK DURATION' 
-                  : currentStatus === 'offline' 
-                  ? 'OFFLINE' 
-                  : 'WORKING TIME'}
+          {/* Department Tag & Time Actions Pill */}
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="text-[10px] font-extrabold text-[#2F6798] dark:text-blue-200 uppercase tracking-wider bg-[#2F6798]/15 dark:bg-[#2F6798]/30 px-3 py-1 rounded-full border border-[#2F6798]/30 shadow-2xs">
+              {supervisor.account} Department
+            </span>
+            <div className="flex items-center gap-1.5">
+              <span className="text-[9.5px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">
+                Time Actions:
               </span>
-              <span className="text-sm sm:text-base font-black text-slate-900 dark:text-slate-100 font-mono mt-0.5 block">
-                {formatTimer(statusSeconds)}
-              </span>
-            </div>
-
-            <div className="p-2.5 rounded-xl bg-slate-100 dark:bg-slate-800/90 border border-slate-200/80 dark:border-slate-700/80 shadow-2xs">
-              <span className="text-[9px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider block">
-                LAST PUNCH
-              </span>
-              <span className="text-sm sm:text-base font-black text-[#2F6798] dark:text-blue-400 font-mono mt-0.5 block truncate" title={`${lastPunchType} at ${lastPunchTime}`}>
-                {lastPunchTime}
+              <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[9.5px] font-bold ${
+                currentStatus === 'offline'
+                  ? 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-400 border border-slate-300 dark:border-slate-700'
+                  : currentStatus === 'lunch' || currentStatus === 'break_1' || currentStatus === 'break_2'
+                  ? 'bg-amber-100 text-amber-800 dark:bg-amber-950/80 dark:text-amber-300 border border-amber-300 dark:border-amber-700'
+                  : 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/80 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-700'
+              }`}>
+                <span className={`w-1.5 h-1.5 rounded-full ${
+                  currentStatus === 'offline' ? 'bg-slate-400' : 'bg-emerald-500 animate-pulse'
+                }`} />
+                {currentStatus === 'offline' ? 'Shift Ended' : currentStatus === 'lunch' ? 'On Lunch' : currentStatus === 'break_1' ? 'On 1st Break' : currentStatus === 'break_2' ? 'On 2nd Break' : 'Active (Working)'}
               </span>
             </div>
           </div>
+        </div>
 
-          {/* Dynamic Shift Punch Controls (Context-Aware to Prevent Misclicks) */}
-          <div className="space-y-2 pt-0.5">
-            <div className="flex items-center justify-between px-0.5">
-              <span className="text-[9.5px] font-extrabold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
-                {currentStatus === 'offline' && punchesState.hasShiftEnd
-                  ? 'Shift Completed'
-                  : currentStatus === 'break_1'
-                  ? 'Active 1st Break'
-                  : currentStatus === 'lunch'
-                  ? 'Active Lunch Break'
-                  : currentStatus === 'break_2'
-                  ? 'Active 2nd Break'
-                  : !punchesState.hasShiftStart
-                  ? 'Ready to Clock In'
-                  : 'Available Actions'}
-              </span>
-              <span className="text-[9.5px] font-bold text-[#2F6798] dark:text-blue-300 font-mono">
-                {Object.values(punchesState).filter(Boolean).length}/8 Punches
-              </span>
-            </div>
+        {/* 4 Inner Metric Boxes in 4-Column Layout */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-2.5">
+          {/* Position */}
+          <div className="p-2.5 rounded-xl bg-slate-100 dark:bg-slate-800/90 border border-slate-200/80 dark:border-slate-700/80 shadow-2xs">
+            <span className="text-[9px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider block">
+              POSITION
+            </span>
+            <span className="text-xs sm:text-sm font-bold text-slate-900 dark:text-slate-100 mt-0.5 block truncate">
+              {supervisor.position}
+            </span>
+          </div>
 
-            {/* Shift Milestones Progress Steps (Visual Reference) */}
-            <div className="grid grid-cols-5 gap-1 p-1 rounded-xl bg-slate-100/80 dark:bg-slate-800/60 border border-slate-200/60 dark:border-slate-700/60">
-              {shiftMilestonesSummary.map((m: any) => {
-                const Icon = m.icon;
-                const isDone = m.status === 'done';
-                const isActive = m.status === 'active';
+          {/* Shift Schedule */}
+          <div className="p-2.5 rounded-xl bg-slate-100 dark:bg-slate-800/90 border border-slate-200/80 dark:border-slate-700/80 shadow-2xs">
+            <span className="text-[9px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider block">
+              SHIFT SCHEDULE
+            </span>
+            <span className="text-xs sm:text-sm font-bold text-[#2F6798] dark:text-blue-400 font-mono mt-0.5 block truncate">
+              {supervisor.shift}
+            </span>
+          </div>
+
+          {/* Account & Tenure */}
+          <div className="p-2.5 rounded-xl bg-slate-100 dark:bg-slate-800/90 border border-slate-200/80 dark:border-slate-700/80 shadow-2xs">
+            <span className="text-[9px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider block">
+              ACCOUNT &amp; TENURE
+            </span>
+            <span className="text-xs sm:text-sm font-bold text-slate-900 dark:text-slate-100 mt-0.5 block truncate">
+              {supervisor.account} <span className="text-slate-500 font-normal">({supervisor.tenure})</span>
+            </span>
+          </div>
+
+          {/* Direct Supervisor */}
+          <div className="p-2.5 rounded-xl bg-slate-100 dark:bg-slate-800/90 border border-slate-200/80 dark:border-slate-700/80 shadow-2xs">
+            <span className="text-[9px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider block">
+              DIRECT SUPERVISOR
+            </span>
+            <span className="text-xs sm:text-sm font-bold text-slate-900 dark:text-slate-100 mt-0.5 block truncate">
+              {supervisor.directSupervisor}
+            </span>
+          </div>
+        </div>
+      </div>
+
+      {/* 3. TIME CLOCK & PUNCH SECTION (Full Width Container Below Position & Assignment) */}
+      <div className="p-4 sm:p-5 rounded-2xl bg-white dark:bg-[#0E1B38] border border-slate-200/90 dark:border-slate-800 space-y-3.5 shadow-2xs">
+        <div className="flex items-center justify-between">
+          <span className="text-[10px] sm:text-xs font-extrabold text-slate-700 dark:text-slate-300 uppercase tracking-wider flex items-center gap-1.5">
+            <Clock className="w-3.5 h-3.5 text-[#2F6798]" />
+            <span>TIME CLOCK &amp; PUNCH</span>
+          </span>
+          <span className="text-[10px] sm:text-xs font-bold text-[#2F6798] dark:text-blue-400">
+            Live Shift Timer
+          </span>
+        </div>
+
+        {/* 2-Column Duration and Last Punch in Light Gray */}
+        <div className="grid grid-cols-2 gap-3">
+          <div className="p-3 rounded-xl bg-slate-100 dark:bg-slate-800/90 border border-slate-200/80 dark:border-slate-700/80 shadow-2xs">
+            <span className="text-[9.5px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider block">
+              {currentStatus === 'lunch' 
+                ? 'LUNCH DURATION' 
+                : currentStatus === 'break_1' 
+                ? '1ST BREAK DURATION' 
+                : currentStatus === 'break_2' 
+                ? '2ND BREAK DURATION' 
+                : currentStatus === 'offline' 
+                ? 'OFFLINE' 
+                : 'WORKING TIME'}
+            </span>
+            <span className="text-base sm:text-lg font-black text-slate-900 dark:text-slate-100 font-mono mt-0.5 block">
+              {formatTimer(statusSeconds)}
+            </span>
+          </div>
+
+          <div className="p-3 rounded-xl bg-slate-100 dark:bg-slate-800/90 border border-slate-200/80 dark:border-slate-700/80 shadow-2xs">
+            <span className="text-[9.5px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider block">
+              LAST PUNCH
+            </span>
+            <span className="text-base sm:text-lg font-black text-[#2F6798] dark:text-blue-400 font-mono mt-0.5 block truncate" title={`${lastPunchType} at ${lastPunchTime}`}>
+              {lastPunchTime}
+            </span>
+          </div>
+        </div>
+
+        {/* Dynamic Shift Punch Controls (Context-Aware to Prevent Misclicks) */}
+        <div className="space-y-2.5 pt-0.5">
+          <div className="flex items-center justify-between px-0.5">
+            <span className="text-[9.5px] sm:text-[10px] font-extrabold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+              {currentStatus === 'offline' && punchesState.hasShiftEnd
+                ? 'Shift Completed'
+                : currentStatus === 'break_1'
+                ? 'Active 1st Break'
+                : currentStatus === 'lunch'
+                ? 'Active Lunch Break'
+                : currentStatus === 'break_2'
+                ? 'Active 2nd Break'
+                : !punchesState.hasShiftStart
+                ? 'Ready to Clock In'
+                : 'Available Actions'}
+            </span>
+            <span className="text-[9.5px] sm:text-[10px] font-bold text-[#2F6798] dark:text-blue-300 font-mono">
+              {Object.values(punchesState).filter(Boolean).length}/8 Punches
+            </span>
+          </div>
+
+          {/* Shift Milestones Progress Steps (Visual Reference) */}
+          <div className="grid grid-cols-5 gap-1.5 p-1.5 rounded-xl bg-slate-100/80 dark:bg-slate-800/60 border border-slate-200/60 dark:border-slate-700/60">
+            {shiftMilestonesSummary.map((m: any) => {
+              const Icon = m.icon;
+              const isDone = m.status === 'done';
+              const isActive = m.status === 'active';
+
+              return (
+                <div
+                  key={m.id}
+                  className={`flex items-center justify-center gap-1.5 py-1 px-1.5 rounded-lg text-center transition-all ${
+                    isActive
+                      ? 'bg-amber-500 text-white font-bold shadow-xs'
+                      : isDone
+                      ? 'bg-emerald-100/80 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300 font-bold'
+                      : 'text-slate-400 dark:text-slate-500'
+                  }`}
+                  title={`${m.label}: ${isDone ? 'Completed' : isActive ? 'Active Now' : 'Upcoming'}`}
+                >
+                  <Icon className="w-3 h-3 shrink-0" />
+                  <span className="text-[9px] sm:text-[10px] font-extrabold truncate hidden sm:inline">
+                    {m.label}
+                  </span>
+                  {isDone && <CheckCircle2 className="w-3 h-3 shrink-0 text-emerald-600 dark:text-emerald-400" />}
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Contextual Action Buttons Grid */}
+          {availablePunchActions.length > 0 ? (
+            <div className={`grid gap-2.5 ${
+              availablePunchActions.length === 1 
+                ? 'grid-cols-1' 
+                : availablePunchActions.length === 2 
+                ? 'grid-cols-1 sm:grid-cols-2'
+                : availablePunchActions.length === 3
+                ? 'grid-cols-1 sm:grid-cols-3'
+                : 'grid-cols-2 sm:grid-cols-4'
+            }`}>
+              {availablePunchActions.map((action: any) => {
+                const Icon = action.icon;
+                const isSingleAction = availablePunchActions.length === 1;
 
                 return (
-                  <div
-                    key={m.id}
-                    className={`flex items-center justify-center gap-1 py-1 px-1 rounded-lg text-center transition-all ${
-                      isActive
-                        ? 'bg-amber-500 text-white font-bold shadow-xs'
-                        : isDone
-                        ? 'bg-emerald-100/80 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300 font-bold'
-                        : 'text-slate-400 dark:text-slate-500'
-                    }`}
-                    title={`${m.label}: ${isDone ? 'Completed' : isActive ? 'Active Now' : 'Upcoming'}`}
+                  <button
+                    key={action.type}
+                    type="button"
+                    disabled={isPunching}
+                    onClick={() => handlePunch(action.type)}
+                    className={`p-3 sm:p-3.5 rounded-2xl border transition-all cursor-pointer flex items-center justify-between gap-3 select-none disabled:opacity-50 group hover:scale-[1.01] active:scale-[0.99] ${action.colorClasses}`}
                   >
-                    <Icon className="w-2.5 h-2.5 shrink-0" />
-                    <span className="text-[8.5px] font-extrabold truncate hidden sm:inline">
-                      {m.label.split(' ')[0]}
+                    <div className="flex items-center gap-2.5 min-w-0 text-left">
+                      <div className={`w-8 h-8 sm:w-9 sm:h-9 rounded-xl flex items-center justify-center shrink-0 ${
+                        action.variant.includes('active') || action.variant === 'start'
+                          ? 'bg-white/20 text-white'
+                          : 'bg-white dark:bg-slate-800 shadow-2xs'
+                      }`}>
+                        <Icon className="w-4 h-4 sm:w-4.5 sm:h-4.5" />
+                      </div>
+                      <div className="min-w-0">
+                        <span className="text-xs sm:text-sm font-black block whitespace-nowrap tracking-tight">
+                          {action.label}
+                        </span>
+                        <span className="text-[9px] sm:text-[10px] opacity-80 block whitespace-nowrap font-medium">
+                          {action.subLabel}
+                        </span>
+                      </div>
+                    </div>
+
+                    <span className={`px-2.5 py-1 rounded-full text-[8.5px] sm:text-[9px] font-black uppercase tracking-wider shrink-0 ${
+                      action.variant.includes('active') || action.variant === 'start'
+                        ? 'bg-white/25 text-white'
+                        : 'bg-white/80 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200/60 dark:border-slate-700'
+                    }`}>
+                      {isSingleAction ? 'Click to Action' : 'Punch'}
                     </span>
-                    {isDone && <CheckCircle2 className="w-2.5 h-2.5 shrink-0 text-emerald-600 dark:text-emerald-400" />}
-                  </div>
+                  </button>
                 );
               })}
             </div>
-
-            {/* Contextual Action Buttons Grid */}
-            {availablePunchActions.length > 0 ? (
-              <div className={`grid gap-2 ${
-                availablePunchActions.length === 1 
-                  ? 'grid-cols-1' 
-                  : availablePunchActions.length === 2 
-                  ? 'grid-cols-1 sm:grid-cols-2'
-                  : availablePunchActions.length === 3
-                  ? 'grid-cols-1 sm:grid-cols-3'
-                  : 'grid-cols-2 sm:grid-cols-4'
-              }`}>
-                {availablePunchActions.map((action: any) => {
-                  const Icon = action.icon;
-                  const isSingleAction = availablePunchActions.length === 1;
-
-                  return (
-                    <button
-                      key={action.type}
-                      type="button"
-                      disabled={isPunching}
-                      onClick={() => handlePunch(action.type)}
-                      className={`p-2.5 sm:p-3 rounded-2xl border transition-all cursor-pointer flex items-center justify-between gap-2 select-none disabled:opacity-50 group hover:scale-[1.01] active:scale-[0.99] ${action.colorClasses}`}
-                    >
-                      <div className="flex items-center gap-2 min-w-0 text-left">
-                        <div className={`w-7 h-7 sm:w-8 sm:h-8 rounded-xl flex items-center justify-center shrink-0 ${
-                          action.variant.includes('active') || action.variant === 'start'
-                            ? 'bg-white/20 text-white'
-                            : 'bg-white dark:bg-slate-800 shadow-2xs'
-                        }`}>
-                          <Icon className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-                        </div>
-                        <div className="min-w-0">
-                          <span className="text-[11px] sm:text-xs md:text-sm font-black block whitespace-nowrap tracking-tight">
-                            {action.label}
-                          </span>
-                          <span className="text-[8.5px] sm:text-[9px] opacity-80 block whitespace-nowrap font-medium">
-                            {action.subLabel}
-                          </span>
-                        </div>
-                      </div>
-
-                      <span className={`px-2 py-0.5 rounded-full text-[8px] sm:text-[8.5px] font-black uppercase tracking-wider shrink-0 ${
-                        action.variant.includes('active') || action.variant === 'start'
-                          ? 'bg-white/25 text-white'
-                          : 'bg-white/80 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200/60 dark:border-slate-700'
-                      }`}>
-                        {isSingleAction ? 'Click to Action' : 'Punch'}
-                      </span>
-                    </button>
-                  );
-                })}
-              </div>
-            ) : (
-              <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-700 text-center flex items-center justify-center gap-2">
-                <CheckCircle2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
-                <span className="text-xs font-bold text-slate-600 dark:text-slate-400">
-                  Shift completed for today. All punch actions recorded.
-                </span>
-              </div>
-            )}
-          </div>
-
+          ) : (
+            <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-700 text-center flex items-center justify-center gap-2">
+              <CheckCircle2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
+              <span className="text-xs font-bold text-slate-600 dark:text-slate-400">
+                Shift completed for today. All punch actions recorded.
+              </span>
+            </div>
+          )}
         </div>
-
-        {/* POSITION & ASSIGNMENT SECTION (Right Side - Reduced by 3 columns) */}
-        <div className="lg:col-span-4 xl:col-span-3 p-3.5 sm:p-4 rounded-2xl bg-white dark:bg-[#0E1B38] border border-slate-200/90 dark:border-slate-800 space-y-2.5 flex flex-col justify-between shadow-2xs">
-          
-          <div className="flex items-center justify-between flex-wrap gap-2">
-            <span className="text-[10px] font-extrabold text-slate-700 dark:text-slate-300 uppercase tracking-wider flex items-center gap-1.5">
-              <Building2 className="w-3.5 h-3.5 text-[#2F6798]" />
-              <span>POSITION &amp; ASSIGNMENT</span>
-            </span>
-
-            {/* Department Tag & Time Actions Pill */}
-            <div className="flex items-center gap-2 flex-wrap">
-              <span className="text-[10px] font-extrabold text-[#2F6798] dark:text-blue-200 uppercase tracking-wider bg-[#2F6798]/15 dark:bg-[#2F6798]/30 px-3 py-1 rounded-full border border-[#2F6798]/30 shadow-2xs">
-                {supervisor.account} Department
-              </span>
-              <div className="flex items-center gap-1.5">
-                <span className="text-[9.5px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">
-                  Time Actions:
-                </span>
-                <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9.5px] font-bold ${
-                  currentStatus === 'offline'
-                    ? 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-400 border border-slate-300 dark:border-slate-700'
-                    : currentStatus === 'lunch' || currentStatus === 'break_1' || currentStatus === 'break_2'
-                    ? 'bg-amber-100 text-amber-800 dark:bg-amber-950/80 dark:text-amber-300 border border-amber-300 dark:border-amber-700'
-                    : 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/80 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-700'
-                }`}>
-                  <span className={`w-1.5 h-1.5 rounded-full ${
-                    currentStatus === 'offline' ? 'bg-slate-400' : 'bg-emerald-500 animate-pulse'
-                  }`} />
-                  {currentStatus === 'offline' ? 'Shift Ended' : currentStatus === 'lunch' ? 'On Lunch' : currentStatus === 'break_1' ? 'On 1st Break' : currentStatus === 'break_2' ? 'On 2nd Break' : 'Active (Working)'}
-                </span>
-              </div>
-            </div>
-          </div>
-
-          {/* 4 Inner Metric Boxes in Light Gray */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-            
-            {/* Position */}
-            <div className="p-2.5 rounded-xl bg-slate-100 dark:bg-slate-800/90 border border-slate-200/80 dark:border-slate-700/80 shadow-2xs">
-              <span className="text-[9px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider block">
-                POSITION
-              </span>
-              <span className="text-xs sm:text-sm font-bold text-slate-900 dark:text-slate-100 mt-0.5 block truncate">
-                {supervisor.position}
-              </span>
-            </div>
-
-            {/* Shift Schedule */}
-            <div className="p-2.5 rounded-xl bg-slate-100 dark:bg-slate-800/90 border border-slate-200/80 dark:border-slate-700/80 shadow-2xs">
-              <span className="text-[9px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider block">
-                SHIFT SCHEDULE
-              </span>
-              <span className="text-xs sm:text-sm font-bold text-[#2F6798] dark:text-blue-400 font-mono mt-0.5 block">
-                {supervisor.shift}
-              </span>
-            </div>
-
-            {/* Account & Tenure */}
-            <div className="p-2.5 rounded-xl bg-slate-100 dark:bg-slate-800/90 border border-slate-200/80 dark:border-slate-700/80 shadow-2xs">
-              <span className="text-[9px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider block">
-                ACCOUNT &amp; TENURE
-              </span>
-              <span className="text-xs sm:text-sm font-bold text-slate-900 dark:text-slate-100 mt-0.5 block">
-                {supervisor.account} <span className="text-slate-500 font-normal">({supervisor.tenure})</span>
-              </span>
-            </div>
-
-            {/* Direct Supervisor */}
-            <div className="p-2.5 rounded-xl bg-slate-100 dark:bg-slate-800/90 border border-slate-200/80 dark:border-slate-700/80 shadow-2xs">
-              <span className="text-[9px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider block">
-                DIRECT SUPERVISOR
-              </span>
-              <span className="text-xs sm:text-sm font-bold text-slate-900 dark:text-slate-100 mt-0.5 block truncate">
-                {supervisor.directSupervisor}
-              </span>
-            </div>
-
-          </div>
-
-        </div>
-
       </div>
 
     </div>
