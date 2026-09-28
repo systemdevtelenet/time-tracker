@@ -24,6 +24,7 @@ import AttendanceCellPopover from './AttendanceCellPopover';
 import DatePickerPopover from './DatePickerPopover';
 import { PhoneTimeRecord } from '@/lib/types';
 import { logAttendanceUpdate } from '@/lib/activityLogs';
+import { showToast } from '@/lib/toast';
 
 interface AttendanceCalendarTabProps {
   records?: PhoneTimeRecord[];
@@ -57,10 +58,74 @@ interface EmployeeAttendanceRow {
   attendanceByDay: Record<number, AttendanceStatus>;
 }
 
-// Full trainer and supervisor team dataset matching exact screenshot
+// Helper to look up overrides across all key formats
+function getOverrideForEmployee(
+  empCode: string,
+  empName: string,
+  year: number,
+  monthIndex: number,
+  day: number,
+  overridesMap: Record<string, AttendanceStatus | string | null>
+): AttendanceStatus | undefined {
+  if (!overridesMap || Object.keys(overridesMap).length === 0) return undefined;
+  
+  const cleanId = String(empCode || '').replace(/^emp-/, '').trim();
+  const trimmedName = String(empName || '').trim();
+  const lowerName = trimmedName.toLowerCase();
+
+  const candidateKeys = [
+    `${cleanId}-${year}-${monthIndex}-${day}`,
+    `${trimmedName}-${year}-${monthIndex}-${day}`,
+    `${lowerName}-${year}-${monthIndex}-${day}`,
+    `${cleanId}-${day}`,
+    `${trimmedName}-${day}`,
+    `${lowerName}-${day}`,
+  ];
+
+  for (const k of candidateKeys) {
+    if (overridesMap[k] !== undefined) {
+      return (overridesMap[k] === 'Clear' ? null : overridesMap[k]) as AttendanceStatus;
+    }
+  }
+  return undefined;
+}
+
+// Helper to look up notes across all key formats
+function getNoteForEmployee(
+  empCode: string,
+  empName: string,
+  year: number,
+  monthIndex: number,
+  day: number,
+  notesMap: Record<string, string>
+): string {
+  if (!notesMap || Object.keys(notesMap).length === 0) return '';
+  
+  const cleanId = String(empCode || '').replace(/^emp-/, '').trim();
+  const trimmedName = String(empName || '').trim();
+  const lowerName = trimmedName.toLowerCase();
+
+  const candidateKeys = [
+    `${cleanId}-${year}-${monthIndex}-${day}`,
+    `${trimmedName}-${year}-${monthIndex}-${day}`,
+    `${lowerName}-${year}-${monthIndex}-${day}`,
+    `${cleanId}-${day}`,
+    `${trimmedName}-${day}`,
+    `${lowerName}-${day}`,
+  ];
+
+  for (const k of candidateKeys) {
+    if (notesMap[k] !== undefined) {
+      return notesMap[k];
+    }
+  }
+  return '';
+}
+
+// Full trainer and supervisor team dataset matching exact database IDs
 const TEAM_ATTENDANCE_DATA: EmployeeAttendanceRow[] = [
   {
-    id: '1',
+    id: '1597',
     startDate: '1/3/2024',
     position: 'Head of Training',
     name: 'Nissi-Jeh Reguero',
@@ -71,7 +136,7 @@ const TEAM_ATTENDANCE_DATA: EmployeeAttendanceRow[] = [
     },
   },
   {
-    id: '2',
+    id: '1108',
     startDate: '6/29/2023',
     position: 'Head of Quality',
     name: 'Raymundo Alasagas III',
@@ -82,7 +147,7 @@ const TEAM_ATTENDANCE_DATA: EmployeeAttendanceRow[] = [
     },
   },
   {
-    id: '3',
+    id: '1772',
     startDate: '5/2/2024',
     position: 'Trainer',
     name: 'Bianca Kaye Ernestine Colonia',
@@ -93,7 +158,7 @@ const TEAM_ATTENDANCE_DATA: EmployeeAttendanceRow[] = [
     },
   },
   {
-    id: '4',
+    id: '2385',
     startDate: '9/17/2025',
     position: 'Trainer',
     name: 'Michelle Yncierto',
@@ -104,7 +169,7 @@ const TEAM_ATTENDANCE_DATA: EmployeeAttendanceRow[] = [
     },
   },
   {
-    id: '5',
+    id: '1035',
     startDate: '11/24/2022',
     position: 'Trainer',
     name: 'Rommel Mendoza',
@@ -115,7 +180,7 @@ const TEAM_ATTENDANCE_DATA: EmployeeAttendanceRow[] = [
     },
   },
   {
-    id: '6',
+    id: '1820',
     startDate: '6/3/2024',
     position: 'Trainer',
     name: 'Ronelyn Baguio',
@@ -126,7 +191,7 @@ const TEAM_ATTENDANCE_DATA: EmployeeAttendanceRow[] = [
     },
   },
   {
-    id: '7',
+    id: '836',
     startDate: '7/20/2022',
     position: 'Trainer',
     name: 'Krisland Pepito',
@@ -137,7 +202,7 @@ const TEAM_ATTENDANCE_DATA: EmployeeAttendanceRow[] = [
     },
   },
   {
-    id: '8',
+    id: '1006',
     startDate: '11/7/2022',
     position: 'Trainer',
     name: 'Niño Elijah R. Reyes',
@@ -148,7 +213,7 @@ const TEAM_ATTENDANCE_DATA: EmployeeAttendanceRow[] = [
     },
   },
   {
-    id: '9',
+    id: '1880',
     startDate: '7/18/2024',
     position: 'Trainer',
     name: 'Kier Ariola',
@@ -159,7 +224,7 @@ const TEAM_ATTENDANCE_DATA: EmployeeAttendanceRow[] = [
     },
   },
   {
-    id: '10',
+    id: '946',
     startDate: '10/5/2022',
     position: 'Trainer',
     name: 'Vincent Luis Celdran',
@@ -170,7 +235,7 @@ const TEAM_ATTENDANCE_DATA: EmployeeAttendanceRow[] = [
     },
   },
   {
-    id: '11',
+    id: '2298',
     startDate: '4/8/2026',
     position: 'Trainer',
     name: 'Nina Joy Briones',
@@ -181,7 +246,7 @@ const TEAM_ATTENDANCE_DATA: EmployeeAttendanceRow[] = [
     },
   },
   {
-    id: '12',
+    id: '1954',
     startDate: '4/8/2026',
     position: 'Trainer',
     name: 'Matt Riner Balaba',
@@ -192,7 +257,7 @@ const TEAM_ATTENDANCE_DATA: EmployeeAttendanceRow[] = [
     },
   },
   {
-    id: '13',
+    id: '2610',
     startDate: '6/2/2026',
     position: 'Trainer',
     name: 'Maegan Marie Cabardo',
@@ -239,16 +304,60 @@ export default function AttendanceCalendarTab({
     supervisorName || 'Nissi-Jeh Reguero'
   );
 
-  // Dynamic Database Team Roster List
+  // Synchronously load existing local overrides to prevent flicker or resets
+  const [attendanceOverrides, setAttendanceOverrides] = useState<Record<string, AttendanceStatus>>(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        const saved = localStorage.getItem('attendance_overrides_v1');
+        if (saved) return JSON.parse(saved);
+      } catch (e) {}
+    }
+    return {};
+  });
+
+  const [attendanceNotes, setAttendanceNotes] = useState<Record<string, string>>(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        const saved = localStorage.getItem('attendance_notes_v1');
+        if (saved) return JSON.parse(saved);
+      } catch (e) {}
+    }
+    return {};
+  });
+
+  // Dynamic Database Team Roster List with immediate override integration on first mount
   const [attendanceDataList, setAttendanceDataList] = useState<EmployeeAttendanceRow[]>(() => {
+    let localSaved: Record<string, AttendanceStatus> = {};
+    if (typeof window !== 'undefined') {
+      try {
+        const saved = localStorage.getItem('attendance_overrides_v1');
+        if (saved) localSaved = JSON.parse(saved);
+      } catch (e) {}
+    }
+
+    const initialRows = TEAM_ATTENDANCE_DATA.map((row) => {
+      const mergedAttendance = { ...row.attendanceByDay };
+      for (let d = 1; d <= 31; d++) {
+        const override = getOverrideForEmployee(row.id, row.name, 2026, 8, d, localSaved);
+        if (override !== undefined) {
+          mergedAttendance[d] = override;
+        }
+      }
+      return {
+        ...row,
+        id: `emp-${row.id}`,
+        attendanceByDay: mergedAttendance,
+      };
+    });
+
     if (!isHeadOrAdmin && supervisorName) {
       const sName = supervisorName.toLowerCase().trim();
-      const filtered = TEAM_ATTENDANCE_DATA.filter(
+      const filtered = initialRows.filter(
         (e) => (sName && (e.name.toLowerCase().trim().includes(sName) || sName.includes(e.name.toLowerCase().trim())))
       );
-      return filtered.length > 0 ? filtered : TEAM_ATTENDANCE_DATA.slice(0, 1);
+      return filtered.length > 0 ? filtered : initialRows.slice(0, 1);
     }
-    return TEAM_ATTENDANCE_DATA;
+    return initialRows;
   });
 
   // Detail Modal States
@@ -273,9 +382,6 @@ export default function AttendanceCalendarTab({
     dayNumber: 22,
     currentStatus: null,
   });
-
-  const [attendanceOverrides, setAttendanceOverrides] = useState<Record<string, AttendanceStatus>>({});
-  const [attendanceNotes, setAttendanceNotes] = useState<Record<string, string>>({});
 
   useEffect(() => {
     const syncOverrides = () => {
@@ -306,16 +412,8 @@ export default function AttendanceCalendarTab({
   }, []);
 
   const handleOpenCellPopover = (emp: EmployeeAttendanceRow, dayNum: number) => {
-    const key = `${emp.name}-${currentYear}-${currentMonthIndex}-${dayNum}`;
     const empCode = emp.id.replace(/^emp-/, '');
-    const overrideKey = `${empCode}-${currentYear}-${currentMonthIndex}-${dayNum}`;
-    const legacyKey = `${emp.name}-${dayNum}`;
-    const legacyIdKey = `${empCode}-${dayNum}`;
-    const currentNote = 
-      attendanceNotes[key] || 
-      attendanceNotes[overrideKey] || 
-      (currentMonthIndex === 8 && currentYear === 2026 ? (attendanceNotes[legacyKey] || attendanceNotes[legacyIdKey]) : '') || 
-      '';
+    const currentNote = getNoteForEmployee(empCode, emp.name, currentYear, currentMonthIndex, dayNum, attendanceNotes);
     
     setCellPopover({
       isOpen: true,
@@ -331,14 +429,22 @@ export default function AttendanceCalendarTab({
 
   const handleSelectCellStatus = async (newStatus: AttendanceStatus, note?: string) => {
     const { employeeName, dayNumber, employeeId } = cellPopover;
-    const nameKey = `${employeeName}-${currentYear}-${currentMonthIndex}-${dayNumber}`;
-    const cleanEmpId = (employeeId || '').replace(/^emp-/, '');
-    const idKey = `${cleanEmpId}-${currentYear}-${currentMonthIndex}-${dayNumber}`;
+    const cleanEmpId = (employeeId || '').replace(/^emp-/, '').trim();
+    const trimmedName = employeeName.trim();
+    const lowerName = trimmedName.toLowerCase();
 
-    // 1. Update React state immediately
+    // 1. Update React state immediately for snappy UI
     setAttendanceDataList((prev) =>
       prev.map((emp) => {
-        if (emp.name === employeeName || emp.id === employeeId || emp.id === `emp-${cleanEmpId}`) {
+        const empClean = emp.id.replace(/^emp-/, '').trim();
+        const empTrimmed = emp.name.trim();
+        const isMatch =
+          empTrimmed === trimmedName ||
+          empTrimmed.toLowerCase() === lowerName ||
+          empClean === cleanEmpId ||
+          emp.id === employeeId;
+
+        if (isMatch) {
           return {
             ...emp,
             attendanceByDay: {
@@ -351,15 +457,15 @@ export default function AttendanceCalendarTab({
       })
     );
 
-    // 2. Persist overrides to localStorage
+    // 2. Persist overrides to localStorage across all lookup keys
     const updatedOverrides = {
       ...attendanceOverrides,
-      [nameKey]: newStatus,
-      [idKey]: newStatus,
-      ...(currentMonthIndex === 8 && currentYear === 2026 ? {
-        [`${employeeName}-${dayNumber}`]: newStatus,
-        [`${cleanEmpId}-${dayNumber}`]: newStatus,
-      } : {}),
+      [`${cleanEmpId}-${currentYear}-${currentMonthIndex}-${dayNumber}`]: newStatus,
+      [`${trimmedName}-${currentYear}-${currentMonthIndex}-${dayNumber}`]: newStatus,
+      [`${lowerName}-${currentYear}-${currentMonthIndex}-${dayNumber}`]: newStatus,
+      [`${cleanEmpId}-${dayNumber}`]: newStatus,
+      [`${trimmedName}-${dayNumber}`]: newStatus,
+      [`${lowerName}-${dayNumber}`]: newStatus,
     };
     setAttendanceOverrides(updatedOverrides);
     if (typeof window !== 'undefined') {
@@ -368,15 +474,16 @@ export default function AttendanceCalendarTab({
       } catch (e) {}
     }
 
+    let updatedNotes = { ...attendanceNotes };
     if (note !== undefined) {
-      const updatedNotes = {
+      updatedNotes = {
         ...attendanceNotes,
-        [nameKey]: note,
-        [idKey]: note,
-        ...(currentMonthIndex === 8 && currentYear === 2026 ? {
-          [`${employeeName}-${dayNumber}`]: note,
-          [`${cleanEmpId}-${dayNumber}`]: note,
-        } : {}),
+        [`${cleanEmpId}-${currentYear}-${currentMonthIndex}-${dayNumber}`]: note,
+        [`${trimmedName}-${currentYear}-${currentMonthIndex}-${dayNumber}`]: note,
+        [`${lowerName}-${currentYear}-${currentMonthIndex}-${dayNumber}`]: note,
+        [`${cleanEmpId}-${dayNumber}`]: note,
+        [`${trimmedName}-${dayNumber}`]: note,
+        [`${lowerName}-${dayNumber}`]: note,
       };
       setAttendanceNotes(updatedNotes);
       if (typeof window !== 'undefined') {
@@ -386,7 +493,23 @@ export default function AttendanceCalendarTab({
       }
     }
 
-    // 3. Record to Activity Logs
+    // 3. Persist to server API in background so changes persist across devices/refreshes
+    fetch('/api/attendance-overrides', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        empId: cleanEmpId,
+        employeeName: trimmedName,
+        year: currentYear,
+        month: currentMonthIndex,
+        day: dayNumber,
+        status: newStatus,
+        note: note ?? undefined,
+        performedBy: supervisorName || 'Supervisor',
+      }),
+    }).catch((err) => console.warn('Failed to persist attendance override to server:', err));
+
+    // 4. Record to Activity Logs
     const fullStatusLabelMap: Record<string, string> = {
       P: 'Present',
       L: 'Late',
@@ -402,15 +525,24 @@ export default function AttendanceCalendarTab({
       SUS: 'Suspension (SUS)',
     };
     const fullStatusLabel = newStatus ? (fullStatusLabelMap[newStatus] || String(newStatus)) : 'Cleared';
+    
     logAttendanceUpdate({
-      employeeName: employeeName,
+      employeeName: trimmedName,
       dateStr: `${monthNames[currentMonthIndex]} ${dayNumber}, ${currentYear}`,
       status: fullStatusLabel,
       performedBy: supervisorName || 'Supervisor',
       note: note || undefined,
     });
 
-    // 5. Broadcast changes across all views
+    // 5. Trigger modern global Toast notification with countdown
+    showToast(
+      'Attendance Saved',
+      `${trimmedName} · ${monthNames[currentMonthIndex].slice(0, 3)} ${dayNumber} set to ${fullStatusLabel}.`,
+      'success',
+      3500
+    );
+
+    // 6. Broadcast changes across all views and tabs
     if (typeof window !== 'undefined') {
       window.dispatchEvent(
         new CustomEvent('punch-updated', {
@@ -523,15 +655,23 @@ export default function AttendanceCalendarTab({
   useEffect(() => {
     async function loadDbTeam() {
       try {
-        const [rosterRes, punchRes] = await Promise.all([
+        const [rosterRes, punchRes, overridesRes] = await Promise.all([
           fetch('/api/team-roster'),
           fetch('/api/punch-logs?empId=ALL'),
+          fetch('/api/attendance-overrides').catch(() => null),
         ]);
 
         const [rosterJson, punchJson] = await Promise.all([
           rosterRes.json(),
           punchRes.json(),
         ]);
+
+        let serverOverrides: any = null;
+        if (overridesRes && overridesRes.ok) {
+          try {
+            serverOverrides = await overridesRes.json();
+          } catch (e) {}
+        }
 
         const rosterData: any[] = rosterJson.success && Array.isArray(rosterJson.data) && rosterJson.data.length > 0
           ? rosterJson.data
@@ -544,12 +684,32 @@ export default function AttendanceCalendarTab({
 
         const punchLogs: any[] = punchJson.success && Array.isArray(punchJson.data) ? punchJson.data : [];
 
-        // Load local overrides
-        let savedOverrides: Record<string, AttendanceStatus> = {};
+        // Combine local overrides and server-persisted overrides
+        let combinedOverrides: Record<string, AttendanceStatus> = {};
+        if (serverOverrides?.success && serverOverrides?.overrides) {
+          combinedOverrides = { ...serverOverrides.overrides };
+        }
         if (typeof window !== 'undefined') {
           try {
             const saved = localStorage.getItem('attendance_overrides_v1');
-            if (saved) savedOverrides = JSON.parse(saved);
+            if (saved) {
+              const parsed = JSON.parse(saved);
+              combinedOverrides = { ...combinedOverrides, ...parsed };
+            }
+          } catch (e) {}
+        }
+
+        let combinedNotes: Record<string, string> = {};
+        if (serverOverrides?.success && serverOverrides?.notes) {
+          combinedNotes = { ...serverOverrides.notes };
+        }
+        if (typeof window !== 'undefined') {
+          try {
+            const savedNotes = localStorage.getItem('attendance_notes_v1');
+            if (savedNotes) {
+              const parsed = JSON.parse(savedNotes);
+              combinedNotes = { ...combinedNotes, ...parsed };
+            }
           } catch (e) {}
         }
 
@@ -569,17 +729,7 @@ export default function AttendanceCalendarTab({
             const dayOfWeek = cellDate.getDay(); // 0 = Sunday, 6 = Saturday
             const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
 
-            const overrideKey = `${empCode}-${currentYear}-${currentMonthIndex}-${d}`;
-            const nameOverrideKey = `${r.name}-${currentYear}-${currentMonthIndex}-${d}`;
-            const legacyKey = `${empCode}-${d}`;
-            const legacyNameKey = `${r.name}-${d}`;
-
-            const manualOverride = 
-              savedOverrides[overrideKey] !== undefined ? savedOverrides[overrideKey] :
-              savedOverrides[nameOverrideKey] !== undefined ? savedOverrides[nameOverrideKey] :
-              (currentMonthIndex === 8 && currentYear === 2026 && savedOverrides[legacyKey] !== undefined) ? savedOverrides[legacyKey] :
-              (currentMonthIndex === 8 && currentYear === 2026 && savedOverrides[legacyNameKey] !== undefined) ? savedOverrides[legacyNameKey] :
-              undefined;
+            const manualOverride = getOverrideForEmployee(empCode, r.name, currentYear, currentMonthIndex, d, combinedOverrides);
 
             if (manualOverride !== undefined) {
               attendanceMap[d] = manualOverride;

@@ -367,16 +367,38 @@ export default function AttendanceCalendarView({
   }, []);
 
   useEffect(() => {
-    if (typeof window !== 'undefined') {
+    async function loadInitialOverrides() {
+      let combined: Record<string, any> = {};
       try {
-        const saved = localStorage.getItem('attendance_overrides_v1');
-        if (saved) setAttendanceOverrides(JSON.parse(saved));
+        const res = await fetch('/api/attendance-overrides');
+        const json = await res.json();
+        if (json.success && json.overrides) {
+          combined = { ...json.overrides };
+        }
+        if (json.success && json.notes) {
+          setAttendanceNotes((prev) => ({ ...prev, ...json.notes }));
+        }
       } catch (e) {}
-      try {
-        const savedNotes = localStorage.getItem('attendance_notes_v1');
-        if (savedNotes) setAttendanceNotes(JSON.parse(savedNotes));
-      } catch (e) {}
+
+      if (typeof window !== 'undefined') {
+        try {
+          const saved = localStorage.getItem('attendance_overrides_v1');
+          if (saved) {
+            combined = { ...combined, ...JSON.parse(saved) };
+          }
+        } catch (e) {}
+        try {
+          const savedNotes = localStorage.getItem('attendance_notes_v1');
+          if (savedNotes) {
+            setAttendanceNotes((prev) => ({ ...prev, ...JSON.parse(savedNotes) }));
+          }
+        } catch (e) {}
+      }
+      if (Object.keys(combined).length > 0) {
+        setAttendanceOverrides(combined);
+      }
     }
+    loadInitialOverrides();
   }, []);
 
   // Cell Popover / Day Modal State (Supports both View & Edit modes)
@@ -765,6 +787,22 @@ export default function AttendanceCalendarView({
           } catch (e) {}
         }
       }
+
+      // Persist to server API
+      fetch('/api/attendance-overrides', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          empId: activeEmployee.id,
+          employeeName: activeEmployee.name,
+          year: currentYear,
+          month: currentMonthIndex,
+          day: dayNumber,
+          status: editStatus === 'Clear' ? null : editStatus,
+          note: editNote || '',
+          performedBy: supervisorName || 'Supervisor',
+        }),
+      }).catch((err) => console.warn('Failed to persist attendance override:', err));
 
       // 2. Persist to Supabase time_tracker_logs
       // Clean previous punches for this specific employee & day first

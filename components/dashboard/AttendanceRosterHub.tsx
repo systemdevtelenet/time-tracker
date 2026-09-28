@@ -449,15 +449,27 @@ export default function AttendanceRosterHub({
     return () => clearInterval(timer);
   }, []);
 
-  // Load manual attendance overrides from local storage
-  const loadLocalOverrides = () => {
+  // Load manual attendance overrides from local storage & server
+  const loadLocalOverrides = async () => {
+    let combined: Record<string, string> = {};
+    try {
+      const res = await fetch('/api/attendance-overrides');
+      const json = await res.json();
+      if (json?.success && json?.overrides) {
+        combined = { ...json.overrides };
+      }
+    } catch (e) {}
+
     if (typeof window !== 'undefined') {
       try {
         const saved = localStorage.getItem('attendance_overrides_v1');
         if (saved) {
-          setAttendanceOverrides(JSON.parse(saved));
+          combined = { ...combined, ...JSON.parse(saved) };
         }
       } catch (e) {}
+    }
+    if (Object.keys(combined).length > 0) {
+      setAttendanceOverrides(combined);
     }
   };
 

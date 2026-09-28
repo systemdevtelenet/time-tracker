@@ -16,39 +16,8 @@ export interface ActivityLogItem {
   isRead?: boolean;
 }
 
-// In-memory runtime cache ensuring real-time continuity (strictly max 10)
+// In-memory runtime cache ensuring real-time continuity for recent activities
 let runtimeLogs: ActivityLogItem[] = [];
-
-/**
- * Automatically prunes phone_time_tracker table in Supabase so only the latest 10 rows remain
- */
-async function autoPruneDatabaseLogs(supabase: any) {
-  try {
-    const { data: allEntries } = await supabase
-      .from('phone_time_tracker')
-      .select('*');
-
-    if (allEntries && allEntries.length > MAX_ACTIVITY_LOGS) {
-      // Sort descending by date_of_shift
-      const sorted = [...allEntries].sort(
-        (a, b) => new Date(b.date_of_shift || b.created_at || 0).getTime() - new Date(a.date_of_shift || a.created_at || 0).getTime()
-      );
-      const toDelete = sorted.slice(MAX_ACTIVITY_LOGS);
-
-      for (const item of toDelete) {
-        let query = supabase.from('phone_time_tracker').delete();
-        if (item.ticket_number && item.date_of_shift) {
-          query = query.eq('ticket_number', item.ticket_number).eq('date_of_shift', item.date_of_shift);
-        } else if (item.summary) {
-          query = query.eq('summary', item.summary);
-        }
-        await query;
-      }
-    }
-  } catch (err) {
-    console.warn('Auto-prune database logs warning:', err);
-  }
-}
 
 export async function GET(request: NextRequest) {
   try {
@@ -56,9 +25,6 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const category = searchParams.get('category');
     const limit = Math.min(parseInt(searchParams.get('limit') || '10', 10), MAX_ACTIVITY_LOGS);
-
-    // Auto-prune database to ensure at most 10 logs remain in database
-    await autoPruneDatabaseLogs(supabase);
 
     const aggregated: ActivityLogItem[] = [...runtimeLogs];
 
