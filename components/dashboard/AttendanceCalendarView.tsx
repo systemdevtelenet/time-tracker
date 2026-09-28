@@ -1157,6 +1157,19 @@ export default function AttendanceCalendarView({
         </div>
       </div>
 
+      {/* ================= DYNAMIC MONTH & YEAR TITLE BELOW LEGENDS ================= */}
+      <div className="flex items-center justify-between px-4 py-2.5 bg-white dark:bg-[#0E1B38] rounded-xl border border-slate-200/80 dark:border-slate-800 shadow-2xs">
+        <div className="flex items-center gap-2">
+          <CalendarIcon className="w-4 h-4 text-[#2F6798] dark:text-blue-400" />
+          <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100 tracking-tight">
+            {monthNames[currentMonthIndex]} {currentYear}
+          </h3>
+        </div>
+        <div className="text-xs font-semibold text-slate-500 dark:text-slate-400">
+          {activeEmployee.name} · {activeEmployee.role || 'Trainer'}
+        </div>
+      </div>
+
       {/* ================= 7-COLUMN MONTH CALENDAR GRID ================= */}
       <div className="flex-1 overflow-x-auto bg-white dark:bg-[#0E1B38] rounded-2xl border border-slate-200 dark:border-slate-800 shadow-xs">
         <div className="min-w-[840px]">
