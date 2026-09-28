@@ -620,9 +620,6 @@ function HomePageContent() {
           {/* TAB 2: WORKFORCE PORTAL (Time Clock & Live Shift Punch Timeline for Trainers/QA) */}
           {activeTab === 'tracker' && (
             <div className="space-y-4 animate-in fade-in">
-              {/* 4 KPI Summary Boxes */}
-              <KpiSummary stats={kpiStats} />
-
               {/* Single External White Container for Nissi-Jeh Reguero container & Today's Shift Activity & Punch Audit Trail */}
               <div className="w-full bg-white dark:bg-[#0E1B38] border border-slate-200/90 dark:border-slate-800 rounded-3xl p-5 sm:p-6 shadow-2xs space-y-6">
                 <SupervisorShiftCard 
