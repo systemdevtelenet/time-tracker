@@ -983,17 +983,11 @@ export default function AttendanceCalendarTab({
               </span>
             </div>
 
-            {/* Dynamic Month & Year Heading below Legends */}
-            <div className="flex items-center justify-between pt-2.5 mt-2.5 border-t border-slate-100 dark:border-[#434142]">
-              <div className="flex items-center gap-2">
-                <CalendarIcon className="w-4 h-4 text-[#2F6798] dark:text-[#C8A54B]" />
-                <h3 className="text-sm font-bold text-slate-800 dark:text-[#F8F8F6] tracking-tight">
-                  {monthNames[currentMonthIndex]} {currentYear}
-                </h3>
-              </div>
-              <span className="text-[11px] font-semibold text-slate-500 dark:text-slate-400">
-                Full Team Shift Roster ({totalDaysInMonth} Days)
-              </span>
+            {/* Dynamic Month & Year Text below Legends */}
+            <div className="pt-2 pb-0">
+              <h3 className="text-base sm:text-lg font-bold text-slate-900 dark:text-[#F8F8F6] tracking-tight">
+                {monthNames[currentMonthIndex]} {currentYear}
+              </h3>
             </div>
 
           </div>
