@@ -501,9 +501,9 @@ export default function SupervisorShiftCard({
               <div className="flex items-center gap-2 flex-wrap">
                 <span className="font-extrabold text-xs sm:text-sm tracking-tight">
                   {alarmType === 'exceeded'
-                    ? '⚠️ Break Limit Exceeded (Alarm Ringing!)'
+                    ? 'Break Limit Exceeded (Alarm Ringing)'
                     : alarmType === 'nearly_up'
-                    ? '⏰ Break Time Nearly Up!'
+                    ? 'Break Time Nearly Up'
                     : currentStatus === 'lunch'
                     ? 'Lunch Break in Progress (60m Limit)'
                     : 'Scheduled Break in Progress (15m Limit)'}
@@ -698,9 +698,10 @@ export default function SupervisorShiftCard({
                 })}
               </div>
             ) : (
-              <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-700 text-center">
+              <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-700 text-center flex items-center justify-center gap-2">
+                <CheckCircle2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
                 <span className="text-xs font-bold text-slate-600 dark:text-slate-400">
-                  🎉 Shift completed for today! All punch actions recorded.
+                  Shift completed for today. All punch actions recorded.
                 </span>
               </div>
             )}

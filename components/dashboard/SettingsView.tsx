@@ -35,7 +35,8 @@ import {
   Gamepad2,
   Disc,
   BellRing,
-  Activity
+  Activity,
+  AlertTriangle
 } from 'lucide-react';
 import { SupervisorProfile } from './Sidebar';
 
@@ -674,7 +675,7 @@ export default function SettingsView({
           <div className="rounded-2xl p-6 bg-white dark:bg-[#363435] border border-slate-200 dark:border-[#434142] shadow-sm space-y-5">
             <div className="flex items-center gap-3">
               <div className="w-8 h-8 rounded-xl bg-amber-50 dark:bg-amber-950/60 text-amber-500 flex items-center justify-center shrink-0">
-                <span className="text-sm font-black">⚠️</span>
+                <AlertTriangle className="w-4 h-4" />
               </div>
               <div>
                 <h3 className="text-sm font-bold text-slate-800 dark:text-[#F8F8F6] leading-tight">

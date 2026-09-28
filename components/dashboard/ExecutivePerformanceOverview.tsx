@@ -8,7 +8,8 @@ import {
   UserCheck, 
   CalendarCheck,
   TrendingUp,
-  BarChart3
+  BarChart3,
+  Sparkles
 } from 'lucide-react';
 import { PhoneTimeRecord, KpiSummaryStats } from '@/lib/types';
 import { parseDurationToSeconds, formatTotalDurationHuman } from '@/lib/utils';
@@ -164,8 +165,9 @@ export default function ExecutivePerformanceOverview({
         <p className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed font-normal">
           {shiftSummary.detail}
         </p>
-        <div className="pt-1 text-[11px] font-medium text-slate-500 dark:text-slate-400 border-t border-blue-200/50 dark:border-blue-900/40">
-          💡 <strong className="text-slate-700 dark:text-slate-200">Shift Highlights:</strong> {shiftSummary.recommendation}
+        <div className="pt-1 text-[11px] font-medium text-slate-500 dark:text-slate-400 border-t border-blue-200/50 dark:border-blue-900/40 flex items-center gap-1">
+          <Sparkles className="w-3.5 h-3.5 text-amber-500 shrink-0" />
+          <span><strong className="text-slate-700 dark:text-slate-200">Shift Highlights:</strong> {shiftSummary.recommendation}</span>
         </div>
       </div>
 
