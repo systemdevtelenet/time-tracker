@@ -386,42 +386,7 @@ export default function AttendanceCalendarTab({
       }
     }
 
-    // 3. Persist to Supabase time_tracker_logs
-    if (cleanEmpId) {
-      try {
-        const statusMapLabel: Record<string, string> = {
-          P: 'On Time',
-          L: 'Late',
-          U: 'Undertime',
-          A: 'Absent',
-          RD: 'Rest Day',
-          VL: 'Vacation Leave',
-          SL: 'Sick Leave',
-          BL: 'Bereavement Leave',
-          ML: 'Maternity Leave',
-          PL: 'Paternity Leave',
-          HOL: 'Holiday',
-          SUS: 'Suspension',
-        };
-        const statusStr = newStatus ? (statusMapLabel[newStatus] || 'Attendance Override') : 'Cleared';
-
-        await fetch('/api/punch-logs', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            empId: cleanEmpId,
-            type: 'Shift Start',
-            status: statusStr,
-            duration: 'N/A',
-            timestamp: `${currentMonthIndex + 1}/${dayNumber}/${currentYear} 8:00:00`,
-          }),
-        });
-      } catch (err) {
-        console.error('Error persisting attendance status to database:', err);
-      }
-    }
-
-    // 4. Record to Activity Logs
+    // 3. Record to Activity Logs
     const fullStatusLabelMap: Record<string, string> = {
       P: 'Present',
       L: 'Late',
