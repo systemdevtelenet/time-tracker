@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { 
   Clock, 
   Utensils, 
@@ -255,80 +255,161 @@ export default function SupervisorShiftCard({
     }
   };
 
-  // Define the 8 Direct Punch Actions (Option 1: 4x2 Grid)
-  const punchActionsList: {
-    type: PunchActionType;
-    label: string;
-    icon: any;
-    isDone: boolean;
-    isCurrent: boolean;
-    colorTheme: string;
-  }[] = [
-    { 
-      type: 'Shift Start', 
-      label: 'Shift Start', 
-      icon: LogIn, 
-      isDone: punchesState.hasShiftStart, 
-      isCurrent: currentStatus === 'working' && lastPunchType === 'Shift Start',
-      colorTheme: 'emerald'
+  // Shift Milestones Progress Summary
+  const shiftMilestonesSummary = useMemo(() => [
+    {
+      id: 'start',
+      label: 'Shift Start',
+      status: punchesState.hasShiftStart ? 'done' : 'upcoming',
+      icon: LogIn,
     },
-    { 
-      type: 'Break 1 Start', 
-      label: 'Break 1 Start', 
-      icon: Coffee, 
-      isDone: punchesState.hasBreak1Start, 
-      isCurrent: currentStatus === 'break_1',
-      colorTheme: 'amber'
+    {
+      id: 'break1',
+      label: 'Break 1 (15m)',
+      status: punchesState.hasBreak1End ? 'done' : currentStatus === 'break_1' ? 'active' : 'upcoming',
+      icon: Coffee,
     },
-    { 
-      type: 'Break 1 End', 
-      label: 'Break 1 End', 
-      icon: Coffee, 
-      isDone: punchesState.hasBreak1End, 
-      isCurrent: currentStatus === 'working' && lastPunchType === 'Break 1 End',
-      colorTheme: 'amber'
+    {
+      id: 'lunch',
+      label: 'Lunch (60m)',
+      status: punchesState.hasLunchEnd ? 'done' : currentStatus === 'lunch' ? 'active' : 'upcoming',
+      icon: Utensils,
     },
-    { 
-      type: 'Start Lunch', 
-      label: 'Start Lunch', 
-      icon: Utensils, 
-      isDone: punchesState.hasLunchStart, 
-      isCurrent: currentStatus === 'lunch',
-      colorTheme: 'blue'
+    {
+      id: 'break2',
+      label: 'Break 2 (15m)',
+      status: punchesState.hasBreak2End ? 'done' : currentStatus === 'break_2' ? 'active' : 'upcoming',
+      icon: Coffee,
     },
-    { 
-      type: 'End Lunch', 
-      label: 'End Lunch', 
-      icon: Utensils, 
-      isDone: punchesState.hasLunchEnd, 
-      isCurrent: currentStatus === 'working' && lastPunchType === 'End Lunch',
-      colorTheme: 'blue'
+    {
+      id: 'end',
+      label: 'Shift End',
+      status: punchesState.hasShiftEnd ? 'done' : 'upcoming',
+      icon: LogOut,
     },
-    { 
-      type: 'Break 2 Start', 
-      label: 'Break 2 Start', 
-      icon: Coffee, 
-      isDone: punchesState.hasBreak2Start, 
-      isCurrent: currentStatus === 'break_2',
-      colorTheme: 'amber'
-    },
-    { 
-      type: 'Break 2 End', 
-      label: 'Break 2 End', 
-      icon: Coffee, 
-      isDone: punchesState.hasBreak2End, 
-      isCurrent: currentStatus === 'working' && lastPunchType === 'Break 2 End',
-      colorTheme: 'amber'
-    },
-    { 
-      type: 'Shift End', 
-      label: 'Shift End', 
-      icon: LogOut, 
-      isDone: punchesState.hasShiftEnd, 
-      isCurrent: currentStatus === 'offline',
-      colorTheme: 'rose'
-    },
-  ];
+  ], [punchesState, currentStatus]);
+
+  // Dynamic Available Punch Actions strictly mapped to current shift state to prevent misclicks
+  const availablePunchActions = useMemo(() => {
+    // 1. Shift not started yet -> ONLY Shift Start is shown
+    if (!punchesState.hasShiftStart) {
+      return [
+        {
+          type: 'Shift Start' as PunchActionType,
+          label: 'Start Shift (Punch In)',
+          subLabel: 'Clock in to begin your shift',
+          icon: LogIn,
+          variant: 'start',
+          colorClasses: 'bg-emerald-600 hover:bg-emerald-700 text-white border-emerald-700 shadow-md shadow-emerald-600/20 ring-2 ring-emerald-400/30'
+        }
+      ];
+    }
+
+    // 2. Currently on 1st Break -> ONLY Break 1 End is shown
+    if (currentStatus === 'break_1') {
+      return [
+        {
+          type: 'Break 1 End' as PunchActionType,
+          label: 'End 1st Break',
+          subLabel: 'Click to finish break and resume work',
+          icon: Coffee,
+          variant: 'active_break',
+          colorClasses: 'bg-amber-500 hover:bg-amber-600 text-white border-amber-600 shadow-md shadow-amber-500/20 ring-2 ring-amber-400/40 animate-pulse'
+        }
+      ];
+    }
+
+    // 3. Currently on Lunch -> ONLY End Lunch is shown
+    if (currentStatus === 'lunch') {
+      return [
+        {
+          type: 'End Lunch' as PunchActionType,
+          label: 'End Lunch Break',
+          subLabel: 'Click to finish lunch and resume work',
+          icon: Utensils,
+          variant: 'active_lunch',
+          colorClasses: 'bg-blue-600 hover:bg-blue-700 text-white border-blue-700 shadow-md shadow-blue-600/20 ring-2 ring-blue-400/40 animate-pulse'
+        }
+      ];
+    }
+
+    // 4. Currently on 2nd Break -> ONLY Break 2 End is shown
+    if (currentStatus === 'break_2') {
+      return [
+        {
+          type: 'Break 2 End' as PunchActionType,
+          label: 'End 2nd Break',
+          subLabel: 'Click to finish break and resume work',
+          icon: Coffee,
+          variant: 'active_break',
+          colorClasses: 'bg-amber-500 hover:bg-amber-600 text-white border-amber-600 shadow-md shadow-amber-500/20 ring-2 ring-amber-400/40 animate-pulse'
+        }
+      ];
+    }
+
+    // 5. Shift has ended -> No actions available
+    if (punchesState.hasShiftEnd || currentStatus === 'offline') {
+      return [];
+    }
+
+    // 6. Currently Working -> Show only valid next actions
+    const list: {
+      type: PunchActionType;
+      label: string;
+      subLabel: string;
+      icon: any;
+      variant: string;
+      colorClasses: string;
+    }[] = [];
+
+    // Break 1 Start (if Break 1 has not been started yet)
+    if (!punchesState.hasBreak1Start) {
+      list.push({
+        type: 'Break 1 Start',
+        label: 'Break 1 Start',
+        subLabel: '15 mins paid break',
+        icon: Coffee,
+        variant: 'break',
+        colorClasses: 'bg-amber-50 dark:bg-amber-950/50 text-amber-800 dark:text-amber-200 border-amber-300 dark:border-amber-800 hover:bg-amber-100 hover:border-amber-400'
+      });
+    }
+
+    // Start Lunch (if Lunch has not been started yet)
+    if (!punchesState.hasLunchStart) {
+      list.push({
+        type: 'Start Lunch',
+        label: 'Start Lunch',
+        subLabel: '60 mins meal break',
+        icon: Utensils,
+        variant: 'lunch',
+        colorClasses: 'bg-blue-50 dark:bg-blue-950/50 text-[#2F6798] dark:text-blue-200 border-blue-300 dark:border-blue-800 hover:bg-blue-100 hover:border-blue-400'
+      });
+    }
+
+    // Break 2 Start (if Break 1 is finished and Break 2 has not been started yet)
+    if (punchesState.hasBreak1End && !punchesState.hasBreak2Start) {
+      list.push({
+        type: 'Break 2 Start',
+        label: 'Break 2 Start',
+        subLabel: '15 mins paid break',
+        icon: Coffee,
+        variant: 'break',
+        colorClasses: 'bg-amber-50 dark:bg-amber-950/50 text-amber-800 dark:text-amber-200 border-amber-300 dark:border-amber-800 hover:bg-amber-100 hover:border-amber-400'
+      });
+    }
+
+    // Shift End (always available while working)
+    list.push({
+      type: 'Shift End',
+      label: 'End Shift',
+      subLabel: 'Clock out for today',
+      icon: LogOut,
+      variant: 'end_shift',
+      colorClasses: 'bg-rose-50 dark:bg-rose-950/50 text-rose-700 dark:text-rose-300 border-rose-300 dark:border-rose-900/70 hover:bg-rose-100 hover:border-rose-400'
+    });
+
+    return list;
+  }, [currentStatus, punchesState]);
 
   return (
     <div className={`w-full text-slate-900 dark:text-slate-100 space-y-4 transition-all ${
@@ -514,69 +595,115 @@ export default function SupervisorShiftCard({
             </div>
           </div>
 
-          {/* OPTION 1: Complete 8-Action Direct Punch Grid (Always Visible & Directly Clickable) */}
-          <div className="space-y-1.5 pt-1">
+          {/* Dynamic Shift Punch Controls (Context-Aware to Prevent Misclicks) */}
+          <div className="space-y-2 pt-1">
             <div className="flex items-center justify-between px-0.5">
               <span className="text-[9.5px] font-extrabold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
-                Shift Punch Controls (8 Actions)
+                {currentStatus === 'offline' && punchesState.hasShiftEnd
+                  ? 'Shift Completed'
+                  : currentStatus === 'break_1'
+                  ? 'Active 1st Break'
+                  : currentStatus === 'lunch'
+                  ? 'Active Lunch Break'
+                  : currentStatus === 'break_2'
+                  ? 'Active 2nd Break'
+                  : !punchesState.hasShiftStart
+                  ? 'Ready to Clock In'
+                  : 'Available Actions'}
               </span>
               <span className="text-[9.5px] font-bold text-[#2F6798] dark:text-blue-300 font-mono">
-                {Object.values(punchesState).filter(Boolean).length}/8 Recorded
+                {Object.values(punchesState).filter(Boolean).length}/8 Punches
               </span>
             </div>
 
-            {/* 4x2 Clean Action Grid */}
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5">
-              {punchActionsList.map((action) => {
-                const Icon = action.icon;
-                return (
-                  <button
-                    key={action.type}
-                    type="button"
-                    disabled={isPunching}
-                    onClick={() => handlePunch(action.type)}
-                    className={`p-2 rounded-xl border flex flex-col items-center justify-center gap-1 transition-all cursor-pointer text-center group disabled:opacity-50 select-none ${
-                      action.isCurrent
-                        ? 'bg-amber-500 text-white border-amber-600 ring-2 ring-amber-400/50 shadow-xs scale-[1.02]'
-                        : action.isDone
-                        ? 'bg-emerald-50/90 dark:bg-emerald-950/40 text-emerald-800 dark:text-emerald-300 border-emerald-300 dark:border-emerald-800/80 hover:bg-emerald-100'
-                        : action.type === 'Shift End'
-                        ? 'bg-rose-50/70 dark:bg-rose-950/30 text-rose-700 dark:text-rose-300 border-rose-200/80 dark:border-rose-900/60 hover:bg-rose-100'
-                        : 'bg-slate-50 dark:bg-slate-800/80 text-slate-800 dark:text-slate-200 border-slate-200/80 dark:border-slate-700/80 hover:border-[#2F6798] hover:bg-white dark:hover:bg-slate-700'
-                    }`}
-                  >
-                    <div className="flex items-center gap-1">
-                      <Icon className={`w-3.5 h-3.5 ${
-                        action.isCurrent 
-                          ? 'text-white' 
-                          : action.isDone 
-                          ? 'text-emerald-600 dark:text-emerald-400' 
-                          : action.type === 'Shift End'
-                          ? 'text-rose-600'
-                          : 'text-[#2F6798] dark:text-blue-400'
-                      }`} />
-                      {action.isDone && !action.isCurrent && (
-                        <CheckCircle2 className="w-3 h-3 text-emerald-600 dark:text-emerald-400 shrink-0" />
-                      )}
-                    </div>
-                    
-                    <span className="text-[10px] font-black leading-tight line-clamp-1">
-                      {action.label}
-                    </span>
+            {/* Shift Milestones Progress Steps (Visual Reference) */}
+            <div className="grid grid-cols-5 gap-1 p-1 rounded-xl bg-slate-100/80 dark:bg-slate-800/60 border border-slate-200/60 dark:border-slate-700/60">
+              {shiftMilestonesSummary.map((m: any) => {
+                const Icon = m.icon;
+                const isDone = m.status === 'done';
+                const isActive = m.status === 'active';
 
-                    <span className={`text-[8px] font-black uppercase tracking-wider px-1.5 py-0.2 rounded-full ${
-                      action.isCurrent
-                        ? 'bg-white/25 text-white animate-pulse'
-                        : action.isDone
-                        ? 'bg-emerald-200/70 dark:bg-emerald-900/60 text-emerald-950 dark:text-emerald-200 font-bold'
+                return (
+                  <div
+                    key={m.id}
+                    className={`flex items-center justify-center gap-1 py-1 px-1 rounded-lg text-center transition-all ${
+                      isActive
+                        ? 'bg-amber-500 text-white font-bold shadow-xs'
+                        : isDone
+                        ? 'bg-emerald-100/80 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300 font-bold'
                         : 'text-slate-400 dark:text-slate-500'
-                    }`}>
-                      {action.isCurrent ? 'ACTIVE' : action.isDone ? 'DONE' : 'PUNCH'}
+                    }`}
+                    title={`${m.label}: ${isDone ? 'Completed' : isActive ? 'Active Now' : 'Upcoming'}`}
+                  >
+                    <Icon className="w-2.5 h-2.5 shrink-0" />
+                    <span className="text-[8.5px] font-extrabold truncate hidden sm:inline">
+                      {m.label.split(' ')[0]}
                     </span>
-                  </button>
+                    {isDone && <CheckCircle2 className="w-2.5 h-2.5 shrink-0 text-emerald-600 dark:text-emerald-400" />}
+                  </div>
                 );
               })}
             </div>
+
+            {/* Contextual Action Buttons Grid */}
+            {availablePunchActions.length > 0 ? (
+              <div className={`grid gap-2 ${
+                availablePunchActions.length === 1 
+                  ? 'grid-cols-1' 
+                  : availablePunchActions.length === 2 
+                  ? 'grid-cols-1 sm:grid-cols-2'
+                  : availablePunchActions.length === 3
+                  ? 'grid-cols-1 sm:grid-cols-3'
+                  : 'grid-cols-2 sm:grid-cols-4'
+              }`}>
+                {availablePunchActions.map((action: any) => {
+                  const Icon = action.icon;
+                  const isSingleAction = availablePunchActions.length === 1;
+
+                  return (
+                    <button
+                      key={action.type}
+                      type="button"
+                      disabled={isPunching}
+                      onClick={() => handlePunch(action.type)}
+                      className={`p-2.5 sm:p-3 rounded-2xl border transition-all cursor-pointer flex items-center justify-between gap-2.5 select-none disabled:opacity-50 group hover:scale-[1.01] active:scale-[0.99] ${action.colorClasses}`}
+                    >
+                      <div className="flex items-center gap-2.5 min-w-0 text-left">
+                        <div className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 ${
+                          action.variant.includes('active') || action.variant === 'start'
+                            ? 'bg-white/20 text-white'
+                            : 'bg-white dark:bg-slate-800 shadow-2xs'
+                        }`}>
+                          <Icon className="w-4 h-4" />
+                        </div>
+                        <div className="min-w-0">
+                          <span className="text-xs sm:text-sm font-black block truncate tracking-tight">
+                            {action.label}
+                          </span>
+                          <span className="text-[9px] opacity-80 block truncate font-medium">
+                            {action.subLabel}
+                          </span>
+                        </div>
+                      </div>
+
+                      <span className={`px-2 py-0.5 rounded-full text-[8.5px] font-black uppercase tracking-wider shrink-0 ${
+                        action.variant.includes('active') || action.variant === 'start'
+                          ? 'bg-white/25 text-white'
+                          : 'bg-white/80 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200/60 dark:border-slate-700'
+                      }`}>
+                        {isSingleAction ? 'Click to Action' : 'Punch'}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            ) : (
+              <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-700 text-center">
+                <span className="text-xs font-bold text-slate-600 dark:text-slate-400">
+                  🎉 Shift completed for today! All punch actions recorded.
+                </span>
+              </div>
+            )}
           </div>
 
         </div>
