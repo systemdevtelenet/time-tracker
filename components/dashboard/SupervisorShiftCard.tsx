@@ -445,36 +445,6 @@ export default function SupervisorShiftCard({
             </p>
           </div>
         </div>
-
-        {/* Live Status Badge */}
-        <div className="flex items-center gap-2 self-start sm:self-auto">
-          {currentStatus === 'lunch' ? (
-            <span className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-50 dark:bg-amber-950/60 border border-amber-200 dark:border-amber-800 text-xs font-bold text-amber-700 dark:text-amber-300">
-              <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse" />
-              On Lunch
-            </span>
-          ) : currentStatus === 'break_1' ? (
-            <span className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-50 dark:bg-amber-950/60 border border-amber-200 dark:border-amber-800 text-xs font-bold text-amber-700 dark:text-amber-300">
-              <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse" />
-              On 1st Break
-            </span>
-          ) : currentStatus === 'break_2' ? (
-            <span className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-50 dark:bg-amber-950/60 border border-amber-200 dark:border-amber-800 text-xs font-bold text-amber-700 dark:text-amber-300">
-              <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse" />
-              On 2nd Break
-            </span>
-          ) : currentStatus === 'offline' ? (
-            <span className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-600 dark:text-slate-400">
-              <span className="w-2 h-2 rounded-full bg-slate-400" />
-              Shift Ended
-            </span>
-          ) : (
-            <span className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-200 dark:border-emerald-800 text-xs font-bold text-emerald-700 dark:text-emerald-300">
-              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-              Working
-            </span>
-          )}
-        </div>
       </div>
 
       {/* Active Break / Lunch Alarm & Limit Warning Banner */}
