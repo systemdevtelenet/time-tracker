@@ -647,27 +647,32 @@ export default function AttendanceCalendarTab({
               continue;
             }
 
-            // Check if this date is today or in the future
+            // 1. Check if this date is today (the current day)
             const isToday = currentYear === liveTodayYear && currentMonthIndex === liveTodayMonth && d === liveTodayDate;
+
+            // 2. Check if this date is in the future
             const isFutureDate = 
               currentYear > liveTodayYear || 
               (currentYear === liveTodayYear && currentMonthIndex > liveTodayMonth) ||
               (currentYear === liveTodayYear && currentMonthIndex === liveTodayMonth && d > liveTodayDate);
 
-            if (isFutureDate || isToday) {
-              // Future weekdays and today before punches MUST default to the clear tag (-)
+            if (isToday) {
+              // Current day with no punches yet defaults to the clear tag (-)
+              attendanceMap[d] = null;
+            } else if (isFutureDate) {
+              // Future weekdays default to the clear tag (-)
               attendanceMap[d] = null;
             } else if (currentMonthIndex === 8 && currentYear === 2026) {
-              // Baseline historical demo data for past days in September 2026
+              // Past days in September 2026: keep baseline demo data or 'A' (Absent) for past un-punched workdays
               const baseData = TEAM_ATTENDANCE_DATA.find((t) => t.name.toLowerCase() === r.name.toLowerCase());
               if (baseData?.attendanceByDay[d]) {
                 attendanceMap[d] = baseData.attendanceByDay[d];
               } else {
-                attendanceMap[d] = null;
+                attendanceMap[d] = 'A';
               }
             } else {
-              // Other past dates without logs default to clear
-              attendanceMap[d] = null;
+              // Other past weekdays without logs remain Absent
+              attendanceMap[d] = 'A';
             }
           }
 
@@ -1121,12 +1126,12 @@ export default function AttendanceCalendarTab({
                       className="hover:bg-blue-50/40 dark:hover:bg-[#272626] transition-colors group"
                     >
                       {/* Fixed Column 1: Start Date */}
-                      <td className="sticky left-0 z-20 bg-white dark:bg-[#363435] group-hover:bg-blue-50/70 dark:group-hover:bg-[#272626] py-2.5 px-3 text-slate-500 dark:text-slate-400 font-sans font-medium text-[11px] border-r border-slate-100 dark:border-[#434142]">
+                      <td className="sticky left-0 z-20 bg-white dark:bg-[#363435] group-hover:bg-[#f8fafc] dark:group-hover:bg-[#272626] py-2.5 px-3 text-slate-500 dark:text-slate-400 font-sans font-medium text-[11px] border-r border-slate-100 dark:border-[#434142]">
                         {emp.startDate}
                       </td>
 
                       {/* Fixed Column 2: Position */}
-                      <td className="sticky left-[90px] z-20 bg-white dark:bg-[#363435] group-hover:bg-blue-50/70 dark:group-hover:bg-[#272626] py-2.5 px-3 text-slate-500 dark:text-slate-400 font-medium text-xs border-r border-slate-100 dark:border-[#434142] truncate max-w-[125px]">
+                      <td className="sticky left-[90px] z-20 bg-white dark:bg-[#363435] group-hover:bg-[#f8fafc] dark:group-hover:bg-[#272626] py-2.5 px-3 text-slate-500 dark:text-slate-400 font-medium text-xs border-r border-slate-100 dark:border-[#434142] truncate max-w-[125px]">
                         {emp.position}
                       </td>
 
@@ -1136,7 +1141,7 @@ export default function AttendanceCalendarTab({
                           setSelectedIndividualEmployee(emp.name);
                           setViewFormat('google-calendar');
                         }}
-                        className="sticky left-[215px] z-20 bg-white dark:bg-[#363435] group-hover:bg-blue-50/70 dark:group-hover:bg-[#272626] py-2.5 px-4 font-bold text-slate-900 dark:text-[#F8F8F6] text-xs border-r border-slate-200 dark:border-[#434142] shadow-[4px_0_8px_rgba(0,0,0,0.08)] dark:shadow-[4px_0_8px_rgba(0,0,0,0.4)] cursor-pointer hover:text-[#2F6798] dark:hover:text-[#3678B0]"
+                        className="sticky left-[215px] z-20 bg-white dark:bg-[#363435] group-hover:bg-[#f8fafc] dark:group-hover:bg-[#272626] py-2.5 px-4 font-bold text-slate-900 dark:text-[#F8F8F6] text-xs border-r border-slate-200 dark:border-[#434142] shadow-[4px_0_8px_rgba(0,0,0,0.08)] dark:shadow-[4px_0_8px_rgba(0,0,0,0.4)] cursor-pointer hover:text-[#2F6798] dark:hover:text-[#3678B0]"
                         title="Click to view detailed individual calendar"
                       >
                         <div className="flex items-center gap-2">
