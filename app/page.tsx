@@ -28,6 +28,7 @@ import FullScreenLoader from '@/components/dashboard/FullScreenLoader';
 import { AccountOption, EmployeeOption, PhoneTimeRecord, KpiSummaryStats } from '@/lib/types';
 import { parseDurationToSeconds, formatTotalDurationHuman } from '@/lib/utils';
 import { addActivityLog } from '@/lib/activityLogs';
+import { showToast } from '@/lib/toast';
 import { Plus, CheckCircle2, User, Sparkles, Award } from 'lucide-react';
 
 const VALID_TABS = ['dashboard', 'tracker', 'activity', 'flowhub', 'attendance', 'analytics', 'settings'] as const;
@@ -202,6 +203,22 @@ function HomePageContent() {
           router.replace(`/?tab=${savedTab}`, { scroll: false });
         }
       }
+
+      // Check and trigger Welcome Back Toast notification after logging in
+      try {
+        const showWelcome = sessionStorage.getItem('ctnp_show_login_toast');
+        if (showWelcome === 'true') {
+          sessionStorage.removeItem('ctnp_show_login_toast');
+          setTimeout(() => {
+            showToast({
+              title: 'Welcome Back',
+              message: 'You have successfully logged into the hub.',
+              type: 'success',
+              duration: 4000,
+            });
+          }, 400);
+        }
+      } catch (e) {}
 
       return () => {
         if (mediaQuery.removeEventListener) {

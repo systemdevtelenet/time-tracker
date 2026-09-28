@@ -13,6 +13,7 @@ import {
   Save 
 } from 'lucide-react';
 import ConfirmActionModal from './ConfirmActionModal';
+import { showToast } from '@/lib/toast';
 
 interface AttendanceStickyNote {
   id: string;
@@ -104,10 +105,11 @@ Supervisor / Head of Training: Nissi-Jeh Reguero
   // Handlers
   const handleAddStickyNote = () => {
     if (!newNoteTitle.trim() && !newNoteContent.trim()) return;
+    const noteTitle = newNoteTitle.trim() || 'Attendance Note';
     setStickyNotes(prev => [
       {
         id: Date.now().toString(),
-        title: newNoteTitle.trim() || 'Attendance Note',
+        title: noteTitle,
         content: newNoteContent.trim(),
         color: newNoteColor,
         tag: newNoteTag,
@@ -116,6 +118,12 @@ Supervisor / Head of Training: Nissi-Jeh Reguero
       },
       ...prev
     ]);
+    showToast({
+      title: 'Remark Added',
+      message: `New note added: "${noteTitle}".`,
+      type: 'success',
+      duration: 4000,
+    });
     setNewNoteTitle('');
     setNewNoteContent('');
     setIsAddingSticky(false);
@@ -123,6 +131,12 @@ Supervisor / Head of Training: Nissi-Jeh Reguero
 
   const handleDeleteSticky = (id: string) => {
     setStickyNotes(prev => prev.filter(s => s.id !== id));
+    showToast({
+      title: 'Note Removed',
+      message: 'Attendance note has been removed.',
+      type: 'info',
+      duration: 3500,
+    });
   };
 
   const handleTogglePinSticky = (id: string) => {
@@ -131,12 +145,24 @@ Supervisor / Head of Training: Nissi-Jeh Reguero
 
   const handleSaveMemo = () => {
     setIsSavedMemo(true);
+    showToast({
+      title: 'Memo Saved',
+      message: 'Shift handover memo saved successfully.',
+      type: 'success',
+      duration: 4000,
+    });
     setTimeout(() => setIsSavedMemo(false), 2000);
   };
 
   const handleCopyMemo = () => {
     navigator.clipboard.writeText(memoText);
     setIsCopiedMemo(true);
+    showToast({
+      title: 'Memo Copied',
+      message: 'Shift handover memo copied to clipboard.',
+      type: 'info',
+      duration: 3500,
+    });
     setTimeout(() => setIsCopiedMemo(false), 2500);
   };
 

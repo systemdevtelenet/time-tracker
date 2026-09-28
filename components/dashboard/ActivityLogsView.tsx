@@ -20,6 +20,7 @@ import {
   formatRelativeTime, 
   SystemActivityLog 
 } from '@/lib/activityLogs';
+import { showToast } from '@/lib/toast';
 
 interface ActivityLogsViewProps {
   onBackToDashboard?: () => void;
@@ -74,14 +75,22 @@ export default function ActivityLogsView({
     setIsRefreshing(true);
     await fetchLogs();
     setIsRefreshing(false);
-    setToastMsg('Activity log refreshed.');
-    setTimeout(() => setToastMsg(null), 2500);
+    showToast({
+      title: 'Activity Logs Refreshed',
+      message: 'Latest system activity log records synchronized.',
+      type: 'success',
+      duration: 3500,
+    });
   };
 
   const handleExport = () => {
     if (filteredLogs.length === 0) {
-      setToastMsg('No logs available to export.');
-      setTimeout(() => setToastMsg(null), 2500);
+      showToast({
+        title: 'Export Empty',
+        message: 'No logs available to export.',
+        type: 'warning',
+        duration: 3500,
+      });
       return;
     }
     const headers = ['ID', 'Timestamp', 'Title', 'Category', 'Description', 'Performed By'];
@@ -104,8 +113,12 @@ export default function ActivityLogsView({
     link.click();
     document.body.removeChild(link);
 
-    setToastMsg('Activity log exported successfully.');
-    setTimeout(() => setToastMsg(null), 2500);
+    showToast({
+      title: 'Export Successful',
+      message: `Exported ${filteredLogs.length} activity log entries to CSV.`,
+      type: 'success',
+      duration: 4000,
+    });
   };
 
   // Filter & Search Logic

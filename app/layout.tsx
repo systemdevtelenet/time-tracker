@@ -22,6 +22,8 @@ export const metadata: Metadata = {
   },
 };
 
+import ToastContainer from '@/components/ui/ToastContainer';
+
 export default function RootLayout({
   children,
 }: {
@@ -57,6 +59,7 @@ export default function RootLayout({
       </head>
       <body className={`${poppins.className} min-h-full flex flex-col bg-[#F4F7FB] dark:bg-[#272626] text-slate-900 dark:text-[#F8F8F6] font-sans`}>
         {children}
+        <ToastContainer />
       </body>
     </html>
   );

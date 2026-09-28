@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import { X, PlusCircle } from 'lucide-react';
 import { AccountOption, PhoneTimeRecord } from '@/lib/types';
 import { getTodayFormatted } from '@/lib/utils';
+import { showToast } from '@/lib/toast';
 
 interface ManualEntryModalProps {
   isOpen: boolean;
@@ -95,9 +96,21 @@ export default function ManualEntryModal({
       }
 
       onRecordAdded(payload);
+      showToast({
+        title: 'Manual Time Logged',
+        message: `Phone time entry logged for ${payload.name} (${payload.total_minutes}).`,
+        type: 'success',
+        duration: 4000,
+      });
       onClose();
     } catch (err: any) {
       console.error('Error saving manual entry:', err);
+      showToast({
+        title: 'Save Error',
+        message: err.message || 'Error occurred while saving entry.',
+        type: 'error',
+        duration: 4000,
+      });
       setSummaryError(err.message || 'Error occurred while saving.');
     } finally {
       setIsSubmitting(false);

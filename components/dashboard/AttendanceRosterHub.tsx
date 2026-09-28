@@ -26,6 +26,7 @@ import EndShiftModal from './EndShiftModal';
 import DatePickerPopover from './DatePickerPopover';
 import { PhoneTimeRecord } from '@/lib/types';
 import { isHeadOrAdminUser } from './CompanySidebar';
+import { showToast } from '@/lib/toast';
 
 interface FilterDropdownProps {
   label: string;
@@ -815,14 +816,16 @@ export default function AttendanceRosterHub({
 
   const handleRefresh = () => {
     setIsRefreshing(true);
-    setToastMsg('Roster data refreshed and synchronized from database!');
+    showToast({
+      title: 'Roster Synchronized',
+      message: 'Roster data refreshed and synchronized from database!',
+      type: 'success',
+      duration: 3500,
+    });
     loadRosterFromDb();
     setTimeout(() => {
       setIsRefreshing(false);
     }, 600);
-    setTimeout(() => {
-      setToastMsg(null);
-    }, 2500);
   };
 
   const handleViewCalendar = (employee: RosterEmployee) => {
@@ -847,11 +850,21 @@ export default function AttendanceRosterHub({
         });
       }
       loadRosterFromDb();
-      setToastMsg('Employee shift successfully ended.');
+      showToast({
+        title: 'Shift Ended',
+        message: 'Employee shift has been successfully ended.',
+        type: 'success',
+        duration: 4000,
+      });
     } catch (err) {
       console.error('Failed to end shift:', err);
+      showToast({
+        title: 'Error',
+        message: 'Failed to end employee shift.',
+        type: 'error',
+        duration: 4000,
+      });
     }
-    setTimeout(() => setToastMsg(null), 2500);
   };
 
   // KPI calculations for Roster

@@ -255,6 +255,7 @@ function LoginFormContent() {
           localStorage.removeItem('ctnp_remembered_email');
         }
 
+        sessionStorage.setItem('ctnp_show_login_toast', 'true');
         logUserLogin(email.trim(), 'System Auth');
       }
 

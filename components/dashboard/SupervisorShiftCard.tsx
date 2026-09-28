@@ -18,6 +18,7 @@ import {
 import { PunchActionType, ShiftPunchesState } from '@/lib/punchLogs';
 import { addActivityLog } from '@/lib/activityLogs';
 import { playAlarmSound, getSelectedRingtone, RINGTONE_OPTIONS } from '@/lib/soundAlerts';
+import { showToast } from '@/lib/toast';
 
 export interface SupervisorShiftCardProps {
   supervisor?: {
@@ -237,6 +238,13 @@ export default function SupervisorShiftCard({
         window.dispatchEvent(new CustomEvent('punch-updated', { detail: { empId: supervisor.id, punchType: actionType } }));
       }
 
+      showToast({
+        title: 'Punch Recorded',
+        message: `${actionType} punch logged successfully.`,
+        type: 'success',
+        duration: 4000,
+      });
+
       if (onPunchAction) {
         onPunchAction(actionType);
       } else {
@@ -250,6 +258,12 @@ export default function SupervisorShiftCard({
       }
     } catch (err) {
       console.error('Error executing punch:', err);
+      showToast({
+        title: 'Punch Failed',
+        message: 'Could not record punch action. Please try again.',
+        type: 'error',
+        duration: 4000,
+      });
     } finally {
       setIsPunching(false);
     }

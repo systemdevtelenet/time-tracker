@@ -32,6 +32,7 @@ import {
 } from 'lucide-react';
 import { PhoneTimeRecord } from '@/lib/types';
 import { logAttendanceUpdate } from '@/lib/activityLogs';
+import { showToast } from '@/lib/toast';
 import AttendanceDetailModal, { TeamMemberDayStatus } from './AttendanceDetailModal';
 import AttendanceCellPopover from './AttendanceCellPopover';
 import DatePickerPopover from './DatePickerPopover';
@@ -843,12 +844,20 @@ export default function AttendanceCalendarView({
       });
 
       setPanelMode('view');
-      setToastMsg(`Changes for ${monthNames[currentMonthIndex]} ${dayNumber} saved successfully!`);
-      setTimeout(() => setToastMsg(null), 3000);
+      showToast({
+        title: 'Changes Saved',
+        message: `Changes for ${monthNames[currentMonthIndex]} ${dayNumber} saved successfully!`,
+        type: 'success',
+        duration: 4000,
+      });
     } catch (err) {
       console.error('Failed to save shift changes:', err);
-      setToastMsg('Failed to save changes. Please try again.');
-      setTimeout(() => setToastMsg(null), 3000);
+      showToast({
+        title: 'Save Failed',
+        message: 'Failed to save changes. Please try again.',
+        type: 'error',
+        duration: 4000,
+      });
     } finally {
       setIsSaving(false);
     }

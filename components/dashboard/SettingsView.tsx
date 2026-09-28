@@ -39,6 +39,7 @@ import {
   AlertTriangle
 } from 'lucide-react';
 import { SupervisorProfile } from './Sidebar';
+import { showToast } from '@/lib/toast';
 
 interface SettingsViewProps {
   onBackToDashboard?: () => void;
@@ -274,6 +275,12 @@ export default function SettingsView({
   const handleSaveChanges = () => {
     setIsSaved(true);
     setToastMessage('Settings successfully saved!');
+    showToast({
+      title: 'Settings Saved',
+      message: 'Your system preferences have been saved successfully.',
+      type: 'success',
+      duration: 4000,
+    });
     setTimeout(() => setIsSaved(false), 2500);
     setTimeout(() => setToastMessage(null), 3500);
   };
@@ -287,6 +294,12 @@ export default function SettingsView({
     handleSelectTheme('system');
     setSelectedRingtone('jungle');
     setToastMessage('Settings reset to system defaults');
+    showToast({
+      title: 'Settings Reset',
+      message: 'Preferences have been restored to system defaults.',
+      type: 'info',
+      duration: 3500,
+    });
     setTimeout(() => setToastMessage(null), 2500);
   };
 
