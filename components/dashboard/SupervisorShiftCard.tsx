@@ -609,10 +609,10 @@ export default function SupervisorShiftCard({
           </span>
         </div>
 
-        {/* 2-Column Duration and Last Punch in Light Gray */}
+        {/* 2-Column Duration and Last Punch in Blue Container */}
         <div className="grid grid-cols-2 gap-3">
-          <div className="p-3 rounded-xl bg-slate-100 dark:bg-slate-800/90 border border-slate-200/80 dark:border-slate-700/80 shadow-2xs">
-            <span className="text-[9.5px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider block">
+          <div className="p-3 rounded-xl bg-blue-50/80 dark:bg-blue-950/40 border border-blue-200/80 dark:border-blue-800/60 shadow-2xs">
+            <span className="text-[9.5px] font-extrabold text-[#2F6798] dark:text-blue-300 uppercase tracking-wider block">
               {currentStatus === 'lunch' 
                 ? 'LUNCH DURATION' 
                 : currentStatus === 'break_1' 
@@ -623,16 +623,16 @@ export default function SupervisorShiftCard({
                 ? 'OFFLINE' 
                 : 'WORKING TIME'}
             </span>
-            <span className="text-base sm:text-lg font-black text-slate-900 dark:text-slate-100 font-mono mt-0.5 block">
+            <span className="text-base sm:text-lg font-black text-slate-900 dark:text-blue-50 font-mono mt-0.5 block">
               {formatTimer(statusSeconds)}
             </span>
           </div>
 
-          <div className="p-3 rounded-xl bg-slate-100 dark:bg-slate-800/90 border border-slate-200/80 dark:border-slate-700/80 shadow-2xs">
-            <span className="text-[9.5px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider block">
+          <div className="p-3 rounded-xl bg-blue-50/80 dark:bg-blue-950/40 border border-blue-200/80 dark:border-blue-800/60 shadow-2xs">
+            <span className="text-[9.5px] font-extrabold text-[#2F6798] dark:text-blue-300 uppercase tracking-wider block">
               LAST PUNCH
             </span>
-            <span className="text-base sm:text-lg font-black text-[#2F6798] dark:text-blue-400 font-mono mt-0.5 block truncate" title={`${lastPunchType} at ${lastPunchTime}`}>
+            <span className="text-base sm:text-lg font-black text-[#2F6798] dark:text-blue-300 font-mono mt-0.5 block truncate" title={`${lastPunchType} at ${lastPunchTime}`}>
               {lastPunchTime}
             </span>
           </div>
