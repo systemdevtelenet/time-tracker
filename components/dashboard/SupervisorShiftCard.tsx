@@ -551,10 +551,10 @@ export default function SupervisorShiftCard({
       )}
 
       {/* 2. Main Horizontal Grid: Left (TIME CLOCK & PUNCH with 8-Action Grid) + Right (POSITION & ASSIGNMENT) */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-3.5">
         
-        {/* TIME CLOCK & PUNCH SECTION (Left Side - White Container with Option 1 8-Button Grid) */}
-        <div className="lg:col-span-6 p-4 sm:p-4.5 rounded-2xl bg-white dark:bg-[#0E1B38] border border-slate-200/90 dark:border-slate-800 space-y-3 flex flex-col justify-between shadow-2xs">
+        {/* TIME CLOCK & PUNCH SECTION (Left Side - Expanded to fit all punch buttons clearly) */}
+        <div className="lg:col-span-8 xl:col-span-9 p-3.5 sm:p-4 rounded-2xl bg-white dark:bg-[#0E1B38] border border-slate-200/90 dark:border-slate-800 space-y-2.5 flex flex-col justify-between shadow-2xs">
           
           <div className="flex items-center justify-between">
             <span className="text-[10px] font-extrabold text-slate-700 dark:text-slate-300 uppercase tracking-wider flex items-center gap-1.5">
@@ -596,7 +596,7 @@ export default function SupervisorShiftCard({
           </div>
 
           {/* Dynamic Shift Punch Controls (Context-Aware to Prevent Misclicks) */}
-          <div className="space-y-2 pt-1">
+          <div className="space-y-2 pt-0.5">
             <div className="flex items-center justify-between px-0.5">
               <span className="text-[9.5px] font-extrabold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
                 {currentStatus === 'offline' && punchesState.hasShiftEnd
@@ -666,27 +666,27 @@ export default function SupervisorShiftCard({
                       type="button"
                       disabled={isPunching}
                       onClick={() => handlePunch(action.type)}
-                      className={`p-2.5 sm:p-3 rounded-2xl border transition-all cursor-pointer flex items-center justify-between gap-2.5 select-none disabled:opacity-50 group hover:scale-[1.01] active:scale-[0.99] ${action.colorClasses}`}
+                      className={`p-2.5 sm:p-3 rounded-2xl border transition-all cursor-pointer flex items-center justify-between gap-2 select-none disabled:opacity-50 group hover:scale-[1.01] active:scale-[0.99] ${action.colorClasses}`}
                     >
-                      <div className="flex items-center gap-2.5 min-w-0 text-left">
-                        <div className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 ${
+                      <div className="flex items-center gap-2 min-w-0 text-left">
+                        <div className={`w-7 h-7 sm:w-8 sm:h-8 rounded-xl flex items-center justify-center shrink-0 ${
                           action.variant.includes('active') || action.variant === 'start'
                             ? 'bg-white/20 text-white'
                             : 'bg-white dark:bg-slate-800 shadow-2xs'
                         }`}>
-                          <Icon className="w-4 h-4" />
+                          <Icon className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                         </div>
                         <div className="min-w-0">
-                          <span className="text-xs sm:text-sm font-black block truncate tracking-tight">
+                          <span className="text-[11px] sm:text-xs md:text-sm font-black block whitespace-nowrap tracking-tight">
                             {action.label}
                           </span>
-                          <span className="text-[9px] opacity-80 block truncate font-medium">
+                          <span className="text-[8.5px] sm:text-[9px] opacity-80 block whitespace-nowrap font-medium">
                             {action.subLabel}
                           </span>
                         </div>
                       </div>
 
-                      <span className={`px-2 py-0.5 rounded-full text-[8.5px] font-black uppercase tracking-wider shrink-0 ${
+                      <span className={`px-2 py-0.5 rounded-full text-[8px] sm:text-[8.5px] font-black uppercase tracking-wider shrink-0 ${
                         action.variant.includes('active') || action.variant === 'start'
                           ? 'bg-white/25 text-white'
                           : 'bg-white/80 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200/60 dark:border-slate-700'
@@ -709,8 +709,8 @@ export default function SupervisorShiftCard({
 
         </div>
 
-        {/* POSITION & ASSIGNMENT SECTION (Right Side - White Container) */}
-        <div className="lg:col-span-6 p-4 sm:p-4.5 rounded-2xl bg-white dark:bg-[#0E1B38] border border-slate-200/90 dark:border-slate-800 space-y-3 flex flex-col justify-start shadow-2xs">
+        {/* POSITION & ASSIGNMENT SECTION (Right Side - Reduced by 3 columns) */}
+        <div className="lg:col-span-4 xl:col-span-3 p-3.5 sm:p-4 rounded-2xl bg-white dark:bg-[#0E1B38] border border-slate-200/90 dark:border-slate-800 space-y-2.5 flex flex-col justify-between shadow-2xs">
           
           <div className="flex items-center justify-between flex-wrap gap-2">
             <span className="text-[10px] font-extrabold text-slate-700 dark:text-slate-300 uppercase tracking-wider flex items-center gap-1.5">
