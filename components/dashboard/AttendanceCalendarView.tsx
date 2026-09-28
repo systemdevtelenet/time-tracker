@@ -552,16 +552,14 @@ export default function AttendanceCalendarView({
       return { status: 'Rest Day', punches: [] };
     } else {
       const now = new Date();
+      const isToday = year === now.getFullYear() && monthIndex === now.getMonth() && day === now.getDate();
       const isFutureDate = 
         year > now.getFullYear() || 
         (year === now.getFullYear() && monthIndex > now.getMonth()) ||
         (year === now.getFullYear() && monthIndex === now.getMonth() && day > now.getDate());
       
-      if (isFutureDate) {
+      if (isFutureDate || isToday) {
         return { status: null, punches: [] };
-      }
-      if (year === 2026 && monthIndex === 8) {
-        return { status: 'Absent', punches: [] };
       }
       return { status: null, punches: [] };
     }

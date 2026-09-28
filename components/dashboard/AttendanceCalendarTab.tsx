@@ -647,14 +647,15 @@ export default function AttendanceCalendarTab({
               continue;
             }
 
-            // Check if this date is in the future
+            // Check if this date is today or in the future
+            const isToday = currentYear === liveTodayYear && currentMonthIndex === liveTodayMonth && d === liveTodayDate;
             const isFutureDate = 
               currentYear > liveTodayYear || 
               (currentYear === liveTodayYear && currentMonthIndex > liveTodayMonth) ||
               (currentYear === liveTodayYear && currentMonthIndex === liveTodayMonth && d > liveTodayDate);
 
-            if (isFutureDate) {
-              // Future weekdays MUST be a clear tag (-) unless manually assigned
+            if (isFutureDate || isToday) {
+              // Future weekdays and today before punches MUST default to the clear tag (-)
               attendanceMap[d] = null;
             } else if (currentMonthIndex === 8 && currentYear === 2026) {
               // Baseline historical demo data for past days in September 2026
@@ -662,7 +663,7 @@ export default function AttendanceCalendarTab({
               if (baseData?.attendanceByDay[d]) {
                 attendanceMap[d] = baseData.attendanceByDay[d];
               } else {
-                attendanceMap[d] = 'A';
+                attendanceMap[d] = null;
               }
             } else {
               // Other past dates without logs default to clear
