@@ -16,8 +16,34 @@ export interface ActivityLogItem {
   isRead?: boolean;
 }
 
-// In-memory runtime cache ensuring real-time continuity for recent activities
+// In-memory runtime cache ensuring real-time continuity for recent activities (strictly max 10)
 let runtimeLogs: ActivityLogItem[] = [];
+
+/**
+ * Automatically prunes the activity_logs table in Supabase so only the latest 10 records exist in the database.
+ * This saves database storage on free tier without deleting any employee timesheets.
+ */
+async function autoPruneActivityLogsInDb(supabase: any) {
+  try {
+    const { data: logs } = await supabase
+      .from('activity_logs')
+      .select('id, timestamp, created_at')
+      .order('created_at', { ascending: false });
+
+    if (logs && logs.length > MAX_ACTIVITY_LOGS) {
+      const logsToDelete = logs.slice(MAX_ACTIVITY_LOGS);
+      const idsToDelete = logsToDelete.map((l: any) => l.id).filter(Boolean);
+      if (idsToDelete.length > 0) {
+        await supabase
+          .from('activity_logs')
+          .delete()
+          .in('id', idsToDelete);
+      }
+    }
+  } catch (err) {
+    // Graceful fallback if table is not created yet
+  }
+}
 
 export async function GET(request: NextRequest) {
   try {
@@ -26,36 +52,36 @@ export async function GET(request: NextRequest) {
     const category = searchParams.get('category');
     const limit = Math.min(parseInt(searchParams.get('limit') || '10', 10), MAX_ACTIVITY_LOGS);
 
+    // Prune activity_logs in database to 10 rows max
+    await autoPruneActivityLogsInDb(supabase);
+
     const aggregated: ActivityLogItem[] = [...runtimeLogs];
 
-    // 1. Fetch real recent time tracker entries from Supabase (strictly max 10)
+    // 1. Fetch real recent activity logs from Supabase activity_logs table
     try {
-      const { data: timeEntries } = await supabase
-        .from('phone_time_tracker')
+      const { data: dbActivityLogs } = await supabase
+        .from('activity_logs')
         .select('*')
-        .order('date_of_shift', { ascending: false })
+        .order('created_at', { ascending: false })
         .limit(MAX_ACTIVITY_LOGS);
 
-      if (timeEntries && timeEntries.length > 0) {
-        timeEntries.forEach((entry: any) => {
-          const entryId = `entry-${entry.ticket_number || entry.id || Math.random().toString(36).substring(2, 7)}`;
-          if (!aggregated.some((l) => l.id === entryId)) {
+      if (dbActivityLogs && dbActivityLogs.length > 0) {
+        dbActivityLogs.forEach((item: any) => {
+          if (!aggregated.some((l) => l.id === item.id)) {
             aggregated.push({
-              id: entryId,
-              title: 'Task Activity Recorded',
-              description: `Logged ${entry.total_minutes || 'duration'} for ${entry.account || 'Corporate'} (Ticket #${entry.ticket_number || 'N/A'}).`,
-              timestamp: entry.created_at || new Date(entry.date_of_shift || Date.now()).toISOString(),
-              performedBy: entry.name ? entry.name.trim() : 'Agent',
-              category: 'TIME LOG',
-              type: 'timelog',
-              isRead: true,
+              id: item.id,
+              title: item.title,
+              description: item.description,
+              timestamp: item.timestamp || item.created_at || new Date().toISOString(),
+              performedBy: item.performed_by || item.performedBy || 'System',
+              category: item.category || 'SYSTEM',
+              type: item.type || 'system',
+              isRead: item.is_read ?? true,
             });
           }
         });
       }
-    } catch (e) {
-      console.warn('Could not fetch time entries for activity logs:', e);
-    }
+    } catch (e) {}
 
     // Sort by timestamp descending (newest first)
     const sorted = aggregated.sort((a, b) => {
@@ -106,6 +132,21 @@ export async function POST(request: NextRequest) {
     // Strictly keep only the top 10 logs in runtime memory
     runtimeLogs = [newLog, ...runtimeLogs.filter((l) => l.id !== newLog.id)].slice(0, MAX_ACTIVITY_LOGS);
 
+    // Persist to Supabase activity_logs table and prune to 10 rows
+    try {
+      await supabase.from('activity_logs').insert({
+        id: newLog.id,
+        title: newLog.title,
+        description: newLog.description,
+        timestamp: newLog.timestamp,
+        performed_by: newLog.performedBy,
+        category: newLog.category,
+        type: newLog.type,
+        is_read: newLog.isRead,
+      });
+      await autoPruneActivityLogsInDb(supabase);
+    } catch (e) {}
+
     return NextResponse.json({ success: true, data: newLog }, { status: 201 });
   } catch (err: any) {
     console.error('Error in POST /api/activity-logs:', err);
@@ -115,8 +156,12 @@ export async function POST(request: NextRequest) {
 
 export async function DELETE() {
   try {
+    const supabase = getSupabaseAdmin();
     runtimeLogs = [];
-    return NextResponse.json({ success: true, message: 'Activity feed cleared from memory' });
+    try {
+      await supabase.from('activity_logs').delete().neq('id', 'keep_none');
+    } catch (e) {}
+    return NextResponse.json({ success: true, message: 'Activity feed cleared from database and memory' });
   } catch (err: any) {
     return NextResponse.json({ error: err.message }, { status: 500 });
   }
