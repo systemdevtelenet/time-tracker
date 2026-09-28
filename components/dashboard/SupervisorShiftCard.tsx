@@ -271,7 +271,7 @@ export default function SupervisorShiftCard({
     },
     {
       id: 'lunch',
-      label: 'Lunch (60m)',
+      label: 'Lunch (1 hr)',
       status: punchesState.hasLunchEnd ? 'done' : currentStatus === 'lunch' ? 'active' : 'upcoming',
       icon: Utensils,
     },
@@ -379,7 +379,7 @@ export default function SupervisorShiftCard({
       list.push({
         type: 'Start Lunch',
         label: 'Start Lunch',
-        subLabel: '60 mins meal break',
+        subLabel: '1 hr meal break',
         icon: Utensils,
         variant: 'lunch',
         colorClasses: 'bg-blue-50 dark:bg-blue-950/50 text-[#2F6798] dark:text-blue-200 border-blue-300 dark:border-blue-800 hover:bg-blue-100 hover:border-blue-400'
@@ -475,7 +475,7 @@ export default function SupervisorShiftCard({
                     : alarmType === 'nearly_up'
                     ? 'Break Time Nearly Up'
                     : currentStatus === 'lunch'
-                    ? 'Lunch Break in Progress (60m Limit)'
+                    ? 'Lunch Break in Progress (1 hr Limit)'
                     : 'Scheduled Break in Progress (15m Limit)'}
                 </span>
 
@@ -486,7 +486,7 @@ export default function SupervisorShiftCard({
 
               <p className="text-xs opacity-80 mt-0.5">
                 {alarmType === 'exceeded'
-                  ? `You have exceeded your ${currentStatus === 'lunch' ? '60-minute' : '15-minute'} limit by ${Math.abs(Math.floor((getBreakLimitSecs(currentStatus) - statusSeconds) / 60))}m ${Math.abs((getBreakLimitSecs(currentStatus) - statusSeconds) % 60)}s.`
+                  ? `You have exceeded your ${currentStatus === 'lunch' ? '1-hour' : '15-minute'} limit by ${Math.abs(Math.floor((getBreakLimitSecs(currentStatus) - statusSeconds) / 60))}m ${Math.abs((getBreakLimitSecs(currentStatus) - statusSeconds) % 60)}s.`
                   : `Remaining: ${Math.max(0, Math.floor((getBreakLimitSecs(currentStatus) - statusSeconds) / 60))}m ${Math.max(0, (getBreakLimitSecs(currentStatus) - statusSeconds) % 60)}s before alarm triggers.`}
               </p>
             </div>

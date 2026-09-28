@@ -470,7 +470,7 @@ export default function AttendanceDetailModal({
                     <span className="text-[10px] font-bold uppercase tracking-wider">BREAKS / LUNCH</span>
                   </div>
                   <span className="text-base font-semibold text-slate-900 dark:text-slate-100 block">
-                    {activeEmp.status === 'A' || activeEmp.status === 'RD' ? '0m / 0m' : '15m / 60m'}
+                    {activeEmp.status === 'A' || activeEmp.status === 'RD' ? '0m / 0m' : '15m / 1 hr'}
                   </span>
                 </div>
 
