@@ -36,6 +36,51 @@ export interface SupervisorShiftCardProps {
   embedded?: boolean;
 }
 
+const DEFAULT_PUNCHES_STATE: ShiftPunchesState = {
+  hasShiftStart: false,
+  hasBreak1Start: false,
+  hasBreak1End: false,
+  hasLunchStart: false,
+  hasLunchEnd: false,
+  hasBreak2Start: false,
+  hasBreak2End: false,
+  hasShiftEnd: false,
+};
+
+function getInitialShiftState(empId?: string) {
+  if (typeof window === 'undefined') {
+    return {
+      status: 'offline' as const,
+      seconds: 0,
+      lastPunchTime: '--:--',
+      lastPunchType: '',
+      punchesState: DEFAULT_PUNCHES_STATE,
+    };
+  }
+  try {
+    const raw = sessionStorage.getItem(`ctnp_cached_shift_status_${empId || '1597'}`);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (parsed && parsed.status) {
+        return {
+          status: parsed.status,
+          seconds: parsed.elapsedSeconds || 0,
+          lastPunchTime: parsed.lastPunchTime || '--:--',
+          lastPunchType: parsed.lastPunchType || '',
+          punchesState: parsed.punchesState || DEFAULT_PUNCHES_STATE,
+        };
+      }
+    }
+  } catch (e) {}
+  return {
+    status: 'offline' as const,
+    seconds: 0,
+    lastPunchTime: '--:--',
+    lastPunchType: '',
+    punchesState: DEFAULT_PUNCHES_STATE,
+  };
+}
+
 export default function SupervisorShiftCard({
   supervisor = {
     name: 'Nissi-Jeh Reguero',
@@ -50,20 +95,13 @@ export default function SupervisorShiftCard({
   onPunchAction,
   embedded = false,
 }: SupervisorShiftCardProps) {
-  const [currentStatus, setCurrentStatus] = useState<'working' | 'lunch' | 'break_1' | 'break_2' | 'offline'>('lunch');
-  const [statusSeconds, setStatusSeconds] = useState<number>(0);
-  const [lastPunchTime, setLastPunchTime] = useState<string>('1:57:09 AM');
-  const [lastPunchType, setLastPunchType] = useState<string>('Start Lunch');
-  const [punchesState, setPunchesState] = useState<ShiftPunchesState>({
-    hasShiftStart: true,
-    hasBreak1Start: true,
-    hasBreak1End: true,
-    hasLunchStart: true,
-    hasLunchEnd: false,
-    hasBreak2Start: false,
-    hasBreak2End: false,
-    hasShiftEnd: false,
-  });
+  const [initialState] = useState(() => getInitialShiftState(supervisor?.id));
+
+  const [currentStatus, setCurrentStatus] = useState<'working' | 'lunch' | 'break_1' | 'break_2' | 'offline'>(initialState.status);
+  const [statusSeconds, setStatusSeconds] = useState<number>(initialState.seconds);
+  const [lastPunchTime, setLastPunchTime] = useState<string>(initialState.lastPunchTime);
+  const [lastPunchType, setLastPunchType] = useState<string>(initialState.lastPunchType);
+  const [punchesState, setPunchesState] = useState<ShiftPunchesState>(initialState.punchesState);
   const [isPunching, setIsPunching] = useState<boolean>(false);
 
   // Break / Lunch Alarm Alert State
@@ -160,6 +198,12 @@ export default function SupervisorShiftCard({
         if (data.currentStatus.punchesState) {
           setPunchesState(data.currentStatus.punchesState);
         }
+        try {
+          sessionStorage.setItem(
+            `ctnp_cached_shift_status_${supervisor.id || '1597'}`,
+            JSON.stringify(data.currentStatus)
+          );
+        } catch (e) {}
       }
     } catch (err) {
       console.error('Error fetching punch status:', err);
@@ -232,6 +276,12 @@ export default function SupervisorShiftCard({
         if (resData.currentStatus.punchesState) {
           setPunchesState(resData.currentStatus.punchesState);
         }
+        try {
+          sessionStorage.setItem(
+            `ctnp_cached_shift_status_${supervisor.id || '1597'}`,
+            JSON.stringify(resData.currentStatus)
+          );
+        } catch (e) {}
       }
 
       if (typeof window !== 'undefined') {

@@ -47,10 +47,10 @@ export default function Sidebar({
   supervisor,
   onPunchAction,
 }: SidebarProps) {
-  // Live Punch State - starting at 1h 05m 23s
-  const [currentStatus, setCurrentStatus] = useState<'working' | 'lunch' | 'break' | 'offline'>('lunch');
-  const [statusSeconds, setStatusSeconds] = useState<number>(1 * 3600 + 5 * 60 + 23);
-  const [lastPunchTime, setLastPunchTime] = useState<string>('1:57:09 AM');
+  // Live Punch State
+  const [currentStatus, setCurrentStatus] = useState<'working' | 'lunch' | 'break' | 'offline'>('offline');
+  const [statusSeconds, setStatusSeconds] = useState<number>(0);
+  const [lastPunchTime, setLastPunchTime] = useState<string>('--:--');
 
   // Live timer tick every second
   useEffect(() => {

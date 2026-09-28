@@ -84,10 +84,43 @@ export default function CompanySidebar({
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false);
 
-  // Live Punch State
-  const [currentStatus, setCurrentStatus] = useState<'working' | 'lunch' | 'break_1' | 'break_2' | 'offline'>('lunch');
-  const [statusSeconds, setStatusSeconds] = useState<number>(0);
-  const [punchesState, setPunchesState] = useState<any>(null);
+  // Live Punch State (load from session cache or default to offline with zero flicker)
+  const [currentStatus, setCurrentStatus] = useState<'working' | 'lunch' | 'break_1' | 'break_2' | 'offline'>(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        const cached = sessionStorage.getItem(`ctnp_cached_shift_status_${supervisor?.id || '1597'}`);
+        if (cached) {
+          const parsed = JSON.parse(cached);
+          if (parsed && parsed.status) return parsed.status;
+        }
+      } catch (e) {}
+    }
+    return 'offline';
+  });
+  const [statusSeconds, setStatusSeconds] = useState<number>(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        const cached = sessionStorage.getItem(`ctnp_cached_shift_status_${supervisor?.id || '1597'}`);
+        if (cached) {
+          const parsed = JSON.parse(cached);
+          if (parsed && parsed.elapsedSeconds) return parsed.elapsedSeconds;
+        }
+      } catch (e) {}
+    }
+    return 0;
+  });
+  const [punchesState, setPunchesState] = useState<any>(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        const cached = sessionStorage.getItem(`ctnp_cached_shift_status_${supervisor?.id || '1597'}`);
+        if (cached) {
+          const parsed = JSON.parse(cached);
+          if (parsed && parsed.punchesState) return parsed.punchesState;
+        }
+      } catch (e) {}
+    }
+    return null;
+  });
   const [isPunching, setIsPunching] = useState<boolean>(false);
 
   const isHeadOrAdmin = isHeadOrAdminUser(supervisor);
@@ -110,6 +143,12 @@ export default function CompanySidebar({
         if (data.currentStatus.punchesState) {
           setPunchesState(data.currentStatus.punchesState);
         }
+        try {
+          sessionStorage.setItem(
+            `ctnp_cached_shift_status_${supervisor.id || '1597'}`,
+            JSON.stringify(data.currentStatus)
+          );
+        } catch (e) {}
       }
     } catch (err) {
       console.error('Error fetching sidebar punch status:', err);
