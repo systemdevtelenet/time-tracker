@@ -26,7 +26,7 @@ import ActivityLogsView from '@/components/dashboard/ActivityLogsView';
 import WeatherWidgetCard from '@/components/dashboard/WeatherWidgetCard';
 import FullScreenLoader from '@/components/dashboard/FullScreenLoader';
 import { AccountOption, EmployeeOption, PhoneTimeRecord, KpiSummaryStats } from '@/lib/types';
-import { parseDurationToSeconds, formatTotalDurationHuman } from '@/lib/utils';
+import { parseDurationToSeconds, formatTotalDurationHuman, isValidAvatarUrl } from '@/lib/utils';
 import { addActivityLog } from '@/lib/activityLogs';
 import { showToast } from '@/lib/toast';
 import { Plus, CheckCircle2, User, Sparkles, Award } from 'lucide-react';
@@ -140,6 +140,8 @@ function HomePageContent() {
         try {
           const parsed = JSON.parse(savedUser);
           if (parsed && (parsed.name || parsed.email || parsed.id)) {
+            const rawAvatar = parsed.avatar_url || parsed.avatarUrl;
+            const validAvatar = isValidAvatarUrl(rawAvatar) ? rawAvatar : undefined;
             setSupervisor({
               name: parsed.name || '',
               id: String(parsed.id || parsed.employee_id || parsed.employee_num || ''),
@@ -150,7 +152,7 @@ function HomePageContent() {
               tenure: parsed.tenure ? (String(parsed.tenure).includes('mos') ? parsed.tenure : `${parsed.tenure} mos`) : '',
               directSupervisor: parsed.directSupervisor || parsed.supervisor || '',
               email: parsed.email || (parsed.name ? `${parsed.name.toLowerCase().replace(/\s+/g, '.')}@cebutelenet.com` : ''),
-              avatarUrl: parsed.avatar_url || parsed.avatarUrl || undefined,
+              avatarUrl: validAvatar,
               firstName: parsed.firstName || (parsed.name ? parsed.name.split(' ').slice(0, -1).join(' ') || parsed.name : ''),
               middleName: parsed.middleName || '—',
               lastName: parsed.lastName || (parsed.name ? parsed.name.split(' ').slice(-1).join('') : ''),
@@ -173,9 +175,10 @@ function HomePageContent() {
       const handleAvatarUpdate = (e: Event) => {
         const customEvent = e as CustomEvent<{ avatarUrl?: string }>;
         if (customEvent.detail !== undefined) {
+          const raw = customEvent.detail.avatarUrl;
           setSupervisor(prev => ({
             ...prev,
-            avatarUrl: customEvent.detail.avatarUrl || undefined,
+            avatarUrl: isValidAvatarUrl(raw) ? raw : undefined,
           }));
         }
       };
@@ -672,6 +675,7 @@ function HomePageContent() {
               <ActivityLogsView
                 onBackToDashboard={() => handleSelectTab('dashboard')}
                 supervisorName={supervisor.name}
+                supervisor={supervisor}
               />
             </div>
           )}

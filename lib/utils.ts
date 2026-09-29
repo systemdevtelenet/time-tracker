@@ -85,3 +85,40 @@ export function getTodayFormatted(): string {
   const yyyy = today.getFullYear();
   return `${mm}/${dd}/${yyyy}`;
 }
+
+/**
+ * Checks if an avatar URL is a valid, renderable image link (not 'none', 'null', empty, etc.)
+ */
+export function isValidAvatarUrl(url?: string | null): boolean {
+  if (!url || typeof url !== 'string') return false;
+  const trimmed = url.trim().toLowerCase();
+  if (
+    !trimmed ||
+    trimmed === 'none' ||
+    trimmed === 'null' ||
+    trimmed === 'n/a' ||
+    trimmed === 'undefined' ||
+    trimmed === 'false' ||
+    trimmed === '—'
+  ) {
+    return false;
+  }
+  return (
+    trimmed.startsWith('http://') ||
+    trimmed.startsWith('https://') ||
+    trimmed.startsWith('data:') ||
+    trimmed.startsWith('/') ||
+    trimmed.startsWith('blob:')
+  );
+}
+
+/**
+ * Generates clean 2-letter uppercase initials from a user's name
+ */
+export function getUserInitials(name?: string | null, fallback: string = 'NR'): string {
+  if (!name || typeof name !== 'string') return fallback;
+  const words = name.trim().split(/\s+/).filter(Boolean);
+  if (words.length === 0) return fallback;
+  if (words.length === 1) return words[0].slice(0, 2).toUpperCase();
+  return (words[0][0] + words[words.length - 1][0]).toUpperCase();
+}

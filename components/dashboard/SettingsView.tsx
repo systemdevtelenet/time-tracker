@@ -40,6 +40,7 @@ import {
 } from 'lucide-react';
 import { SupervisorProfile } from './Sidebar';
 import { showToast } from '@/lib/toast';
+import { isValidAvatarUrl, getUserInitials } from '@/lib/utils';
 
 interface SettingsViewProps {
   onBackToDashboard?: () => void;
@@ -106,17 +107,17 @@ export default function SettingsView({
   const startDate = activeUser.startDate || activeUser.hire_date || '—';
 
   // Photo state & dropdown
-  const [avatarPhoto, setAvatarPhoto] = useState<string | null>(supervisor.avatarUrl || null);
+  const [avatarPhoto, setAvatarPhoto] = useState<string | null>(() => {
+    const raw = supervisor.avatarUrl || localUser?.avatar_url || localUser?.avatarUrl;
+    return isValidAvatarUrl(raw) ? raw : null;
+  });
   const [isCameraDropdownOpen, setIsCameraDropdownOpen] = useState(false);
   const cameraDropdownRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    if (supervisor.avatarUrl) {
-      setAvatarPhoto(supervisor.avatarUrl);
-    } else if (localUser?.avatar_url || localUser?.avatarUrl) {
-      setAvatarPhoto(localUser.avatar_url || localUser.avatarUrl);
-    }
+    const raw = supervisor.avatarUrl || localUser?.avatar_url || localUser?.avatarUrl;
+    setAvatarPhoto(isValidAvatarUrl(raw) ? raw : null);
   }, [supervisor.avatarUrl, localUser]);
 
   // Handle clicking outside camera dropdown
@@ -407,15 +408,16 @@ export default function SettingsView({
               {/* Avatar with Camera Overlay & Dropdown Menu */}
               <div className="relative shrink-0" ref={cameraDropdownRef}>
                 <div className="w-32 h-32 rounded-full ring-4 ring-white/20 dark:ring-[#434142] p-2 flex items-center justify-center">
-                  {avatarPhoto ? (
+                  {avatarPhoto && isValidAvatarUrl(avatarPhoto) ? (
                     <img
                       src={avatarPhoto}
                       alt={displayName}
                       className="w-full h-full object-cover rounded-full shadow-inner select-none"
+                      onError={(e) => { e.currentTarget.style.display = 'none'; setAvatarPhoto(null); }}
                     />
                   ) : (
                     <div className="w-full h-full rounded-full bg-[#24527A] dark:bg-[#1D2433] dark:border dark:border-[#434142] text-white dark:text-[#F8F8F6] font-black text-3xl flex items-center justify-center shadow-inner select-none">
-                      {displayName ? displayName.split(' ').filter(Boolean).map((n: string) => n[0]).slice(0, 2).join('').toUpperCase() : 'NR'}
+                      {getUserInitials(displayName)}
                     </div>
                   )}
                 </div>

@@ -17,6 +17,8 @@ import {
 import { 
   getActivityLogs, 
   syncActivityLogsWithApi,
+  filterActivityLogsForUser,
+  isHeadOrAdminUser,
   formatRelativeTime, 
   SystemActivityLog 
 } from '@/lib/activityLogs';
@@ -25,9 +27,16 @@ import { showToast } from '@/lib/toast';
 interface ActivityLogsViewProps {
   onBackToDashboard?: () => void;
   supervisorName?: string;
+  supervisor?: {
+    name?: string;
+    id?: string;
+    role?: string;
+    position?: string;
+    email?: string;
+  };
 }
 
-const FILTER_TABS = [
+const ADMIN_FILTER_TABS = [
   { id: 'all', label: 'All Activities' },
   { id: 'trainees', label: 'Trainees' },
   { id: 'trainers', label: 'Trainers' },
@@ -37,15 +46,29 @@ const FILTER_TABS = [
   { id: 'alerts', label: 'Alerts & Actions' },
 ];
 
+const USER_FILTER_TABS = [
+  { id: 'all', label: 'All My Activities' },
+  { id: 'punches', label: 'Shift Punches' },
+  { id: 'timelogs', label: 'Time Logs' },
+  { id: 'attendance', label: 'Attendance Updates' },
+  { id: 'logins', label: 'Logins' },
+  { id: 'alerts', label: 'Alerts & Updates' },
+];
+
 export default function ActivityLogsView({
   onBackToDashboard,
   supervisorName = 'Nissi-Jeh Reguero',
+  supervisor,
 }: ActivityLogsViewProps) {
   const [logs, setLogs] = useState<SystemActivityLog[]>([]);
   const [activeFilter, setActiveFilter] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [isRefreshing, setIsRefreshing] = useState<boolean>(false);
   const [toastMsg, setToastMsg] = useState<string | null>(null);
+
+  const activeUser = supervisor || { name: supervisorName };
+  const isHeadOrAdmin = isHeadOrAdminUser(activeUser);
+  const filterTabs = isHeadOrAdmin ? ADMIN_FILTER_TABS : USER_FILTER_TABS;
 
   const fetchLogs = async () => {
     const current = getActivityLogs();
@@ -82,6 +105,10 @@ export default function ActivityLogsView({
       duration: 3500,
     });
   };
+
+  const userRelevantLogs = useMemo(() => {
+    return filterActivityLogsForUser(logs, activeUser);
+  }, [logs, activeUser]);
 
   const handleExport = () => {
     if (filteredLogs.length === 0) {
@@ -123,7 +150,7 @@ export default function ActivityLogsView({
 
   // Filter & Search Logic
   const filteredLogs = useMemo(() => {
-    return logs.filter((log) => {
+    return userRelevantLogs.filter((log) => {
       // 1. Filter Tab Match
       let matchesTab = true;
       if (activeFilter === 'trainees') {
@@ -136,6 +163,10 @@ export default function ActivityLogsView({
         matchesTab = log.category === 'REMARKS' || log.type === 'remark' || log.title.toLowerCase().includes('note') || log.title.toLowerCase().includes('handover');
       } else if (activeFilter === 'logins') {
         matchesTab = log.category === 'AUTH' || log.type === 'login' || log.title.toLowerCase().includes('login');
+      } else if (activeFilter === 'punches') {
+        matchesTab = log.category === 'PUNCH' || log.type === 'punch';
+      } else if (activeFilter === 'timelogs') {
+        matchesTab = log.category === 'TIME LOG' || log.type === 'timelog';
       } else if (activeFilter === 'alerts') {
         matchesTab = log.category === 'SYSTEM' || log.category === 'ALERT' || log.type === 'system' || log.type === 'alert' || log.title.toLowerCase().includes('deleted');
       }
@@ -153,7 +184,7 @@ export default function ActivityLogsView({
 
       return matchesTab && matchesSearch;
     }).slice(0, 10);
-  }, [logs, activeFilter, searchQuery]);
+  }, [userRelevantLogs, activeFilter, searchQuery]);
 
   const getLogIcon = (log: SystemActivityLog) => {
     if (log.category === 'AUTH' || log.type === 'login') return LogIn;
@@ -184,7 +215,9 @@ export default function ActivityLogsView({
             Activity Log
           </h1>
           <p className="text-xs text-slate-500 dark:text-slate-400 font-normal mt-0.5">
-            A chronological timeline of system events, logins, updates, and administrative actions.
+            {isHeadOrAdmin
+              ? 'A chronological timeline of system events, logins, updates, and administrative actions.'
+              : 'A chronological timeline of your shift punches, time logs, and administrative updates related to your account.'}
           </p>
         </div>
 
@@ -218,7 +251,7 @@ export default function ActivityLogsView({
           
           {/* Filter Pills with multi-row wrap */}
           <div className="flex items-center gap-1.5 flex-wrap">
-            {FILTER_TABS.map((tab) => {
+            {filterTabs.map((tab) => {
               const isSelected = activeFilter === tab.id;
               return (
                 <button

@@ -18,6 +18,7 @@ import {
 } from 'lucide-react';
 import { PunchActionType } from '@/lib/punchLogs';
 import ConfirmActionModal from './ConfirmActionModal';
+import { isValidAvatarUrl, getUserInitials } from '@/lib/utils';
 
 interface NavItem {
   id: string;
@@ -84,44 +85,26 @@ export default function CompanySidebar({
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false);
 
-  // Live Punch State (load from session cache or default to offline with zero flicker)
-  const [currentStatus, setCurrentStatus] = useState<'working' | 'lunch' | 'break_1' | 'break_2' | 'offline'>(() => {
-    if (typeof window !== 'undefined') {
-      try {
-        const cached = sessionStorage.getItem(`ctnp_cached_shift_status_${supervisor?.id || '1597'}`);
-        if (cached) {
-          const parsed = JSON.parse(cached);
-          if (parsed && parsed.status) return parsed.status;
-        }
-      } catch (e) {}
-    }
-    return 'offline';
-  });
-  const [statusSeconds, setStatusSeconds] = useState<number>(() => {
-    if (typeof window !== 'undefined') {
-      try {
-        const cached = sessionStorage.getItem(`ctnp_cached_shift_status_${supervisor?.id || '1597'}`);
-        if (cached) {
-          const parsed = JSON.parse(cached);
-          if (parsed && parsed.elapsedSeconds) return parsed.elapsedSeconds;
-        }
-      } catch (e) {}
-    }
-    return 0;
-  });
-  const [punchesState, setPunchesState] = useState<any>(() => {
-    if (typeof window !== 'undefined') {
-      try {
-        const cached = sessionStorage.getItem(`ctnp_cached_shift_status_${supervisor?.id || '1597'}`);
-        if (cached) {
-          const parsed = JSON.parse(cached);
-          if (parsed && parsed.punchesState) return parsed.punchesState;
-        }
-      } catch (e) {}
-    }
-    return null;
-  });
+  // Live Punch State (consistent SSR initial values to prevent hydration mismatch)
+  const [currentStatus, setCurrentStatus] = useState<'working' | 'lunch' | 'break_1' | 'break_2' | 'offline'>('offline');
+  const [statusSeconds, setStatusSeconds] = useState<number>(0);
+  const [punchesState, setPunchesState] = useState<any>(null);
   const [isPunching, setIsPunching] = useState<boolean>(false);
+
+  // Restore cached shift status on client mount after hydration
+  useEffect(() => {
+    try {
+      const cached = sessionStorage.getItem(`ctnp_cached_shift_status_${supervisor?.id || '1597'}`);
+      if (cached) {
+        const parsed = JSON.parse(cached);
+        if (parsed) {
+          if (parsed.status) setCurrentStatus(parsed.status);
+          if (typeof parsed.elapsedSeconds === 'number') setStatusSeconds(parsed.elapsedSeconds);
+          if (parsed.punchesState) setPunchesState(parsed.punchesState);
+        }
+      }
+    } catch (e) {}
+  }, [supervisor?.id]);
 
   const isHeadOrAdmin = isHeadOrAdminUser(supervisor);
 
@@ -243,7 +226,16 @@ export default function CompanySidebar({
       <ConfirmActionModal
         isOpen={isLogoutModalOpen}
         onClose={() => setIsLogoutModalOpen(false)}
-        onConfirm={() => router.push('/login')}
+        onConfirm={async () => {
+          try {
+            await fetch('/api/auth/logout', { method: 'POST' });
+          } catch (e) {}
+          if (typeof window !== 'undefined') {
+            localStorage.removeItem('ctnp_current_user');
+            sessionStorage.clear();
+          }
+          router.push('/login?logout=true');
+        }}
         title="Logout"
         description="Are you sure you want to logout?"
         subDescription="You will need to sign in again to access the dashboard."
@@ -352,7 +344,7 @@ export default function CompanySidebar({
                   <Clock className="w-3 h-3 text-[#C8A54B]" />
                   <span>Punch Status</span>
                 </span>
-                <span className="text-[10px] font-black text-[#C8A54B] font-mono">
+                <span className="text-[10px] font-black text-[#C8A54B] font-mono" suppressHydrationWarning>
                   {formatElapsedTime(statusSeconds)}
                 </span>
               </div>
@@ -513,32 +505,34 @@ export default function CompanySidebar({
           {isCollapsed ? (
             <div className="p-2 rounded-2xl bg-white/10 dark:bg-[#363435] border border-white/10 dark:border-[#434142] flex items-center justify-center shadow-xs">
               <div 
-                className="w-8 h-8 rounded-full overflow-hidden shrink-0 border border-white/30 dark:border-[#434142] bg-white/20 dark:bg-[#201F20] flex items-center justify-center font-black text-xs text-white"
+                className="w-8 h-8 rounded-full overflow-hidden shrink-0 border border-white/30 dark:border-[#434142] bg-white/20 dark:bg-[#201F20] flex items-center justify-center font-bold text-xs text-white select-none"
                 title={supervisor.name}
               >
-                {supervisor.avatarUrl ? (
+                {supervisor.avatarUrl && isValidAvatarUrl(supervisor.avatarUrl) ? (
                   <img
                     src={supervisor.avatarUrl}
                     alt={supervisor.name}
                     className="w-full h-full object-cover"
+                    onError={(e) => { e.currentTarget.style.display = 'none'; }}
                   />
                 ) : (
-                  <span>{supervisor.name ? supervisor.name.split(' ').map(n => n[0]).slice(0, 2).join('').toUpperCase() : 'NR'}</span>
+                  <span>{getUserInitials(supervisor.name)}</span>
                 )}
               </div>
             </div>
           ) : (
             <div className="p-2.5 rounded-2xl bg-white/10 dark:bg-[#363435] border border-white/10 dark:border-[#434142] flex items-center justify-between gap-2 shadow-xs">
               <div className="flex items-center gap-2.5 overflow-hidden">
-                <div className="w-8 h-8 rounded-full overflow-hidden shrink-0 border border-white/30 dark:border-[#434142] bg-white/20 dark:bg-[#201F20] flex items-center justify-center font-black text-xs text-white">
-                  {supervisor.avatarUrl ? (
+                <div className="w-8 h-8 rounded-full overflow-hidden shrink-0 border border-white/30 dark:border-[#434142] bg-white/20 dark:bg-[#201F20] flex items-center justify-center font-bold text-xs text-white select-none">
+                  {supervisor.avatarUrl && isValidAvatarUrl(supervisor.avatarUrl) ? (
                     <img
                       src={supervisor.avatarUrl}
                       alt={supervisor.name}
                       className="w-full h-full object-cover"
+                      onError={(e) => { e.currentTarget.style.display = 'none'; }}
                     />
                   ) : (
-                    <span>{supervisor.name ? supervisor.name.split(' ').map(n => n[0]).slice(0, 2).join('').toUpperCase() : 'NR'}</span>
+                    <span>{getUserInitials(supervisor.name)}</span>
                   )}
                 </div>
                 <div className="truncate">

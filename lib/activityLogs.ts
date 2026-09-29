@@ -98,6 +98,170 @@ export const INITIAL_ACTIVITY_LOGS: SystemActivityLog[] = [
   },
 ];
 
+export function isHeadOrAdminUser(supervisor?: {
+  role?: string;
+  position?: string;
+  name?: string;
+  id?: string;
+  email?: string;
+}): boolean {
+  if (!supervisor) return false;
+  const role = (supervisor.role || '').toLowerCase();
+  const position = (supervisor.position || '').toLowerCase();
+  const name = (supervisor.name || '').toLowerCase();
+  const email = (supervisor.email || '').toLowerCase();
+
+  if (role === 'admin' || role === 'superadmin') return true;
+  if (
+    position.includes('head of training') ||
+    position.includes('head of quality') ||
+    position.includes('qa supervisor') ||
+    position.includes('supervisor') ||
+    position.includes('manager') ||
+    position.includes('administrator')
+  ) {
+    return true;
+  }
+  if (
+    name.includes('nissi') ||
+    name.includes('alasagas') ||
+    name.includes('reguero') ||
+    name.includes('raymundo')
+  ) {
+    return true;
+  }
+  if (
+    email.includes('nreguero') ||
+    email.includes('ralasagas')
+  ) {
+    return true;
+  }
+  return false;
+}
+
+/**
+ * Determines whether a system activity log is relevant for a specific user.
+ * - Administrators & Supervisors receive all organizational logs.
+ * - Trainers, Trainees, and QA only receive their own actions (punches, logins, time logs)
+ *   and administrative updates targeting their own data or status.
+ */
+export function isLogRelevantToUser(
+  log: SystemActivityLog,
+  user?: {
+    name?: string;
+    email?: string;
+    id?: string;
+    role?: string;
+    position?: string;
+  }
+): boolean {
+  if (!user) return true;
+
+  // Head/Admin users have full visibility of all logs across the organization
+  if (isHeadOrAdminUser(user)) {
+    return true;
+  }
+
+  const userName = (user.name || '').trim().toLowerCase();
+  const userEmail = (user.email || '').trim().toLowerCase();
+  const userId = String(user.id || '').trim().toLowerCase();
+
+  const logPerformedBy = (log.performedBy || '').trim().toLowerCase();
+  const logTitle = (log.title || '').toLowerCase();
+  const logDescription = (log.description || '').toLowerCase();
+  const logMeta = log.metadata || {};
+  const metaEmployeeName = String(logMeta.employeeName || logMeta.employee_name || logMeta.name || '').trim().toLowerCase();
+  const metaEmail = String(logMeta.email || '').trim().toLowerCase();
+  const metaUserId = String(logMeta.id || logMeta.employeeId || logMeta.employee_id || '').trim().toLowerCase();
+
+  // 1. Direct performedBy match (the user themselves performed this action)
+  if (userName && (logPerformedBy === userName || logPerformedBy.includes(userName) || userName.includes(logPerformedBy))) {
+    return true;
+  }
+  if (userEmail && logPerformedBy.includes(userEmail)) {
+    return true;
+  }
+  if (userEmail && userEmail.includes('@')) {
+    const emailPrefix = userEmail.split('@')[0];
+    if (emailPrefix.length >= 3 && logPerformedBy.includes(emailPrefix)) {
+      return true;
+    }
+  }
+
+  // 2. Metadata target match (Admin updated this user's attendance, shift, rating, remark, etc.)
+  if (userName && metaEmployeeName && (metaEmployeeName === userName || metaEmployeeName.includes(userName) || userName.includes(metaEmployeeName))) {
+    return true;
+  }
+  if (userEmail && metaEmail && (metaEmail === userEmail || metaEmail.includes(userEmail) || userEmail.includes(metaEmail))) {
+    return true;
+  }
+  if (userId && metaUserId && (metaUserId === userId)) {
+    return true;
+  }
+
+  // 3. Description or title explicitly mentions user's name, email, or ID
+  if (userName && (logDescription.includes(userName) || logTitle.includes(userName))) {
+    return true;
+  }
+  if (userEmail && (logDescription.includes(userEmail) || logTitle.includes(userEmail))) {
+    return true;
+  }
+  if (userEmail && userEmail.includes('@')) {
+    const emailPrefix = userEmail.split('@')[0];
+    if (emailPrefix.length >= 3 && (logDescription.includes(emailPrefix) || logTitle.includes(emailPrefix))) {
+      return true;
+    }
+  }
+
+  // 4. Multi-part name check (e.g. "Bianca Kaye Ernestine Colonia" -> "bianca" and "colonia" appear in description)
+  if (userName) {
+    const nameParts = userName.split(/\s+/).filter((p) => p.length >= 3);
+    if (nameParts.length >= 2) {
+      const hasFirst = logDescription.includes(nameParts[0]);
+      const hasLast = logDescription.includes(nameParts[nameParts.length - 1]);
+      if (hasFirst && hasLast) {
+        return true;
+      }
+    }
+  }
+
+  // 5. Broadcast system alert that is NOT personal to someone else
+  const isPersonalLogOfSomeoneElse =
+    logDescription.includes('performed shift punch') ||
+    logDescription.includes("'s attendance") ||
+    logDescription.includes('logged into the hub') ||
+    logDescription.includes('ticket #') ||
+    log.category === 'PUNCH' ||
+    log.category === 'TIME LOG' ||
+    log.category === 'AUTH' ||
+    log.category === 'ATTENDANCE';
+
+  if (!isPersonalLogOfSomeoneElse && (log.category === 'SYSTEM' || log.category === 'ALERT')) {
+    return true;
+  }
+
+  return false;
+}
+
+/**
+ * Filters a list of activity logs to only those relevant to the given user.
+ */
+export function filterActivityLogsForUser(
+  logs: SystemActivityLog[],
+  user?: {
+    name?: string;
+    email?: string;
+    id?: string;
+    role?: string;
+    position?: string;
+  }
+): SystemActivityLog[] {
+  if (!user || isHeadOrAdminUser(user)) {
+    return logs;
+  }
+  return logs.filter((log) => isLogRelevantToUser(log, user));
+}
+
 export function getActivityLogs(): SystemActivityLog[] {
   if (typeof window === 'undefined') return INITIAL_ACTIVITY_LOGS;
   try {
@@ -194,6 +358,10 @@ export function logUserLogin(email: string, performedBy: string = 'System Auth')
     performedBy: performedBy || 'System Auth',
     category: 'AUTH',
     type: 'login',
+    metadata: {
+      email: email.trim(),
+      performedBy,
+    },
   });
 }
 
@@ -225,10 +393,21 @@ export function logAttendanceUpdate(params: {
   });
 }
 
-export function markAllNotificationsAsRead(): void {
+export function markAllNotificationsAsRead(user?: {
+  name?: string;
+  email?: string;
+  id?: string;
+  role?: string;
+  position?: string;
+}): void {
   if (typeof window === 'undefined') return;
   const current = getActivityLogs();
-  const updated = current.map((item) => ({ ...item, isRead: true }));
+  const updated = current.map((item) => {
+    if (!user || isLogRelevantToUser(item, user)) {
+      return { ...item, isRead: true };
+    }
+    return item;
+  });
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
     window.dispatchEvent(new CustomEvent('system-activity-logged', { detail: { action: 'mark_all_read' } }));

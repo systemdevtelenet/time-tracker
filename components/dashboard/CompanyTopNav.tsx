@@ -36,11 +36,13 @@ import ConfirmActionModal from './ConfirmActionModal';
 import { 
   getActivityLogs, 
   syncActivityLogsWithApi,
+  filterActivityLogsForUser,
   markAllNotificationsAsRead, 
   formatRelativeTime, 
   SystemActivityLog 
 } from '@/lib/activityLogs';
 import { isHeadOrAdminUser } from './CompanySidebar';
+import { isValidAvatarUrl, getUserInitials } from '@/lib/utils';
 
 interface CompanyTopNavProps {
   title?: string;
@@ -221,7 +223,11 @@ export default function CompanyTopNav({
     };
   }, []);
 
-  const unreadCount = notifications.filter((n) => !n.isRead).length;
+  const visibleNotifications = useMemo(() => {
+    return filterActivityLogsForUser(notifications, supervisor);
+  }, [notifications, supervisor]);
+
+  const unreadCount = visibleNotifications.filter((n) => !n.isRead).length;
 
   // Logout Modal State
   const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false);
@@ -299,8 +305,15 @@ export default function CompanyTopNav({
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  const handleLogout = () => {
-    router.push('/login');
+  const handleLogout = async () => {
+    try {
+      await fetch('/api/auth/logout', { method: 'POST' });
+    } catch (e) {}
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem('ctnp_current_user');
+      sessionStorage.clear();
+    }
+    router.push('/login?logout=true');
   };
 
   const handleSelectItem = (item: SearchItem) => {
@@ -456,7 +469,7 @@ export default function CompanyTopNav({
                   </div>
                   <button
                     type="button"
-                    onClick={() => markAllNotificationsAsRead()}
+                    onClick={() => markAllNotificationsAsRead(supervisor)}
                     className="text-xs font-bold text-[#2F6798] dark:text-[#3678B0] hover:underline cursor-pointer"
                   >
                     Mark all as read
@@ -465,8 +478,8 @@ export default function CompanyTopNav({
 
                 {/* Notifications List */}
                 <div className="max-h-[380px] overflow-y-auto divide-y divide-slate-100 dark:divide-[#434142]/60 custom-scrollbar">
-                  {notifications.length > 0 ? (
-                    notifications.map((item) => {
+                  {visibleNotifications.length > 0 ? (
+                    visibleNotifications.map((item) => {
                       const Icon = item.category === 'AUTH' 
                         ? LogIn 
                         : item.category === 'PUNCH' 
@@ -547,14 +560,15 @@ export default function CompanyTopNav({
               className="w-9 h-9 rounded-full bg-gradient-to-br from-[#2F6798] to-[#1F4A6E] ring-2 ring-white dark:ring-[#434142] shadow-lg shadow-[#2F6798]/30 text-xs font-bold text-white flex items-center justify-center hover:scale-105 hover:opacity-90 transition-all cursor-pointer select-none overflow-hidden"
               title="User profile & settings"
             >
-              {supervisor.avatarUrl ? (
+              {supervisor.avatarUrl && isValidAvatarUrl(supervisor.avatarUrl) ? (
                 <img
                   src={supervisor.avatarUrl}
                   alt={supervisor.name}
                   className="w-full h-full object-cover"
+                  onError={(e) => { e.currentTarget.style.display = 'none'; }}
                 />
               ) : (
-                supervisor.name ? supervisor.name.split(' ').filter(Boolean).map(n => n[0]).slice(0, 2).join('').toUpperCase() : 'NR'
+                <span>{getUserInitials(supervisor.name)}</span>
               )}
             </button>
 
@@ -565,15 +579,16 @@ export default function CompanyTopNav({
                 {/* 3. Dropdown Header (User Profile & Role Pill) */}
                 <div className="p-4 border-b border-[#F1F5F9] dark:border-[#434142]">
                   <div className="flex items-center gap-2.5">
-                    <div className="w-8 h-8 rounded-full bg-gradient-to-br from-[#2F6798] to-[#1F4A6E] ring-1 ring-slate-200 dark:ring-[#434142] text-white font-bold text-xs flex items-center justify-center shrink-0 overflow-hidden">
-                      {supervisor.avatarUrl ? (
+                    <div className="w-8 h-8 rounded-full bg-gradient-to-br from-[#2F6798] to-[#1F4A6E] ring-1 ring-slate-200 dark:ring-[#434142] text-white font-bold text-xs flex items-center justify-center shrink-0 overflow-hidden select-none">
+                      {supervisor.avatarUrl && isValidAvatarUrl(supervisor.avatarUrl) ? (
                         <img
                           src={supervisor.avatarUrl}
                           alt={supervisor.name}
                           className="w-full h-full object-cover"
+                          onError={(e) => { e.currentTarget.style.display = 'none'; }}
                         />
                       ) : (
-                        supervisor.name ? supervisor.name.split(' ').filter(Boolean).map(n => n[0]).slice(0, 2).join('').toUpperCase() : 'NR'
+                        <span>{getUserInitials(supervisor.name)}</span>
                       )}
                     </div>
                     <div className="min-w-0 flex-1">

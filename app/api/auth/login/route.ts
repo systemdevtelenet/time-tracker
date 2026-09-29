@@ -3,6 +3,33 @@ import { getSupabaseAdmin } from '@/lib/supabase/server';
 
 export const dynamic = 'force-dynamic';
 
+// In-memory sliding window rate limiter for login brute-force prevention
+const loginAttemptsMap = new Map<string, { count: number; resetAt: number }>();
+const MAX_ATTEMPTS = 5;
+const WINDOW_MS = 60 * 1000; // 60 seconds
+
+function checkRateLimit(key: string): { allowed: boolean; remainingSecs: number } {
+  const now = Date.now();
+  const record = loginAttemptsMap.get(key);
+
+  if (!record || now > record.resetAt) {
+    loginAttemptsMap.set(key, { count: 1, resetAt: now + WINDOW_MS });
+    return { allowed: true, remainingSecs: 0 };
+  }
+
+  if (record.count >= MAX_ATTEMPTS) {
+    const remainingSecs = Math.ceil((record.resetAt - now) / 1000);
+    return { allowed: false, remainingSecs };
+  }
+
+  record.count += 1;
+  return { allowed: true, remainingSecs: 0 };
+}
+
+function clearRateLimit(key: string) {
+  loginAttemptsMap.delete(key);
+}
+
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
@@ -17,6 +44,21 @@ export async function POST(request: NextRequest) {
 
     const cleanEmail = email.toLowerCase().trim();
     const cleanPassword = password.trim();
+
+    // Check server-side rate limit per email & IP
+    const clientIp = request.headers.get('x-forwarded-for')?.split(',')[0] || '127.0.0.1';
+    const rateLimitKey = `${clientIp}_${cleanEmail}`;
+    const rateLimitCheck = checkRateLimit(rateLimitKey);
+
+    if (!rateLimitCheck.allowed) {
+      return NextResponse.json(
+        { 
+          error: `Too many login attempts. Locked out for security. Try again in ${rateLimitCheck.remainingSecs} seconds.`,
+          retryAfter: rateLimitCheck.remainingSecs
+        },
+        { status: 429 }
+      );
+    }
 
     const admin = getSupabaseAdmin();
 
@@ -111,7 +153,11 @@ export async function POST(request: NextRequest) {
     const finalAccount = rosterMatch?.account || trainerRecord?.accounts || 'Corporate';
     const finalSupervisor = rosterMatch?.supervisor || 'June Babe Caballes';
     const finalTenure = rosterMatch?.tenure ? `${rosterMatch.tenure} mos` : '32 mos';
-    const finalAvatar = empRecord?.avatar_url || trainerRecord?.profile_pic || rosterMatch?.avatar_url || null;
+    const rawAvatar = empRecord?.avatar_url || trainerRecord?.profile_pic || rosterMatch?.avatar_url || null;
+    const cleanAvatarStr = typeof rawAvatar === 'string' ? rawAvatar.trim() : null;
+    const finalAvatar = cleanAvatarStr && !['none', 'null', 'n/a', 'undefined', 'false', '—'].includes(cleanAvatarStr.toLowerCase())
+      ? cleanAvatarStr
+      : null;
 
     // Synchronize / Upsert Supabase Auth user so standard Supabase sessions succeed
     try {
@@ -147,7 +193,19 @@ export async function POST(request: NextRequest) {
       console.warn('Supabase Auth sync warning (proceeding):', authSyncErr);
     }
 
-    return NextResponse.json({
+    // Clear any previous failed attempts upon successful login
+    clearRateLimit(rateLimitKey);
+
+    const sessionPayload = {
+      id: employeeNumber,
+      name: finalName,
+      email: cleanEmail,
+      role: finalRole,
+      position: finalPosition,
+      loginAt: Date.now(),
+    };
+
+    const response = NextResponse.json({
       success: true,
       user: {
         id: employeeNumber,
@@ -162,6 +220,17 @@ export async function POST(request: NextRequest) {
         avatar_url: finalAvatar,
       },
     });
+
+    // Set secure HttpOnly session cookie
+    response.cookies.set('ctnp_session', JSON.stringify(sessionPayload), {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      path: '/',
+      maxAge: 60 * 60 * 24 * 7, // 7 days
+    });
+
+    return response;
   } catch (error: any) {
     console.error('Login API error:', error);
     return NextResponse.json(

@@ -19,6 +19,7 @@ import { PunchActionType, ShiftPunchesState } from '@/lib/punchLogs';
 import { addActivityLog } from '@/lib/activityLogs';
 import { playAlarmSound, getSelectedRingtone, RINGTONE_OPTIONS } from '@/lib/soundAlerts';
 import { showToast } from '@/lib/toast';
+import { isValidAvatarUrl, getUserInitials } from '@/lib/utils';
 
 export interface SupervisorShiftCardProps {
   supervisor?: {
@@ -47,39 +48,6 @@ const DEFAULT_PUNCHES_STATE: ShiftPunchesState = {
   hasShiftEnd: false,
 };
 
-function getInitialShiftState(empId?: string) {
-  if (typeof window === 'undefined') {
-    return {
-      status: 'offline' as const,
-      seconds: 0,
-      lastPunchTime: '--:--',
-      lastPunchType: '',
-      punchesState: DEFAULT_PUNCHES_STATE,
-    };
-  }
-  try {
-    const raw = sessionStorage.getItem(`ctnp_cached_shift_status_${empId || '1597'}`);
-    if (raw) {
-      const parsed = JSON.parse(raw);
-      if (parsed && parsed.status) {
-        return {
-          status: parsed.status,
-          seconds: parsed.elapsedSeconds || 0,
-          lastPunchTime: parsed.lastPunchTime || '--:--',
-          lastPunchType: parsed.lastPunchType || '',
-          punchesState: parsed.punchesState || DEFAULT_PUNCHES_STATE,
-        };
-      }
-    }
-  } catch (e) {}
-  return {
-    status: 'offline' as const,
-    seconds: 0,
-    lastPunchTime: '--:--',
-    lastPunchType: '',
-    punchesState: DEFAULT_PUNCHES_STATE,
-  };
-}
 
 export default function SupervisorShiftCard({
   supervisor = {
@@ -95,14 +63,31 @@ export default function SupervisorShiftCard({
   onPunchAction,
   embedded = false,
 }: SupervisorShiftCardProps) {
-  const [initialState] = useState(() => getInitialShiftState(supervisor?.id));
-
-  const [currentStatus, setCurrentStatus] = useState<'working' | 'lunch' | 'break_1' | 'break_2' | 'offline'>(initialState.status);
-  const [statusSeconds, setStatusSeconds] = useState<number>(initialState.seconds);
-  const [lastPunchTime, setLastPunchTime] = useState<string>(initialState.lastPunchTime);
-  const [lastPunchType, setLastPunchType] = useState<string>(initialState.lastPunchType);
-  const [punchesState, setPunchesState] = useState<ShiftPunchesState>(initialState.punchesState);
+  // Deterministic initial states for SSR hydration consistency
+  const [currentStatus, setCurrentStatus] = useState<'working' | 'lunch' | 'break_1' | 'break_2' | 'offline'>('offline');
+  const [statusSeconds, setStatusSeconds] = useState<number>(0);
+  const [lastPunchTime, setLastPunchTime] = useState<string>('--:--');
+  const [lastPunchType, setLastPunchType] = useState<string>('');
+  const [punchesState, setPunchesState] = useState<ShiftPunchesState>(DEFAULT_PUNCHES_STATE);
   const [isPunching, setIsPunching] = useState<boolean>(false);
+  const [avatarImgError, setAvatarImgError] = useState<boolean>(false);
+
+  // Restore cached session status on client mount after hydration
+  useEffect(() => {
+    try {
+      const raw = sessionStorage.getItem(`ctnp_cached_shift_status_${supervisor?.id || '1597'}`);
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (parsed && parsed.status) {
+          setCurrentStatus(parsed.status);
+          setStatusSeconds(parsed.elapsedSeconds || 0);
+          if (parsed.lastPunchTime) setLastPunchTime(parsed.lastPunchTime);
+          if (parsed.lastPunchType) setLastPunchType(parsed.lastPunchType);
+          if (parsed.punchesState) setPunchesState(parsed.punchesState);
+        }
+      }
+    } catch (e) {}
+  }, [supervisor?.id]);
 
   // Break / Lunch Alarm Alert State
   const [isAlarmRinging, setIsAlarmRinging] = useState<boolean>(false);
@@ -484,15 +469,16 @@ export default function SupervisorShiftCard({
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3.5 border-b border-slate-100 dark:border-slate-800">
         <div className="flex items-center gap-3.5">
           {/* Circular Initials / Avatar Image */}
-          <div className="w-12 h-12 rounded-full bg-[#2F6798] text-white flex items-center justify-center font-bold text-base shadow-sm ring-2 ring-[#2F6798]/20 shrink-0 select-none overflow-hidden">
-            {supervisor.avatarUrl ? (
+          <div className="w-12 h-12 rounded-full bg-gradient-to-br from-[#2F6798] to-[#1E4566] text-white flex items-center justify-center font-bold text-sm shadow-sm ring-2 ring-[#2F6798]/20 shrink-0 select-none overflow-hidden">
+            {supervisor.avatarUrl && isValidAvatarUrl(supervisor.avatarUrl) && !avatarImgError ? (
               <img
                 src={supervisor.avatarUrl}
                 alt={supervisor.name}
                 className="w-full h-full object-cover"
+                onError={() => setAvatarImgError(true)}
               />
             ) : (
-              getInitials(supervisor.name)
+              <span className="tracking-wider">{getUserInitials(supervisor.name)}</span>
             )}
           </div>
           <div>
@@ -687,7 +673,7 @@ export default function SupervisorShiftCard({
                 ? 'OFFLINE' 
                 : 'WORKING TIME'}
             </span>
-            <span className="text-base sm:text-lg font-black text-slate-900 dark:text-blue-50 font-mono mt-0.5 block">
+            <span className="text-base sm:text-lg font-black text-slate-900 dark:text-blue-50 font-mono mt-0.5 block" suppressHydrationWarning>
               {formatTimer(statusSeconds)}
             </span>
           </div>
@@ -696,7 +682,7 @@ export default function SupervisorShiftCard({
             <span className="text-[9.5px] font-extrabold text-[#2F6798] dark:text-blue-300 uppercase tracking-wider block">
               LAST PUNCH
             </span>
-            <span className="text-base sm:text-lg font-black text-[#2F6798] dark:text-blue-300 font-mono mt-0.5 block truncate" title={`${lastPunchType} at ${lastPunchTime}`}>
+            <span className="text-base sm:text-lg font-black text-[#2F6798] dark:text-blue-300 font-mono mt-0.5 block truncate" title={`${lastPunchType} at ${lastPunchTime}`} suppressHydrationWarning>
               {lastPunchTime}
             </span>
           </div>
