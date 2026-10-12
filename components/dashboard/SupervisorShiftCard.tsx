@@ -51,14 +51,14 @@ const DEFAULT_PUNCHES_STATE: ShiftPunchesState = {
 
 export default function SupervisorShiftCard({
   supervisor = {
-    name: 'Nissi-Jeh Reguero',
-    id: '1597',
-    role: 'SUPERVISOR',
-    position: 'Head of Training',
-    shift: '9:00 PM to 6:00 AM',
-    account: 'Corporate',
-    tenure: '32 mos',
-    directSupervisor: 'June Babe Caballes',
+    name: '',
+    id: '',
+    role: '',
+    position: '',
+    shift: '',
+    account: '',
+    tenure: '',
+    directSupervisor: '',
   },
   onPunchAction,
   embedded = false,
@@ -75,7 +75,7 @@ export default function SupervisorShiftCard({
   // Restore cached session status on client mount after hydration
   useEffect(() => {
     try {
-      const raw = sessionStorage.getItem(`ctnp_cached_shift_status_${supervisor?.id || '1597'}`);
+      const raw = sessionStorage.getItem(`ctnp_cached_shift_status_${supervisor?.id || 'unknown'}`);
       if (raw) {
         const parsed = JSON.parse(raw);
         if (parsed && parsed.status) {
@@ -185,7 +185,7 @@ export default function SupervisorShiftCard({
         }
         try {
           sessionStorage.setItem(
-            `ctnp_cached_shift_status_${supervisor.id || '1597'}`,
+            `ctnp_cached_shift_status_${supervisor.id || 'unknown'}`,
             JSON.stringify(data.currentStatus)
           );
         } catch (e) {}
@@ -253,6 +253,9 @@ export default function SupervisorShiftCard({
         }),
       });
       const resData = await res.json();
+      if (!res.ok || !resData.success) {
+        throw new Error(resData.error || 'Could not record punch action.');
+      }
       if (resData.currentStatus) {
         setCurrentStatus(resData.currentStatus.status);
         setStatusSeconds(0);
@@ -263,7 +266,7 @@ export default function SupervisorShiftCard({
         }
         try {
           sessionStorage.setItem(
-            `ctnp_cached_shift_status_${supervisor.id || '1597'}`,
+            `ctnp_cached_shift_status_${supervisor.id || 'unknown'}`,
             JSON.stringify(resData.currentStatus)
           );
         } catch (e) {}

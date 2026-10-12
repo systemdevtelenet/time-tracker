@@ -18,6 +18,7 @@ import {
 } from 'lucide-react';
 import { ShiftMilestoneItem, PunchLogItem } from '@/lib/punchLogs';
 import DatePickerPopover from './DatePickerPopover';
+import { getShiftDate, parseShiftStartHour } from '@/lib/shiftSchedule';
 
 interface LiveShiftPunchTimelineProps {
   embedded?: boolean;
@@ -42,23 +43,9 @@ const ICON_MAP: Record<string, LucideIcon> = {
   LogOut,
 };
 
-function assignShiftDay(date: Date): { year: number; month: number; day: number } {
-  const h = date.getHours();
-  const shiftDate = new Date(date);
-  if (h < 9) {
-    shiftDate.setDate(shiftDate.getDate() - 1);
-  }
-  return {
-    year: shiftDate.getFullYear(),
-    month: shiftDate.getMonth(), // 0-indexed
-    day: shiftDate.getDate(),
-  };
-}
-
-function getInitialShiftDate(): Date {
+function getInitialShiftDate(shiftStartHour: number | null): Date {
   const now = new Date();
-  // Default to active reference date or current shift date
-  if (now.getHours() < 9) {
+  if (shiftStartHour !== null && now.getHours() < shiftStartHour) {
     const prev = new Date(now);
     prev.setDate(prev.getDate() - 1);
     return prev;
@@ -77,12 +64,17 @@ function formatDurationFriendly(mins: number): string {
 
 export default function LiveShiftPunchTimeline({ 
   embedded = false,
-  supervisorId = '1597',
-  shiftSchedule = '9:00 PM – 6:00 AM'
+  supervisorId = '',
+  shiftSchedule = ''
 }: LiveShiftPunchTimelineProps) {
-  const [selectedDate, setSelectedDate] = useState<Date | null>(() => getInitialShiftDate());
+  const shiftStartHour = parseShiftStartHour(shiftSchedule);
+  const [selectedDate, setSelectedDate] = useState<Date | null>(() => getInitialShiftDate(shiftStartHour));
   const [allEmpLogs, setAllEmpLogs] = useState<any[]>([]);
   const [isLoadingPunches, setIsLoadingPunches] = useState(false);
+
+  useEffect(() => {
+    setSelectedDate(getInitialShiftDate(shiftStartHour));
+  }, [shiftStartHour]);
 
   // Fetch live punch logs for this supervisor
   const fetchShiftPunches = useCallback(async () => {
@@ -135,8 +127,8 @@ export default function LiveShiftPunchTimeline({
       const d = new Date(rawTs);
       if (isNaN(d.getTime())) return false;
 
-      const shift = assignShiftDay(d);
-      const isShiftMatch = (shift.year === targetYear && shift.month === targetMonth && shift.day === targetDay);
+      const shiftDate = getShiftDate(d, shiftSchedule);
+      const isShiftMatch = (shiftDate.getFullYear() === targetYear && shiftDate.getMonth() === targetMonth && shiftDate.getDate() === targetDay);
       const isDirectMatch = (d.getFullYear() === targetYear && d.getMonth() === targetMonth && d.getDate() === targetDay);
 
       if (isShiftMatch || isDirectMatch) {
@@ -156,7 +148,7 @@ export default function LiveShiftPunchTimeline({
     });
 
     return matched;
-  }, [allEmpLogs, selectedDate]);
+  }, [allEmpLogs, selectedDate, shiftSchedule]);
 
   // Compute 5 Visual Milestones for the selected date
   const milestones: ShiftMilestoneItem[] = useMemo(() => {
@@ -186,8 +178,8 @@ export default function LiveShiftPunchTimeline({
       id: 'm1',
       type: 'punch_in',
       label: 'Shift Start (Punch In)',
-      timeRange: shiftStartPunch ? formatPTime(shiftStartPunch.timestamp) : 'Scheduled 9:00 PM',
-      duration: shiftStartPunch ? ((shiftStartPunch.status || '').toLowerCase().includes('late') ? 'Late Punch' : 'On Time') : 'Scheduled',
+      timeRange: shiftStartPunch ? formatPTime(shiftStartPunch.timestamp) : 'No punch recorded',
+      duration: shiftStartPunch ? ((shiftStartPunch.status || '').toLowerCase().includes('late') ? 'Late Punch' : 'On Time') : 'Awaiting punch',
       status: shiftStartPunch ? 'completed' : 'upcoming',
       iconName: 'LogIn',
       color: shiftStartPunch ? 'bg-emerald-500 text-white' : 'bg-slate-200 dark:bg-slate-700 text-slate-500 dark:text-slate-400',
@@ -211,7 +203,7 @@ export default function LiveShiftPunchTimeline({
         ? `${formatPTime(b1StartPunch.timestamp)} – ${formatPTime(b1EndPunch.timestamp)}`
         : b1StartPunch
         ? `${formatPTime(b1StartPunch.timestamp)} – ...`
-        : 'Scheduled ~11:30 PM',
+        : 'No punch recorded',
       duration: b1Duration,
       status: b1EndPunch ? 'completed' : b1StartPunch ? 'active' : 'upcoming',
       iconName: 'Coffee',
@@ -236,7 +228,7 @@ export default function LiveShiftPunchTimeline({
         ? `${formatPTime(lunchStartPunch.timestamp)} – ${formatPTime(lunchEndPunch.timestamp)}`
         : lunchStartPunch
         ? `${formatPTime(lunchStartPunch.timestamp)} – ...`
-        : 'Scheduled ~1:00 AM',
+        : 'No punch recorded',
       duration: lunchDuration,
       status: lunchEndPunch ? 'completed' : lunchStartPunch ? 'active' : 'upcoming',
       iconName: 'Utensils',
@@ -261,7 +253,7 @@ export default function LiveShiftPunchTimeline({
         ? `${formatPTime(b2StartPunch.timestamp)} – ${formatPTime(b2EndPunch.timestamp)}`
         : b2StartPunch
         ? `${formatPTime(b2StartPunch.timestamp)} – ...`
-        : 'Scheduled ~4:00 AM',
+        : 'No punch recorded',
       duration: b2Duration,
       status: b2EndPunch ? 'completed' : b2StartPunch ? 'active' : 'upcoming',
       iconName: 'Coffee',
@@ -289,7 +281,7 @@ export default function LiveShiftPunchTimeline({
       id: 'm5',
       type: 'punch_out',
       label: 'Shift End (Punch Out)',
-      timeRange: shiftEndPunch ? formatPTime(shiftEndPunch.timestamp) : 'Scheduled ~6:00 AM',
+      timeRange: shiftEndPunch ? formatPTime(shiftEndPunch.timestamp) : 'No punch recorded',
       duration: shiftEndDuration,
       status: shiftEndPunch ? 'completed' : 'upcoming',
       iconName: 'LogOut',
@@ -419,7 +411,7 @@ export default function LiveShiftPunchTimeline({
               align="right"
             />
             <span className="px-3 py-2 rounded-xl bg-slate-100 dark:bg-[#272626] text-xs font-bold text-slate-700 dark:text-[#F8F8F6] border border-slate-200 dark:border-[#434142] font-mono shadow-2xs">
-              Shift: {shiftSchedule}
+              Shift: {shiftSchedule || 'Not set'}
             </span>
           </div>
         </div>

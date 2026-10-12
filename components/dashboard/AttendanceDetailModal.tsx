@@ -459,7 +459,7 @@ export default function AttendanceDetailModal({
                     <span className="text-[10px] font-bold uppercase tracking-wider">SHIFT SCHEDULE</span>
                   </div>
                   <span className="text-xs sm:text-sm font-semibold text-[#2F6798] dark:text-blue-300 block font-mono">
-                    9:00 PM – 6:00 AM
+                    Not set
                   </span>
                 </div>
 

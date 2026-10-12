@@ -16,7 +16,7 @@ export default function AnalyticsCharts({ records }: AnalyticsChartsProps) {
   const accountStats = useMemo(() => {
     const map: Record<string, { count: number; totalSeconds: number }> = {};
     records.forEach((r) => {
-      const acc = r.account || 'DFT';
+      const acc = r.account || 'Unassigned';
       const secs = parseDurationToSeconds(r.total_minutes);
       if (!map[acc]) map[acc] = { count: 0, totalSeconds: 0 };
       map[acc].count += 1;

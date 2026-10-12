@@ -163,20 +163,6 @@ const SEARCH_ITEMS: SearchItem[] = [
     iconBg: 'bg-slate-100 text-slate-600 border border-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700',
   },
 
-  // Workforce Members Roster
-  { id: 'emp-1', title: 'Nissi-Jeh Reguero', subtitle: 'Head of Training • TQA • ID: 1597', badge: 'Staff', tabId: 'attendance', icon: User, iconBg: 'bg-blue-50 text-blue-600 border border-blue-200/60 dark:bg-blue-950/50 dark:text-blue-400' },
-  { id: 'emp-2', title: 'Raymundo Alasagas III', subtitle: 'Head of Quality • TQA • ID: 1108', badge: 'Staff', tabId: 'attendance', icon: User, iconBg: 'bg-blue-50 text-blue-600 border border-blue-200/60 dark:bg-blue-950/50 dark:text-blue-400' },
-  { id: 'emp-3', title: 'Bianca Kaye Ernestine Colonia', subtitle: 'Trainer • TQA • ID: 1772', badge: 'Trainer', tabId: 'attendance', icon: User, iconBg: 'bg-emerald-50 text-emerald-600 border border-emerald-200/60 dark:bg-emerald-950/50 dark:text-emerald-400' },
-  { id: 'emp-4', title: 'Michelle Yncierto', subtitle: 'Trainer • TQA • ID: 2385', badge: 'Trainer', tabId: 'attendance', icon: User, iconBg: 'bg-emerald-50 text-emerald-600 border border-emerald-200/60 dark:bg-emerald-950/50 dark:text-emerald-400' },
-  { id: 'emp-5', title: 'Matt Riner Balaba', subtitle: 'Trainer • TQA • ID: 1954', badge: 'Trainer', tabId: 'attendance', icon: User, iconBg: 'bg-emerald-50 text-emerald-600 border border-emerald-200/60 dark:bg-emerald-950/50 dark:text-emerald-400' },
-  { id: 'emp-6', title: 'Rommel Mendoza', subtitle: 'Trainer • TQA • ID: 1035', badge: 'Trainer', tabId: 'attendance', icon: User, iconBg: 'bg-emerald-50 text-emerald-600 border border-emerald-200/60 dark:bg-emerald-950/50 dark:text-emerald-400' },
-  { id: 'emp-7', title: 'Ronelyn Baguio', subtitle: 'Trainer • TQA • ID: 1820', badge: 'Trainer', tabId: 'attendance', icon: User, iconBg: 'bg-emerald-50 text-emerald-600 border border-emerald-200/60 dark:bg-emerald-950/50 dark:text-emerald-400' },
-  { id: 'emp-8', title: 'Krisland Pepito', subtitle: 'Trainer • TQA • ID: 836', badge: 'Trainer', tabId: 'attendance', icon: User, iconBg: 'bg-emerald-50 text-emerald-600 border border-emerald-200/60 dark:bg-emerald-950/50 dark:text-emerald-400' },
-  { id: 'emp-9', title: 'Niño Elijah R. Reyes', subtitle: 'Trainer • TQA • ID: 1006', badge: 'Trainer', tabId: 'attendance', icon: User, iconBg: 'bg-emerald-50 text-emerald-600 border border-emerald-200/60 dark:bg-emerald-950/50 dark:text-emerald-400' },
-  { id: 'emp-10', title: 'Kier Ariola', subtitle: 'Trainer • TQA • ID: 1880', badge: 'Trainer', tabId: 'attendance', icon: User, iconBg: 'bg-emerald-50 text-emerald-600 border border-emerald-200/60 dark:bg-emerald-950/50 dark:text-emerald-400' },
-  { id: 'emp-11', title: 'Vincent Luis Celdran', subtitle: 'Trainer • TQA • ID: 946', badge: 'Trainer', tabId: 'attendance', icon: User, iconBg: 'bg-emerald-50 text-emerald-600 border border-emerald-200/60 dark:bg-emerald-950/50 dark:text-emerald-400' },
-  { id: 'emp-12', title: 'Nina Joy Briones', subtitle: 'Trainer • TQA • ID: 2298', badge: 'Trainer', tabId: 'attendance', icon: User, iconBg: 'bg-emerald-50 text-emerald-600 border border-emerald-200/60 dark:bg-emerald-950/50 dark:text-emerald-400' },
-  { id: 'emp-13', title: 'Maegan Marie Cabardo', subtitle: 'Trainer • TQA • ID: 2610', badge: 'Trainer', tabId: 'attendance', icon: User, iconBg: 'bg-emerald-50 text-emerald-600 border border-emerald-200/60 dark:bg-emerald-950/50 dark:text-emerald-400' },
 ];
 
 export default function CompanyTopNav({
@@ -193,6 +179,7 @@ export default function CompanyTopNav({
   const [searchQuery, setSearchQuery] = useState('');
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [selectedIndex, setSelectedIndex] = useState(0);
+  const [employeeSearchItems, setEmployeeSearchItems] = useState<SearchItem[]>([]);
   const searchInputRef = useRef<HTMLInputElement>(null);
   const searchContainerRef = useRef<HTMLDivElement>(null);
 
@@ -204,6 +191,26 @@ export default function CompanyTopNav({
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
   const [notifications, setNotifications] = useState<SystemActivityLog[]>([]);
   const notifRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    let active = true;
+    fetch('/api/team-roster')
+      .then((response) => response.json())
+      .then((result) => {
+        if (!active || !result.success || !Array.isArray(result.data)) return;
+        setEmployeeSearchItems(result.data.map((employee: any) => ({
+          id: `employee-${employee.employee_id || employee.id}`,
+          title: employee.name || '',
+          subtitle: [employee.position, employee.account, employee.employee_id].filter(Boolean).join(' · '),
+          badge: employee.role || 'Employee',
+          tabId: 'attendance',
+          icon: User,
+          iconBg: 'bg-blue-50 text-blue-600 border border-blue-200/60 dark:bg-blue-950/50 dark:text-blue-400',
+        })));
+      })
+      .catch((error) => console.error('Failed to load employee search data:', error));
+    return () => { active = false; };
+  }, []);
 
   // Sync notifications
   useEffect(() => {
@@ -235,9 +242,10 @@ export default function CompanyTopNav({
   const isHeadOrAdmin = isHeadOrAdminUser(supervisor);
 
   const availableSearchItems = useMemo(() => {
-    if (isHeadOrAdmin) return SEARCH_ITEMS;
-    return SEARCH_ITEMS.filter((item) => item.tabId !== 'attendance' && item.tabId !== 'analytics');
-  }, [isHeadOrAdmin]);
+    const allItems = [...SEARCH_ITEMS, ...employeeSearchItems];
+    if (isHeadOrAdmin) return allItems;
+    return allItems.filter((item) => item.tabId !== 'attendance' && item.tabId !== 'analytics');
+  }, [isHeadOrAdmin, employeeSearchItems]);
 
   const filteredItems = useMemo(() => {
     if (!searchQuery.trim()) return availableSearchItems;
@@ -593,7 +601,7 @@ export default function CompanyTopNav({
                     </div>
                     <div className="min-w-0 flex-1">
                       <h4 className="text-xs font-bold text-[#0F172A] dark:text-[#F8F8F6] truncate leading-tight">
-                        {supervisor.name || 'Nissi-Jeh Reguero'}
+                        {supervisor.name}
                       </h4>
                       <p className="text-[10px] text-[#94A3B8] truncate leading-tight mt-0.5">
                         {supervisor.email || 'nreguero.telenet@gmail.com'}
@@ -602,7 +610,7 @@ export default function CompanyTopNav({
                   </div>
                   <div className="mt-2">
                     <span className="inline-block px-2 py-0.5 rounded-full text-[9.5px] font-bold text-[#2F6798] dark:text-[#3678B0] bg-[#2F6798]/10 dark:bg-[#3678B0]/20 border border-[#2F6798]/20 dark:border-[#3678B0]/40 tracking-wider uppercase">
-                      {supervisor.position || supervisor.role || 'HEAD OF TRAINING'}
+                      {supervisor.position || supervisor.role}
                     </span>
                   </div>
                 </div>

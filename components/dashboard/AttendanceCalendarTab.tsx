@@ -55,6 +55,7 @@ interface EmployeeAttendanceRow {
   startDate: string;
   position: string;
   name: string;
+  account?: string;
   attendanceByDay: Record<number, AttendanceStatus>;
 }
 
@@ -122,169 +123,6 @@ function getNoteForEmployee(
   return '';
 }
 
-// Full trainer and supervisor team dataset matching exact database IDs
-const TEAM_ATTENDANCE_DATA: EmployeeAttendanceRow[] = [
-  {
-    id: '1597',
-    startDate: '1/3/2024',
-    position: 'Head of Training',
-    name: 'Nissi-Jeh Reguero',
-    attendanceByDay: {
-      1: 'L', 2: 'P', 3: 'P', 4: 'U', 5: 'RD', 6: 'RD',
-      7: 'P', 8: 'U', 9: 'U', 10: 'U', 11: 'P', 12: 'RD', 13: 'RD',
-      14: 'L', 15: 'P', 16: 'P',
-    },
-  },
-  {
-    id: '1108',
-    startDate: '6/29/2023',
-    position: 'Head of Quality',
-    name: 'Raymundo Alasagas III',
-    attendanceByDay: {
-      1: 'A', 2: 'A', 3: 'A', 4: 'A', 5: 'RD', 6: 'RD',
-      7: 'A', 8: 'A', 9: 'A', 10: 'A', 11: 'A', 12: 'RD', 13: 'RD',
-      14: 'A', 15: 'A', 16: 'P',
-    },
-  },
-  {
-    id: '1772',
-    startDate: '5/2/2024',
-    position: 'Trainer',
-    name: 'Bianca Kaye Ernestine Colonia',
-    attendanceByDay: {
-      1: 'U', 2: 'L', 3: 'P', 4: 'L', 5: 'RD', 6: 'RD',
-      7: 'A', 8: 'L', 9: 'L', 10: 'L', 11: 'P', 12: 'RD', 13: 'RD',
-      14: 'P', 15: 'L', 16: 'P',
-    },
-  },
-  {
-    id: '2385',
-    startDate: '9/17/2025',
-    position: 'Trainer',
-    name: 'Michelle Yncierto',
-    attendanceByDay: {
-      1: 'U', 2: 'L', 3: 'P', 4: 'L', 5: 'RD', 6: 'RD',
-      7: 'A', 8: 'P', 9: 'L', 10: 'L', 11: 'L', 12: 'RD', 13: 'RD',
-      14: 'P', 15: 'P', 16: 'P',
-    },
-  },
-  {
-    id: '1035',
-    startDate: '11/24/2022',
-    position: 'Trainer',
-    name: 'Rommel Mendoza',
-    attendanceByDay: {
-      1: 'L', 2: 'L', 3: 'L', 4: 'L', 5: 'RD', 6: 'RD',
-      7: 'L', 8: 'L', 9: 'L', 10: 'L', 11: 'A', 12: 'RD', 13: 'RD',
-      14: 'L', 15: 'L', 16: 'P',
-    },
-  },
-  {
-    id: '1820',
-    startDate: '6/3/2024',
-    position: 'Trainer',
-    name: 'Ronelyn Baguio',
-    attendanceByDay: {
-      1: 'L', 2: 'L', 3: 'P', 4: 'P', 5: 'RD', 6: 'RD',
-      7: 'P', 8: 'P', 9: 'L', 10: 'P', 11: 'P', 12: 'RD', 13: 'RD',
-      14: 'A', 15: 'L', 16: 'P',
-    },
-  },
-  {
-    id: '836',
-    startDate: '7/20/2022',
-    position: 'Trainer',
-    name: 'Krisland Pepito',
-    attendanceByDay: {
-      1: 'A', 2: 'A', 3: 'A', 4: 'A', 5: 'RD', 6: 'RD',
-      7: 'A', 8: 'U', 9: 'P', 10: 'L', 11: 'L', 12: 'RD', 13: 'RD',
-      14: 'P', 15: 'P', 16: 'P',
-    },
-  },
-  {
-    id: '1006',
-    startDate: '11/7/2022',
-    position: 'Trainer',
-    name: 'Niño Elijah R. Reyes',
-    attendanceByDay: {
-      1: 'P', 2: 'P', 3: 'L', 4: 'P', 5: 'RD', 6: 'RD',
-      7: 'A', 8: 'P', 9: 'L', 10: 'P', 11: 'P', 12: 'RD', 13: 'RD',
-      14: 'P', 15: 'A', 16: 'L',
-    },
-  },
-  {
-    id: '1880',
-    startDate: '7/18/2024',
-    position: 'Trainer',
-    name: 'Kier Ariola',
-    attendanceByDay: {
-      1: 'L', 2: 'P', 3: 'P', 4: 'L', 5: 'RD', 6: 'RD',
-      7: 'A', 8: 'L', 9: 'U', 10: 'P', 11: 'P', 12: 'RD', 13: 'RD',
-      14: 'P', 15: 'P', 16: 'P',
-    },
-  },
-  {
-    id: '946',
-    startDate: '10/5/2022',
-    position: 'Trainer',
-    name: 'Vincent Luis Celdran',
-    attendanceByDay: {
-      1: 'L', 2: 'L', 3: 'P', 4: 'L', 5: 'RD', 6: 'RD',
-      7: 'A', 8: 'L', 9: 'L', 10: 'P', 11: 'L', 12: 'RD', 13: 'RD',
-      14: 'L', 15: 'L', 16: 'P',
-    },
-  },
-  {
-    id: '2298',
-    startDate: '4/8/2026',
-    position: 'Trainer',
-    name: 'Nina Joy Briones',
-    attendanceByDay: {
-      1: 'P', 2: 'P', 3: 'P', 4: 'P', 5: 'RD', 6: 'RD',
-      7: 'A', 8: 'L', 9: 'P', 10: 'P', 11: 'L', 12: 'RD', 13: 'RD',
-      14: 'P', 15: 'L', 16: 'P',
-    },
-  },
-  {
-    id: '1954',
-    startDate: '4/8/2026',
-    position: 'Trainer',
-    name: 'Matt Riner Balaba',
-    attendanceByDay: {
-      1: 'L', 2: 'A', 3: 'P', 4: 'A', 5: 'RD', 6: 'RD',
-      7: 'A', 8: 'A', 9: 'L', 10: 'A', 11: 'A', 12: 'RD', 13: 'RD',
-      14: 'P', 15: 'P', 16: 'P',
-    },
-  },
-  {
-    id: '2610',
-    startDate: '6/2/2026',
-    position: 'Trainer',
-    name: 'Maegan Marie Cabardo',
-    attendanceByDay: {
-      1: 'P', 2: 'P', 3: 'L', 4: 'U', 5: 'RD', 6: 'RD',
-      7: 'A', 8: 'U', 9: 'L', 10: 'L', 11: 'L', 12: 'RD', 13: 'RD',
-      14: 'P', 15: 'L', 16: 'P',
-    },
-  },
-];
-
-const DAYS_NAME_SEP_2026 = [
-  'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN',
-  'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN',
-  'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN',
-  'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN',
-  'MON', 'TUE'
-];
-
-const FULL_DAY_NAMES = [
-  'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday',
-  'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday',
-  'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday',
-  'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday',
-  'Monday', 'Tuesday'
-];
-
 type RangeViewOption = 'all_30' | 'period_1' | 'period_2' | 'current_week';
 
 export default function AttendanceCalendarTab({
@@ -297,11 +135,11 @@ export default function AttendanceCalendarTab({
 }: AttendanceCalendarTabProps) {
   const [viewFormat, setViewFormat] = useState<'matrix' | 'google-calendar'>('matrix');
   const [rangeView, setRangeView] = useState<RangeViewOption>('all_30');
-  const [currentMonthIndex, setCurrentMonthIndex] = useState(8); // September (0-indexed)
-  const [currentYear, setCurrentYear] = useState(2026);
+  const [currentMonthIndex, setCurrentMonthIndex] = useState(new Date().getMonth());
+  const [currentYear, setCurrentYear] = useState(new Date().getFullYear());
   const [selectedStatusFilter, setSelectedStatusFilter] = useState<string>('all');
   const [selectedIndividualEmployee, setSelectedIndividualEmployee] = useState<string>(
-    supervisorName || 'Nissi-Jeh Reguero'
+    supervisorName || ''
   );
 
   // Synchronously load existing local overrides to prevent flicker or resets
@@ -326,39 +164,7 @@ export default function AttendanceCalendarTab({
   });
 
   // Dynamic Database Team Roster List with immediate override integration on first mount
-  const [attendanceDataList, setAttendanceDataList] = useState<EmployeeAttendanceRow[]>(() => {
-    let localSaved: Record<string, AttendanceStatus> = {};
-    if (typeof window !== 'undefined') {
-      try {
-        const saved = localStorage.getItem('attendance_overrides_v1');
-        if (saved) localSaved = JSON.parse(saved);
-      } catch (e) {}
-    }
-
-    const initialRows = TEAM_ATTENDANCE_DATA.map((row) => {
-      const mergedAttendance = { ...row.attendanceByDay };
-      for (let d = 1; d <= 31; d++) {
-        const override = getOverrideForEmployee(row.id, row.name, 2026, 8, d, localSaved);
-        if (override !== undefined) {
-          mergedAttendance[d] = override;
-        }
-      }
-      return {
-        ...row,
-        id: `emp-${row.id}`,
-        attendanceByDay: mergedAttendance,
-      };
-    });
-
-    if (!isHeadOrAdmin && supervisorName) {
-      const sName = supervisorName.toLowerCase().trim();
-      const filtered = initialRows.filter(
-        (e) => (sName && (e.name.toLowerCase().trim().includes(sName) || sName.includes(e.name.toLowerCase().trim())))
-      );
-      return filtered.length > 0 ? filtered : initialRows.slice(0, 1);
-    }
-    return initialRows;
-  });
+  const [attendanceDataList, setAttendanceDataList] = useState<EmployeeAttendanceRow[]>([]);
 
   // Detail Modal States
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
@@ -420,7 +226,7 @@ export default function AttendanceCalendarTab({
       employeeName: emp.name,
       employeeId: emp.id,
       position: emp.position,
-      account: 'TRAINING',
+      account: emp.account || '',
       dayNumber: dayNum,
       currentStatus: emp.attendanceByDay[dayNum] || null,
       currentNote,
@@ -673,14 +479,7 @@ export default function AttendanceCalendarTab({
           } catch (e) {}
         }
 
-        const rosterData: any[] = rosterJson.success && Array.isArray(rosterJson.data) && rosterJson.data.length > 0
-          ? rosterJson.data
-          : TEAM_ATTENDANCE_DATA.map((e) => ({
-              employee_id: e.id,
-              name: e.name,
-              position: e.position,
-              hire_date: e.startDate,
-            }));
+        const rosterData: any[] = rosterJson.success && Array.isArray(rosterJson.data) ? rosterJson.data : [];
 
         const punchLogs: any[] = punchJson.success && Array.isArray(punchJson.data) ? punchJson.data : [];
 
@@ -725,20 +524,10 @@ export default function AttendanceCalendarTab({
           // Compute exact daily attendance status for days 1 to totalDaysInMonth
           const attendanceMap: Record<number, AttendanceStatus> = {};
           for (let d = 1; d <= totalDaysInMonth; d++) {
-            const cellDate = new Date(currentYear, currentMonthIndex, d);
-            const dayOfWeek = cellDate.getDay(); // 0 = Sunday, 6 = Saturday
-            const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
-
             const manualOverride = getOverrideForEmployee(empCode, r.name, currentYear, currentMonthIndex, d, combinedOverrides);
 
             if (manualOverride !== undefined) {
               attendanceMap[d] = manualOverride;
-              continue;
-            }
-
-            // Saturday & Sunday are ALWAYS automatically Rest Day (RD) for any month
-            if (isWeekend) {
-              attendanceMap[d] = 'RD';
               continue;
             }
 
@@ -777,25 +566,17 @@ export default function AttendanceCalendarTab({
             } else if (isFutureDate) {
               // Future weekdays default to the clear tag (-)
               attendanceMap[d] = null;
-            } else if (currentMonthIndex === 8 && currentYear === 2026) {
-              // Past days in September 2026: keep baseline demo data or 'A' (Absent) for past un-punched workdays
-              const baseData = TEAM_ATTENDANCE_DATA.find((t) => t.name.toLowerCase() === r.name.toLowerCase());
-              if (baseData?.attendanceByDay[d]) {
-                attendanceMap[d] = baseData.attendanceByDay[d];
-              } else {
-                attendanceMap[d] = 'A';
-              }
             } else {
-              // Other past weekdays without logs remain Absent
-              attendanceMap[d] = 'A';
+              attendanceMap[d] = null;
             }
           }
 
           return {
             id: `emp-${empCode}`,
             name: r.name,
-            startDate: r.hire_date || '1/3/2024',
-            position: r.position || 'Trainer',
+            startDate: r.hire_date || '',
+            position: r.position || '',
+            account: r.account || '',
             attendanceByDay: attendanceMap,
           };
         });
@@ -806,7 +587,7 @@ export default function AttendanceCalendarTab({
             const rName = (r.name || '').toLowerCase().trim();
             return (sName && (rName === sName || rName.includes(sName) || sName.includes(rName))) || (supervisorId && r.id === `emp-${supervisorId}`);
           });
-          setAttendanceDataList(filtered.length > 0 ? filtered : mapped.slice(0, 1));
+          setAttendanceDataList(filtered);
         } else {
           setAttendanceDataList(mapped);
         }

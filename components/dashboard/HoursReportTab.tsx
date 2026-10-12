@@ -10,8 +10,9 @@ import {
   RefreshCw
 } from 'lucide-react';
 import { RosterEmployee } from './RosterTable';
-import { PunchLogItem, INITIAL_PUNCH_LOGS } from '@/lib/punchLogs';
+import { PunchLogItem } from '@/lib/punchLogs';
 import DatePickerPopover from './DatePickerPopover';
+import { getShiftDate } from '@/lib/shiftSchedule';
 
 interface HoursReportTabProps {
   employees?: RosterEmployee[];
@@ -37,19 +38,6 @@ interface TeamMemberHours {
   breakLimitMins: number;
 }
 
-function assignShiftDay(date: Date): { year: number; month: number; day: number } {
-  const h = date.getHours();
-  const shiftDate = new Date(date);
-  if (h < 9) {
-    shiftDate.setDate(shiftDate.getDate() - 1);
-  }
-  return {
-    year: shiftDate.getFullYear(),
-    month: shiftDate.getMonth(),
-    day: shiftDate.getDate(),
-  };
-}
-
 function computeShiftHoursAndBreaksForDay(
   empCode: string,
   empName: string,
@@ -57,7 +45,8 @@ function computeShiftHoursAndBreaksForDay(
   month: number, // 0-indexed
   day: number,
   allLogs: any[],
-  overrides: Record<string, string>
+  overrides: Record<string, string>,
+  shiftSchedule?: string
 ): { hours: number; breakMins: number } {
   // Check override
   const fullDateKey = `${empCode}-${year}-${month}-${day}`;
@@ -90,7 +79,8 @@ function computeShiftHoursAndBreaksForDay(
     if (!rawTs) return false;
     const d = new Date(rawTs);
     if (isNaN(d.getTime())) return false;
-    const shift = assignShiftDay(d);
+    const shiftDate = getShiftDate(d, shiftSchedule);
+    const shift = { year: shiftDate.getFullYear(), month: shiftDate.getMonth(), day: shiftDate.getDate() };
     return shift.year === year && shift.month === month && shift.day === day;
   });
 
@@ -185,9 +175,9 @@ export default function HoursReportTab({
   supervisorName,
 }: HoursReportTabProps = {}) {
   const [viewMode, setViewMode] = useState<'Daily' | 'Weekly' | 'Monthly'>('Daily');
-  const [selectedDate, setSelectedDate] = useState<string>('2026-09-16');
+  const [selectedDate, setSelectedDate] = useState<string>(() => new Date().toISOString().slice(0, 10));
   const [dbEmployees, setDbEmployees] = useState<any[]>([]);
-  const [punchLogs, setPunchLogs] = useState<PunchLogItem[]>(INITIAL_PUNCH_LOGS);
+  const [punchLogs, setPunchLogs] = useState<PunchLogItem[]>([]);
   const [attendanceOverrides, setAttendanceOverrides] = useState<Record<string, string>>({});
   const [isLoading, setIsLoading] = useState<boolean>(false);
 
@@ -281,18 +271,20 @@ export default function HoursReportTab({
           id: e.id,
           employeeCode: e.employeeCode,
           name: e.name,
-          position: (e.department || '').includes('Quality') || (e.department || '').includes('QA') ? 'Head of Quality' : 'Trainer',
-          department: e.department || 'Training',
-          account: e.account || 'Corporate',
+          position: e.position || '',
+          department: e.department || '',
+          account: e.account || '',
+          shift: e.shiftTime || '',
         }))
       : (dbEmployees && dbEmployees.length > 0)
       ? dbEmployees.map((r: any) => ({
           id: String(r.id || r.employee_id),
           employeeCode: String(r.employee_id || r.id),
           name: r.name,
-          position: r.position || 'Trainer',
-          department: r.department || 'Training',
-          account: r.account || 'Corporate',
+          position: r.position || '',
+          department: r.department || '',
+          account: r.account || '',
+          shift: r.shift || '',
         }))
       : [];
 
@@ -306,9 +298,10 @@ export default function HoursReportTab({
     if (rosterSource.length === 0) return [];
 
     const selDateObj = new Date(selectedDate);
-    const selYear = isNaN(selDateObj.getTime()) ? 2026 : selDateObj.getFullYear();
-    const selMonth = isNaN(selDateObj.getTime()) ? 8 : selDateObj.getMonth(); // 0-indexed
-    const selDay = isNaN(selDateObj.getTime()) ? 16 : selDateObj.getDate();
+    const validDate = isNaN(selDateObj.getTime()) ? new Date() : selDateObj;
+    const selYear = validDate.getFullYear();
+    const selMonth = validDate.getMonth(); // 0-indexed
+    const selDay = validDate.getDate();
 
     // Target configuration based on view mode
     const targetHours = viewMode === 'Daily' ? 8.00 : viewMode === 'Weekly' ? 40.00 : 160.00;
@@ -328,7 +321,8 @@ export default function HoursReportTab({
           selMonth,
           selDay,
           punchLogs,
-          attendanceOverrides
+          attendanceOverrides,
+          emp.shift
         );
         singleDayHours = stats.hours;
         computedWorkHours = stats.hours;
@@ -352,7 +346,8 @@ export default function HoursReportTab({
             d.getMonth(),
             d.getDate(),
             punchLogs,
-            attendanceOverrides
+            attendanceOverrides,
+            emp.shift
           );
           sumHours += stats.hours;
           sumBreaks += stats.breakMins;
@@ -377,7 +372,8 @@ export default function HoursReportTab({
             selMonth,
             d,
             punchLogs,
-            attendanceOverrides
+            attendanceOverrides,
+            emp.shift
           );
           sumHours += stats.hours;
           sumBreaks += stats.breakMins;

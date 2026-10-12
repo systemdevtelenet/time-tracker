@@ -11,9 +11,12 @@ import {
   Briefcase, 
   Clock, 
   ChevronDown, 
-  RefreshCw 
+  RefreshCw,
+  Save,
+  X,
 } from 'lucide-react';
 import { RosterEmployee } from './RosterTable';
+import { showToast } from '@/lib/toast';
 
 export interface EmployeeDetailRecord {
   id: string;
@@ -28,6 +31,19 @@ export interface EmployeeDetailRecord {
   department: string;
   startDate: string;
   tenureMonths: number;
+}
+
+function shiftTimeToInput(value: string): string {
+  const match = value.match(/(\d{1,2}):(\d{2})\s*(AM|PM)/i);
+  if (!match) return '';
+  let hour = Number(match[1]) % 12;
+  if (match[3].toUpperCase() === 'PM') hour += 12;
+  return `${String(hour).padStart(2, '0')}:${match[2]}`;
+}
+
+function splitShiftRange(value: string): [string, string] {
+  const [start = '', end = ''] = value.split(/\s*(?:–|—|-|to)\s*/i);
+  return [shiftTimeToInput(start), shiftTimeToInput(end)];
 }
 
 interface EmployeeDetailsTabProps {
@@ -52,37 +68,46 @@ export default function EmployeeDetailsTab({
   const [rowsPerPage, setRowsPerPage] = useState(10);
   const [currentPage, setCurrentPage] = useState(1);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [scheduleTarget, setScheduleTarget] = useState<EmployeeDetailRecord | null>(null);
+  const [scheduleStart, setScheduleStart] = useState('');
+  const [scheduleEnd, setScheduleEnd] = useState('');
+  const [scheduleType, setScheduleType] = useState('');
+  const [isSavingSchedule, setIsSavingSchedule] = useState(false);
 
-  // Fetch actual live data directly from Supabase database table team_roster
+  // The roster endpoint reads the HR employees, positions, roles, and account assignment tables.
   const fetchLiveRosterFromDb = async () => {
     try {
       setIsLoading(true);
       const res = await fetch('/api/team-roster');
       const json = await res.json();
 
-      if (json.success && Array.isArray(json.data) && json.data.length > 0) {
+      if (json.success && Array.isArray(json.data)) {
         const mapped: EmployeeDetailRecord[] = json.data.map((r: any) => ({
           id: String(r.id || r.employee_id),
           employeeId: String(r.employee_id || r.id),
-          name: r.name || 'Unknown',
-          userType: (r.role || 'user').toLowerCase(),
-          shiftTime: r.shift || '9:00 PM to 6:00 AM',
-          shiftType: r.shift_type || 'Night Shift',
-          position: r.position || 'Trainer',
-          clientAccount: r.account || 'Corporate',
-          supervisor: r.supervisor || 'Nissi-Jeh Reguero',
-          department: r.department || 'TQA',
-          startDate: r.hire_date || '1/3/2024',
-          tenureMonths: Number(r.tenure) || 12,
+          name: r.name || '',
+          userType: (r.userRole || '').toLowerCase(),
+          shiftTime: r.shift || '',
+          shiftType: r.shift_type || '',
+          position: r.position || '',
+          clientAccount: r.account || '',
+          supervisor: r.supervisor || '',
+          department: r.department || '',
+          startDate: r.hire_date || '',
+          tenureMonths: r.hire_date
+            ? Math.max(0, Math.floor((Date.now() - new Date(r.hire_date).getTime()) / (1000 * 60 * 60 * 24 * 30.4375)))
+            : 0,
         }));
 
         if (!isHeadOrAdmin && supervisorName) {
           const sName = supervisorName.toLowerCase().trim();
           const filtered = mapped.filter((r) => r.name.toLowerCase().trim().includes(sName) || sName.includes(r.name.toLowerCase().trim()));
-          setDbEmployees(filtered.length > 0 ? filtered : mapped.slice(0, 1));
+          setDbEmployees(filtered);
         } else {
           setDbEmployees(mapped);
         }
+      } else {
+        setDbEmployees([]);
       }
     } catch (err) {
       console.error('Failed to load database roster:', err);
@@ -99,6 +124,49 @@ export default function EmployeeDetailsTab({
   const handleRefresh = () => {
     setIsRefreshing(true);
     fetchLiveRosterFromDb();
+  };
+
+  const openScheduleEditor = (employee: EmployeeDetailRecord) => {
+    const [start, end] = splitShiftRange(employee.shiftTime);
+    setScheduleTarget(employee);
+    setScheduleStart(start);
+    setScheduleEnd(end);
+    setScheduleType(employee.shiftType);
+  };
+
+  const handleSaveSchedule = async () => {
+    if (!scheduleTarget || isSavingSchedule) return;
+    setIsSavingSchedule(true);
+    try {
+      const response = await fetch('/api/employee-schedules', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          employee_code: scheduleTarget.employeeId,
+          shift_start: scheduleStart,
+          shift_end: scheduleEnd,
+          shift_type: scheduleType,
+        }),
+      });
+      const payload = await response.json();
+      if (!response.ok || !payload.success) throw new Error(payload.error || 'Could not save schedule.');
+
+      const saved = payload.data;
+      setDbEmployees((current) => current.map((employee) => employee.employeeId === scheduleTarget.employeeId
+        ? { ...employee, shiftTime: saved.shift, shiftType: saved.shift_type }
+        : employee));
+      window.dispatchEvent(new CustomEvent('work-schedule-updated', { detail: saved }));
+      showToast({ title: 'Schedule updated', message: `The work schedule for ${scheduleTarget.name} was saved.`, type: 'success' });
+      setScheduleTarget(null);
+    } catch (error) {
+      showToast({
+        title: 'Schedule not saved',
+        message: error instanceof Error ? error.message : 'Please try again.',
+        type: 'error',
+      });
+    } finally {
+      setIsSavingSchedule(false);
+    }
   };
 
   const isCurrentUser = (emp: EmployeeDetailRecord) => {
@@ -357,12 +425,12 @@ export default function EmployeeDetailsTab({
 
                       {/* 4. Shift Time */}
                       <td className="py-3 px-3 font-semibold text-xs text-slate-800 dark:text-slate-200 whitespace-nowrap">
-                        {emp.shiftTime}
+                        {emp.shiftTime || 'Not set'}
                       </td>
 
                       {/* 5. Shift Type */}
                       <td className="py-3 px-3 font-bold text-xs text-slate-900 dark:text-slate-100 whitespace-nowrap">
-                        {emp.shiftType}
+                        {emp.shiftType || 'Not set'}
                       </td>
 
                       {/* 6. Position */}
@@ -397,6 +465,17 @@ export default function EmployeeDetailsTab({
 
                       {/* 12. Actions: Calendar Button */}
                       <td className="py-3 px-3 text-right whitespace-nowrap">
+                        <div className="inline-flex items-center justify-end gap-1.5">
+                        {isHeadOrAdmin && (
+                          <button
+                            type="button"
+                            onClick={() => openScheduleEditor(emp)}
+                            className="px-2.5 py-1 rounded-lg bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 hover:bg-amber-100 dark:hover:bg-amber-900/50 transition-all text-[11px] font-bold cursor-pointer inline-flex items-center gap-1 shadow-2xs"
+                          >
+                            <Clock className="w-3 h-3" />
+                            <span>Schedule</span>
+                          </button>
+                        )}
                         <button
                           type="button"
                           onClick={() => {
@@ -416,6 +495,8 @@ export default function EmployeeDetailsTab({
                                 trafficLight: 'GREEN',
                                 department: emp.department,
                                 account: emp.clientAccount,
+                                shiftTime: emp.shiftTime,
+                                shiftType: emp.shiftType,
                               });
                             }
                           }}
@@ -424,6 +505,7 @@ export default function EmployeeDetailsTab({
                           <Calendar className="w-3 h-3" />
                           <span>Calendar</span>
                         </button>
+                        </div>
                       </td>
 
                     </tr>
@@ -486,6 +568,45 @@ export default function EmployeeDetailsTab({
 
       </div>
 
+      {scheduleTarget && (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-slate-950/50 p-4" role="presentation" onMouseDown={(event) => {
+          if (event.target === event.currentTarget && !isSavingSchedule) setScheduleTarget(null);
+        }}>
+          <section className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-5 shadow-2xl dark:border-slate-700 dark:bg-[#111C3D]" role="dialog" aria-modal="true" aria-labelledby="schedule-dialog-title">
+            <div className="mb-4 flex items-start justify-between gap-4">
+              <div>
+                <h3 id="schedule-dialog-title" className="text-base font-extrabold text-slate-900 dark:text-white">Work schedule</h3>
+                <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">{scheduleTarget.name} · {scheduleTarget.employeeId}</p>
+              </div>
+              <button type="button" disabled={isSavingSchedule} onClick={() => setScheduleTarget(null)} className="rounded-lg p-1.5 text-slate-500 hover:bg-slate-100 disabled:opacity-50 dark:hover:bg-slate-800" aria-label="Close schedule editor">
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <label className="text-[10px] font-bold uppercase tracking-wide text-slate-500 dark:text-slate-400">
+                Start time
+                <input type="time" value={scheduleStart} onChange={(event) => setScheduleStart(event.target.value)} className="mt-1.5 w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm font-semibold text-slate-800 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100" required />
+              </label>
+              <label className="text-[10px] font-bold uppercase tracking-wide text-slate-500 dark:text-slate-400">
+                End time
+                <input type="time" value={scheduleEnd} onChange={(event) => setScheduleEnd(event.target.value)} className="mt-1.5 w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm font-semibold text-slate-800 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100" required />
+              </label>
+              <label className="col-span-2 text-[10px] font-bold uppercase tracking-wide text-slate-500 dark:text-slate-400">
+                Shift label
+                <input type="text" value={scheduleType} onChange={(event) => setScheduleType(event.target.value)} maxLength={80} placeholder="Optional" className="mt-1.5 w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm font-semibold text-slate-800 placeholder:font-normal placeholder:text-slate-400 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100" />
+              </label>
+            </div>
+            <p className="mt-3 text-[11px] text-slate-500 dark:text-slate-400">Times are saved in the company time zone. A new schedule keeps the previous assignment in history.</p>
+            <div className="mt-5 flex justify-end gap-2">
+              <button type="button" disabled={isSavingSchedule} onClick={() => setScheduleTarget(null)} className="rounded-xl border border-slate-200 px-3.5 py-2 text-xs font-bold text-slate-600 hover:bg-slate-50 disabled:opacity-50 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800">Cancel</button>
+              <button type="button" disabled={isSavingSchedule || !scheduleStart || !scheduleEnd || scheduleStart === scheduleEnd} onClick={handleSaveSchedule} className="inline-flex items-center gap-1.5 rounded-xl bg-[#2F6798] px-3.5 py-2 text-xs font-bold text-white hover:bg-[#24537C] disabled:cursor-not-allowed disabled:opacity-50">
+                <Save className="h-3.5 w-3.5" />
+                {isSavingSchedule ? 'Saving…' : 'Save schedule'}
+              </button>
+            </div>
+          </section>
+        </div>
+      )}
     </div>
   );
 }

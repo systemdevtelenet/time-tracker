@@ -1,95 +1,70 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { getSupabaseAdmin } from '@/lib/supabase/server';
-import { INITIAL_TEAM_ROSTER } from '@/lib/teamRoster';
 import { getTimeTrackerEmployeesFromDb } from '@/lib/timeTrackerDb';
 import { getCachedData, setCachedData } from '@/lib/serverCache';
+import { getActiveEmployeeAccess } from '@/lib/employeeAccess';
 
 export const dynamic = 'force-dynamic';
 
-const META_CACHE_KEY = 'api_meta_data';
-const META_CACHE_TTL_SECONDS = 300; // 5 minutes
+const META_CACHE_KEY = 'api_meta_data_v3';
+const META_CACHE_TTL_SECONDS = 300;
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
-    // Check in-memory cache
+    const access = await getActiveEmployeeAccess(request);
+    if (!access) return NextResponse.json({ error: 'Please sign in to continue.' }, { status: 401 });
+
     const cached = getCachedData<any>(META_CACHE_KEY);
     if (cached) {
-      return NextResponse.json(cached, {
+      const visible = access.canManageAttendance ? cached : {
+        ...cached,
+        employees: cached.employees.filter((employee: { employee_id?: string }) => employee.employee_id === access.employeeCode),
+        roster: cached.roster.filter((employee: { employee_id?: string }) => employee.employee_id === access.employeeCode),
+      };
+      return NextResponse.json(visible, {
         headers: {
-          'Cache-Control': 'public, s-maxage=60, stale-while-revalidate=300',
+          'Cache-Control': 'private, max-age=60, stale-while-revalidate=300',
           'X-Cache': 'HIT',
         },
       });
     }
 
     const supabase = getSupabaseAdmin();
+    const [employees, accountsResult, positionsResult] = await Promise.all([
+      getTimeTrackerEmployeesFromDb(),
+      supabase.from('accounts')
+        .select('account_id, account_code, account_name')
+        .eq('is_active', true)
+        .order('account_code'),
+      supabase.from('positions')
+        .select('position_id, position_code, position_name')
+        .order('position_name'),
+    ]);
 
-    // Fetch accounts
-    const { data: accountsData } = await supabase
-      .from('accounts')
-      .select('account_id, account_code, account_name')
-      .order('account_code');
-
-    // 1. Fetch from time_tracker_employees (or team_roster fallback)
-    const employees = await getTimeTrackerEmployeesFromDb();
-
-    const finalEmployees = employees.length > 0 ? employees : INITIAL_TEAM_ROSTER.map((m) => ({
-      id: m.employee_id,
-      name: m.name,
-      email: `${m.name.toLowerCase().replace(/\s+/g, '.')}@cebutele-net.ph`,
-      role: m.position || m.role || 'Agent',
-      userRole: m.role || 'User',
-      position: m.position || 'Agent',
-      shift: m.shift,
-      shift_type: m.shift_type,
-      account: m.account,
-      supervisor: m.supervisor,
-      department: m.department,
-      hire_date: m.hire_date,
-      tenure: m.tenure,
-      traffic_light_status: m.traffic_light_status,
-    }));
-
-    // Fallback accounts if empty
-    const accounts = accountsData && accountsData.length > 0 
-      ? accountsData 
-      : [
-          { account_id: 1, account_code: 'DFT', account_name: 'DFT' },
-          { account_id: 2, account_code: 'RM', account_name: 'RM' },
-          { account_id: 3, account_code: 'BF', account_name: 'BF' },
-          { account_id: 4, account_code: 'XPN', account_name: 'XPN' },
-          { account_id: 5, account_code: 'JS', account_name: 'JS' },
-          { account_id: 6, account_code: 'FLEET', account_name: 'FLEET' },
-          { account_id: 7, account_code: 'HH', account_name: 'HH' },
-        ];
+    if (accountsResult.error) throw accountsResult.error;
+    if (positionsResult.error) throw positionsResult.error;
 
     const result = {
-      accounts,
-      employees: finalEmployees,
-      roster: finalEmployees,
+      accounts: accountsResult.data || [],
+      positions: positionsResult.data || [],
+      employees,
+      roster: employees,
     };
 
     setCachedData(META_CACHE_KEY, result, META_CACHE_TTL_SECONDS);
-
-    return NextResponse.json(result, {
+    const visible = access.canManageAttendance ? result : {
+      ...result,
+      employees: result.employees.filter((employee) => employee.employee_id === access.employeeCode),
+      roster: result.roster.filter((employee) => employee.employee_id === access.employeeCode),
+    };
+    return NextResponse.json(visible, {
       headers: {
-        'Cache-Control': 'public, s-maxage=60, stale-while-revalidate=300',
+        'Cache-Control': 'private, max-age=60, stale-while-revalidate=300',
         'X-Cache': 'MISS',
       },
     });
-  } catch (err: any) {
-    console.error('Error fetching meta info:', err);
-    return NextResponse.json(
-      {
-        accounts: [
-          { account_id: 1, account_code: 'DFT', account_name: 'DFT' },
-          { account_id: 2, account_code: 'RM', account_name: 'RM' },
-          { account_id: 3, account_code: 'BF', account_name: 'BF' },
-          { account_id: 4, account_code: 'XPN', account_name: 'XPN' },
-        ],
-        employees: [],
-      },
-      { status: 200 }
-    );
+  } catch (error) {
+    console.error('Error fetching employee metadata:', error);
+    return NextResponse.json({ error: 'Unable to load employee metadata.' }, { status: 500 });
   }
 }

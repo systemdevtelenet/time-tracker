@@ -1,11 +1,11 @@
-import React, { useState, useRef, useEffect, useMemo } from 'react';
-import { 
-  Users, 
-  CalendarDays, 
-  FileText, 
-  UserCheck, 
-  RotateCw, 
-  CheckCircle2, 
+﻿import React, { useState, useRef, useEffect, useMemo } from 'react';
+import {
+  Users,
+  CalendarDays,
+  FileText,
+  UserCheck,
+  RotateCw,
+  CheckCircle2,
   AlertTriangle,
   Clock,
   Coffee,
@@ -27,6 +27,7 @@ import DatePickerPopover from './DatePickerPopover';
 import { PhoneTimeRecord } from '@/lib/types';
 import { isHeadOrAdminUser } from './CompanySidebar';
 import { showToast } from '@/lib/toast';
+import { getShiftDate } from '@/lib/shiftSchedule';
 
 interface FilterDropdownProps {
   label: string;
@@ -141,248 +142,6 @@ export interface EmployeeShiftMeta {
   lastActive: string;
 }
 
-const createInitialMetas = (): EmployeeShiftMeta[] => {
-  const now = Date.now();
-  const t7h45m = now - (7 * 3600 + 45 * 60) * 1000;
-
-  return [
-    {
-      id: 'emp-1597',
-      name: 'Nissi-Jeh Reguero',
-      employeeCode: '1597',
-      department: 'TQA',
-      account: 'TRAINING',
-      trafficLight: 'GREEN',
-      status: 'working',
-      statusLabel: 'Active (Working)',
-      shiftStartMs: t7h45m,
-      shiftEndMs: null,
-      completedBreakSecs: 15 * 60,
-      completedLunchSecs: 0,
-      activeBreakStartMs: null,
-      activeLunchStartMs: null,
-      lastActive: new Date(now - 4 * 60 * 1000).toLocaleString(),
-    },
-    {
-      id: 'emp-1108',
-      name: 'Raymundo Alasagas III',
-      employeeCode: '1108',
-      department: 'TQA',
-      account: 'QUALITY',
-      trafficLight: 'GREEN',
-      status: 'working',
-      statusLabel: 'Active (Working)',
-      shiftStartMs: t7h45m,
-      shiftEndMs: null,
-      completedBreakSecs: 15 * 60,
-      completedLunchSecs: 0,
-      activeBreakStartMs: null,
-      activeLunchStartMs: null,
-      lastActive: new Date(now - 12 * 60 * 1000).toLocaleString(),
-    },
-    {
-      id: 'emp-1772',
-      name: 'Bianca Kaye Ernestine Colonia',
-      employeeCode: '1772',
-      department: 'TQA',
-      account: 'TRAINING',
-      trafficLight: 'GREEN',
-      status: 'working',
-      statusLabel: 'Active (Working)',
-      shiftStartMs: t7h45m,
-      shiftEndMs: null,
-      completedBreakSecs: 15 * 60,
-      completedLunchSecs: 0,
-      activeBreakStartMs: null,
-      activeLunchStartMs: null,
-      lastActive: new Date(now - 15 * 60 * 1000).toLocaleString(),
-    },
-    {
-      id: 'emp-2385',
-      name: 'Michelle Yncierto',
-      employeeCode: '2385',
-      department: 'TQA',
-      account: 'TRAINING',
-      trafficLight: 'GREEN',
-      status: 'working',
-      statusLabel: 'Active (Working)',
-      shiftStartMs: t7h45m,
-      shiftEndMs: null,
-      completedBreakSecs: 15 * 60,
-      completedLunchSecs: 0,
-      activeBreakStartMs: null,
-      activeLunchStartMs: null,
-      lastActive: new Date(now - 20 * 60 * 1000).toLocaleString(),
-    },
-    {
-      id: 'emp-1035',
-      name: 'Rommel Mendoza',
-      employeeCode: '1035',
-      department: 'TQA',
-      account: 'TRAINING',
-      trafficLight: 'GREEN',
-      status: 'working',
-      statusLabel: 'Active (Working)',
-      shiftStartMs: t7h45m,
-      shiftEndMs: null,
-      completedBreakSecs: 15 * 60,
-      completedLunchSecs: 0,
-      activeBreakStartMs: null,
-      activeLunchStartMs: null,
-      lastActive: new Date(now - 8 * 60 * 1000).toLocaleString(),
-    },
-    {
-      id: 'emp-1820',
-      name: 'Ronelyn Baguio',
-      employeeCode: '1820',
-      department: 'TQA',
-      account: 'TRAINING',
-      trafficLight: 'GREEN',
-      status: 'working',
-      statusLabel: 'Active (Working)',
-      shiftStartMs: now - (6 * 3600 + 34 * 60) * 1000,
-      shiftEndMs: null,
-      completedBreakSecs: 12.2 * 60,
-      completedLunchSecs: 73.5 * 60,
-      activeBreakStartMs: null,
-      activeLunchStartMs: null,
-      lastActive: new Date(now - 6 * 60 * 1000).toLocaleString(),
-    },
-    {
-      id: 'emp-836',
-      name: 'Krisland Pepito',
-      employeeCode: '836',
-      department: 'TQA',
-      account: 'TRAINING',
-      trafficLight: 'GREEN',
-      status: 'working',
-      statusLabel: 'Active (Working)',
-      shiftStartMs: t7h45m,
-      shiftEndMs: null,
-      completedBreakSecs: 15 * 60,
-      completedLunchSecs: 0,
-      activeBreakStartMs: null,
-      activeLunchStartMs: null,
-      lastActive: new Date(now - 25 * 60 * 1000).toLocaleString(),
-    },
-    {
-      id: 'emp-1006',
-      name: 'Niño Elijah R. Reyes',
-      employeeCode: '1006',
-      department: 'TQA',
-      account: 'TRAINING',
-      trafficLight: 'GREEN',
-      status: 'working',
-      statusLabel: 'Active (Working)',
-      shiftStartMs: now - (7 * 3600 + 13 * 60) * 1000,
-      shiftEndMs: null,
-      completedBreakSecs: 15 * 60,
-      completedLunchSecs: 31.9 * 60,
-      activeBreakStartMs: null,
-      activeLunchStartMs: null,
-      lastActive: new Date(now - 14 * 60 * 1000).toLocaleString(),
-    },
-    {
-      id: 'emp-1880',
-      name: 'Kier Ariola',
-      employeeCode: '1880',
-      department: 'TQA',
-      account: 'TRAINING',
-      trafficLight: 'GREEN',
-      status: 'working',
-      statusLabel: 'Active (Working)',
-      shiftStartMs: t7h45m,
-      shiftEndMs: null,
-      completedBreakSecs: 15 * 60,
-      completedLunchSecs: 0,
-      activeBreakStartMs: null,
-      activeLunchStartMs: null,
-      lastActive: new Date(now - 18 * 60 * 1000).toLocaleString(),
-    },
-    {
-      id: 'emp-946',
-      name: 'Vincent Luis Celdran',
-      employeeCode: '946',
-      department: 'TQA',
-      account: 'TRAINING',
-      trafficLight: 'GREEN',
-      status: 'working',
-      statusLabel: 'Active (Working)',
-      shiftStartMs: t7h45m,
-      shiftEndMs: null,
-      completedBreakSecs: 15 * 60,
-      completedLunchSecs: 0,
-      activeBreakStartMs: null,
-      activeLunchStartMs: null,
-      lastActive: new Date(now - 30 * 60 * 1000).toLocaleString(),
-    },
-    {
-      id: 'emp-2298',
-      name: 'Nina Joy Briones',
-      employeeCode: '2298',
-      department: 'TQA',
-      account: 'TRAINING',
-      trafficLight: 'GREEN',
-      status: 'working',
-      statusLabel: 'Active (Working)',
-      shiftStartMs: t7h45m,
-      shiftEndMs: null,
-      completedBreakSecs: 15 * 60,
-      completedLunchSecs: 0,
-      activeBreakStartMs: null,
-      activeLunchStartMs: null,
-      lastActive: new Date(now - 22 * 60 * 1000).toLocaleString(),
-    },
-    {
-      id: 'emp-1954',
-      name: 'Matt Riner Balaba',
-      employeeCode: '1954',
-      department: 'TQA',
-      account: 'TRAINING',
-      trafficLight: 'GREEN',
-      status: 'working',
-      statusLabel: 'Active (Working)',
-      shiftStartMs: t7h45m,
-      shiftEndMs: null,
-      completedBreakSecs: 15 * 60,
-      completedLunchSecs: 0,
-      activeBreakStartMs: null,
-      activeLunchStartMs: null,
-      lastActive: new Date(now - 45 * 60 * 1000).toLocaleString(),
-    },
-    {
-      id: 'emp-2610',
-      name: 'Maegan Marie Cabardo',
-      employeeCode: '2610',
-      department: 'TQA',
-      account: 'TRAINING',
-      trafficLight: 'GREEN',
-      status: 'working',
-      statusLabel: 'Active (Working)',
-      shiftStartMs: t7h45m,
-      shiftEndMs: null,
-      completedBreakSecs: 15 * 60,
-      completedLunchSecs: 0,
-      activeBreakStartMs: null,
-      activeLunchStartMs: null,
-      lastActive: new Date(now - 11 * 60 * 1000).toLocaleString(),
-    },
-  ];
-};
-
-function assignShiftDay(date: Date): { year: number; month: number; day: number } {
-  const h = date.getHours();
-  const shiftDate = new Date(date);
-  if (h < 9) {
-    shiftDate.setDate(shiftDate.getDate() - 1);
-  }
-  return {
-    year: shiftDate.getFullYear(),
-    month: shiftDate.getMonth(), // 0-indexed
-    day: shiftDate.getDate(),
-  };
-}
-
 export default function AttendanceRosterHub({
   records,
   supervisorName,
@@ -425,11 +184,11 @@ export default function AttendanceRosterHub({
   };
 
   const [selectedCalendarEmployee, setSelectedCalendarEmployee] = useState<string>(
-    initialEmployee || supervisorName || 'Nissi-Jeh Reguero'
+    initialEmployee || supervisorName || ''
   );
 
   // Selected date in Roster DatePicker (defaults to Sept 26, 2026 or current active date)
-  const [filterDate, setFilterDate] = useState<Date | null>(new Date(2026, 8, 26));
+  const [filterDate, setFilterDate] = useState<Date | null>(new Date());
   const [filterQuarter, setFilterQuarter] = useState('all');
   const [filterMonth, setFilterMonth] = useState('all');
   const [filterAccount, setFilterAccount] = useState('all');
@@ -486,7 +245,7 @@ export default function AttendanceRosterHub({
         punchRes.json(),
       ]);
 
-      if (rosterJson.success && Array.isArray(rosterJson.data) && rosterJson.data.length > 0) {
+      if (rosterJson.success && Array.isArray(rosterJson.data)) {
         setDbRoster(rosterJson.data);
       }
       if (punchJson.success && Array.isArray(punchJson.data)) {
@@ -558,48 +317,36 @@ export default function AttendanceRosterHub({
       targetDay === today.getDate()
     );
 
-    const baseMetas = createInitialMetas();
-    const rosterSource = dbRoster.length > 0 ? dbRoster : baseMetas.map((b) => ({
-      employee_id: b.employeeCode,
-      name: b.name,
-      department: b.department,
-      account: b.account,
-      traffic_light_status: b.trafficLight,
-    }));
+
+    const rosterSource = dbRoster;
 
     const computed: RosterEmployee[] = rosterSource.map((r: any) => {
       const empCode = String(r.employee_id || r.id || r.employeeCode).trim();
       const empName = String(r.name || '').trim();
-      const department = r.department || 'TQA';
-      const account = r.account || 'TRAINING';
-      const fallback = baseMetas.find((b) => b.employeeCode === empCode || b.id === `emp-${empCode}`) || baseMetas[0];
-
-      // 1. Check manual attendance overrides for this employee and date
+      const department = r.department || '';
+      const account = r.account || '';
       const fullDateKey = `${empCode}-${targetYear}-${targetMonth}-${targetDay}`;
       const nameFullDateKey = `${empName}-${targetYear}-${targetMonth}-${targetDay}`;
       const legacyNameKey = `${empName}-${targetDay}`;
       const legacyCodeKey = `${empCode}-${targetDay}`;
-
-      const manualOverride = 
+      const manualOverride =
         attendanceOverrides[fullDateKey] !== undefined ? attendanceOverrides[fullDateKey] :
         attendanceOverrides[nameFullDateKey] !== undefined ? attendanceOverrides[nameFullDateKey] :
         (targetYear === 2026 && targetMonth === 8 && (attendanceOverrides[legacyNameKey] !== undefined || attendanceOverrides[legacyCodeKey] !== undefined))
           ? (attendanceOverrides[legacyNameKey] || attendanceOverrides[legacyCodeKey])
           : undefined;
 
-      // 2. Filter punch logs belonging to this employee and target shift date
-      const empLogs = allPunchLogs.filter((l) => {
-        const lCode = String(l.employee_id || l.empId || '').trim();
-        const codeMatch = lCode === empCode || (empCode.length >= 3 && lCode.includes(empCode));
-        return codeMatch;
+      const empLogs = allPunchLogs.filter((log) => {
+        const logCode = String(log.employee_id || log.empId || '').trim();
+        return logCode === empCode || (empCode.length >= 3 && logCode.includes(empCode));
       });
-
       const dayShiftLogs = empLogs.filter((log) => {
         const rawTs = log.parsedDate || log.timestamp || log.TIMESTAMP;
         if (!rawTs) return false;
         const d = new Date(rawTs);
         if (isNaN(d.getTime())) return false;
-        const shift = assignShiftDay(d);
+        const shiftDate = getShiftDate(d, r.shift);
+        const shift = { year: shiftDate.getFullYear(), month: shiftDate.getMonth(), day: shiftDate.getDate() };
         return shift.year === targetYear && shift.month === targetMonth && shift.day === targetDay;
       });
 
@@ -614,7 +361,7 @@ export default function AttendanceRosterHub({
       if (manualOverride && manualOverride !== 'Clear' && manualOverride !== 'None') {
         const isLeave = ['Vacation Leave', 'Sick Leave', 'Bereavement Leave', 'Maternity Leave', 'Paternity Leave', 'Holiday', 'VL', 'SL', 'BL', 'ML', 'PL', 'HOL'].includes(manualOverride);
         const isOff = ['Absent', 'A', 'Rest Day', 'RD', 'Suspension', 'SUS'].includes(manualOverride);
-        
+
         if (isLeave || isOff) {
           const totalHoursWorked = isLeave ? 8.00 : 0.00;
           return {
@@ -632,6 +379,7 @@ export default function AttendanceRosterHub({
             trafficLight: manualOverride === 'Absent' || manualOverride === 'A' ? 'RED' : 'GREEN',
             department,
             account,
+            position: r.position || '',
           };
         }
       }
@@ -643,8 +391,8 @@ export default function AttendanceRosterHub({
       let completedLunchSecs = 0;
       let pendingBreakStart: number | null = null;
       let pendingLunchStart: number | null = null;
-      let status: 'working' | 'lunch' | 'break_1' | 'break_2' | 'offline' = 'working';
-      let statusLabel = 'Active (Working)';
+      let status: 'working' | 'lunch' | 'break_1' | 'break_2' | 'offline' = 'offline';
+      let statusLabel = 'No punch records';
       let trafficLight: 'GREEN' | 'YELLOW' | 'RED' = 'GREEN';
       let lastActive = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
@@ -728,13 +476,6 @@ export default function AttendanceRosterHub({
 
       if (isToday) {
         // Today's live tracking
-        if (!shiftStartMs && fallback && fallback.shiftStartMs) {
-          shiftStartMs = fallback.shiftStartMs;
-          breakSecs = fallback.completedBreakSecs;
-          lunchSecs = fallback.completedLunchSecs;
-          status = fallback.status;
-          statusLabel = fallback.statusLabel;
-        }
 
         if (shiftStartMs) {
           if (status === 'offline' && shiftEndMs) {
@@ -761,16 +502,10 @@ export default function AttendanceRosterHub({
 
           if (endMs > startMs) {
             shiftElapsedSecs = Math.floor((endMs - startMs) / 1000);
-          } else {
-            // Default 8-hour shift if single punch recorded
-            shiftElapsedSecs = 8 * 3600;
           }
         } else {
-          // No punches on this past date
-          const isWeekend = targetDate.getDay() === 0 || targetDate.getDay() === 6;
           status = 'offline';
-          statusLabel = isWeekend ? 'Rest Day' : 'Absent';
-          trafficLight = isWeekend ? 'GREEN' : 'RED';
+          statusLabel = 'No punch records';
           shiftElapsedSecs = 0;
           breakSecs = 0;
           lunchSecs = 0;
@@ -803,6 +538,9 @@ export default function AttendanceRosterHub({
         trafficLight,
         department,
         account,
+        position: r.position || '',
+        shiftTime: r.shift || '',
+        shiftType: r.shift_type || '',
       };
     });
 
@@ -889,7 +627,7 @@ export default function AttendanceRosterHub({
 
   return (
     <div className="space-y-4 animate-in fade-in relative">
-      
+
       {/* 1. Header with Badge Only (Title removed) & Functional Refresh Button */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 pb-1">
         <div className="flex items-center gap-3">
@@ -910,12 +648,12 @@ export default function AttendanceRosterHub({
 
       {/* 2. 6 Status KPI Boxes (More circle corners rounded-2xl, background image consuming whole box) */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2.5 sm:gap-3 mt-1 mb-5">
-        
+
         {/* 1. Total Employees */}
         <div className="relative overflow-hidden p-3.5 rounded-2xl bg-white dark:bg-[#363435] border border-slate-200/90 dark:border-[#434142] shadow-xs hover:shadow-md transition-all duration-200 flex items-center justify-between min-h-[82px] sm:min-h-[86px] group">
-          <div 
+          <div
             className="absolute inset-0 w-full h-full bg-no-repeat bg-cover bg-center opacity-28 dark:opacity-18 pointer-events-none transform transition-transform group-hover:scale-105 duration-500"
-            style={{ 
+            style={{
               backgroundImage: `url("https://zhdmsmwrskxowvytedgh.supabase.co/storage/v1/object/public/Images/design%20(1).png")`,
               filter: 'invert(33%) sepia(85%) saturate(550%) hue-rotate(170deg) brightness(92%) contrast(110%)'
             }}
@@ -935,9 +673,9 @@ export default function AttendanceRosterHub({
 
         {/* 2. Active */}
         <div className="relative overflow-hidden p-3.5 rounded-2xl bg-white dark:bg-[#363435] border border-slate-200/90 dark:border-[#434142] shadow-xs hover:shadow-md transition-all duration-200 flex items-center justify-between min-h-[82px] sm:min-h-[86px] group">
-          <div 
+          <div
             className="absolute inset-0 w-full h-full bg-no-repeat bg-cover bg-center opacity-28 dark:opacity-18 pointer-events-none transform transition-transform group-hover:scale-105 duration-500"
-            style={{ 
+            style={{
               backgroundImage: `url("https://zhdmsmwrskxowvytedgh.supabase.co/storage/v1/object/public/Images/design%20(1).png")`,
               filter: 'invert(33%) sepia(85%) saturate(550%) hue-rotate(170deg) brightness(92%) contrast(110%)'
             }}
@@ -957,9 +695,9 @@ export default function AttendanceRosterHub({
 
         {/* 3. On Break */}
         <div className="relative overflow-hidden p-3.5 rounded-2xl bg-white dark:bg-[#363435] border border-slate-200/90 dark:border-[#434142] shadow-xs hover:shadow-md transition-all duration-200 flex items-center justify-between min-h-[82px] sm:min-h-[86px] group">
-          <div 
+          <div
             className="absolute inset-0 w-full h-full bg-no-repeat bg-cover bg-center opacity-28 dark:opacity-18 pointer-events-none transform transition-transform group-hover:scale-105 duration-500"
-            style={{ 
+            style={{
               backgroundImage: `url("https://zhdmsmwrskxowvytedgh.supabase.co/storage/v1/object/public/Images/design%20(1).png")`,
               filter: 'invert(33%) sepia(85%) saturate(550%) hue-rotate(170deg) brightness(92%) contrast(110%)'
             }}
@@ -979,9 +717,9 @@ export default function AttendanceRosterHub({
 
         {/* 4. On Lunch */}
         <div className="relative overflow-hidden p-3.5 rounded-2xl bg-white dark:bg-[#363435] border border-slate-200/90 dark:border-[#434142] shadow-xs hover:shadow-md transition-all duration-200 flex items-center justify-between min-h-[82px] sm:min-h-[86px] group">
-          <div 
+          <div
             className="absolute inset-0 w-full h-full bg-no-repeat bg-cover bg-center opacity-28 dark:opacity-18 pointer-events-none transform transition-transform group-hover:scale-105 duration-500"
-            style={{ 
+            style={{
               backgroundImage: `url("https://zhdmsmwrskxowvytedgh.supabase.co/storage/v1/object/public/Images/design%20(1).png")`,
               filter: 'invert(33%) sepia(85%) saturate(550%) hue-rotate(170deg) brightness(92%) contrast(110%)'
             }}
@@ -1001,9 +739,9 @@ export default function AttendanceRosterHub({
 
         {/* 5. Late Arrivals */}
         <div className="relative overflow-hidden p-3.5 rounded-2xl bg-white dark:bg-[#363435] border border-slate-200/90 dark:border-[#434142] shadow-xs hover:shadow-md transition-all duration-200 flex items-center justify-between min-h-[82px] sm:min-h-[86px] group">
-          <div 
+          <div
             className="absolute inset-0 w-full h-full bg-no-repeat bg-cover bg-center opacity-28 dark:opacity-18 pointer-events-none transform transition-transform group-hover:scale-105 duration-500"
-            style={{ 
+            style={{
               backgroundImage: `url("https://zhdmsmwrskxowvytedgh.supabase.co/storage/v1/object/public/Images/design%20(1).png")`,
               filter: 'invert(33%) sepia(85%) saturate(550%) hue-rotate(170deg) brightness(92%) contrast(110%)'
             }}
@@ -1023,9 +761,9 @@ export default function AttendanceRosterHub({
 
         {/* 6. Undertime */}
         <div className="relative overflow-hidden p-3.5 rounded-2xl bg-white dark:bg-[#363435] border border-slate-200/90 dark:border-[#434142] shadow-xs hover:shadow-md transition-all duration-200 flex items-center justify-between min-h-[82px] sm:min-h-[86px] group">
-          <div 
+          <div
             className="absolute inset-0 w-full h-full bg-no-repeat bg-cover bg-center opacity-28 dark:opacity-18 pointer-events-none transform transition-transform group-hover:scale-105 duration-500"
-            style={{ 
+            style={{
               backgroundImage: `url("https://zhdmsmwrskxowvytedgh.supabase.co/storage/v1/object/public/Images/design%20(1).png")`,
               filter: 'invert(33%) sepia(85%) saturate(550%) hue-rotate(170deg) brightness(92%) contrast(110%)'
             }}
@@ -1047,11 +785,11 @@ export default function AttendanceRosterHub({
 
       {/* 3. ONE Unified External White Container for Filters, Tabs & Content */}
       <div className="rounded-2xl bg-white dark:bg-[#363435] border border-slate-200/90 dark:border-[#434142] shadow-xs overflow-visible">
-        
+
         {/* Row A: Top Filters Bar (4 filters: 2 + 2 + 3 + 5 = 12 cols) */}
         <div className="p-4 sm:p-5 border-b border-slate-100 dark:border-[#434142]">
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-12 gap-3 sm:gap-4 items-end">
-            
+
             {/* Quarter Filter (Span 2) */}
             <div className="md:col-span-2">
               <FilterDropdown
@@ -1095,10 +833,9 @@ export default function AttendanceRosterHub({
                 onChange={setFilterAccount}
                 options={[
                   { label: 'All Client Accounts', value: 'all' },
-                  { label: 'Corporate', value: 'Corporate' },
-                  { label: 'DFT', value: 'DFT' },
-                  { label: 'Care', value: 'Care' },
-                  { label: 'Billing', value: 'Billing' },
+                  ...Array.from(new Set(dbRoster.map((employee) => employee.account).filter(Boolean)))
+                    .sort((a, b) => a.localeCompare(b))
+                    .map((account) => ({ label: account, value: account })),
                 ]}
               />
             </div>
@@ -1134,7 +871,7 @@ export default function AttendanceRosterHub({
 
         {/* Row B: Sub-Navigation Tabs Placed BELOW the Filters with Date Picker exclusively on Roster Tab */}
         <div className="px-4 sm:px-5 py-2.5 bg-slate-50/60 dark:bg-[#272626]/60 border-b border-slate-100 dark:border-[#434142] flex flex-wrap items-center justify-between gap-3">
-          
+
           {/* Left: Tab Buttons */}
           <div className="flex items-center gap-2 overflow-x-auto">
             {/* Tab 1: Roster */}

@@ -55,7 +55,7 @@ export default function TimerTracker({
   // Form State
   const [dateOfShift, setDateOfShift] = useState<string>(getTodayFormatted());
   const [agentName, setAgentName] = useState<string>(currentAgent);
-  const [account, setAccount] = useState<string>('Corporate');
+  const [account, setAccount] = useState<string>(accounts[0]?.account_code || '');
   const [ticketNumber, setTicketNumber] = useState<string>('');
   const [selectedTags, setSelectedTags] = useState<string[]>(['Training Session']);
   const [customTag, setCustomTag] = useState<string>('');

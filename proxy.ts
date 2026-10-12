@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
+import { verifyAuthSession } from '@/lib/authSession';
 
-export function middleware(request: NextRequest) {
+export function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
   // 1. Skip public assets, Next.js internal files, favicon, icons, and auth API endpoints
@@ -18,18 +19,7 @@ export function middleware(request: NextRequest) {
 
   // 2. Read session cookie
   const sessionCookie = request.cookies.get('ctnp_session')?.value;
-  let isAuthenticated = false;
-
-  if (sessionCookie) {
-    try {
-      const parsed = JSON.parse(sessionCookie);
-      if (parsed && (parsed.id || parsed.email)) {
-        isAuthenticated = true;
-      }
-    } catch (e) {
-      isAuthenticated = false;
-    }
-  }
+  const isAuthenticated = Boolean(verifyAuthSession(sessionCookie));
 
   // 3. Unauthenticated access to protected dashboard pages -> Redirect to /login
   if (!isAuthenticated && pathname !== '/login') {

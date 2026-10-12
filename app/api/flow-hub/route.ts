@@ -1,414 +1,515 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { randomUUID } from 'node:crypto';
+import { verifyAuthSession } from '@/lib/authSession';
 import { getSupabaseAdmin } from '@/lib/supabase/server';
 
 export const dynamic = 'force-dynamic';
 
-interface FlowHubStore {
-  tasks: any[];
-  habits: any[];
-  sessions: number;
-  mindDump: {
-    title: string;
-    text: string;
-  };
-  stickies: any[];
-  priorities: any[];
+type TaskStatus = 'todo' | 'inprogress' | 'done';
+type TaskPriority = 'HIGH' | 'MEDIUM' | 'LOW';
+
+const taskColors: Record<TaskPriority, string> = {
+  HIGH: 'bg-rose-50 text-rose-700 border-rose-200 dark:bg-rose-950/60 dark:text-rose-300 dark:border-rose-800',
+  MEDIUM: 'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950/60 dark:text-amber-300 dark:border-amber-800',
+  LOW: 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/60 dark:text-emerald-300 dark:border-emerald-800',
+};
+
+type FocusMode = 'focus' | 'short_break' | 'long_break';
+
+function isFocusMode(value: unknown): value is FocusMode {
+  return value === 'focus' || value === 'short_break' || value === 'long_break';
 }
 
-// Runtime database store populated with the user's initial state
-const flowHubData: Record<string, FlowHubStore> = {
-  '1597': {
-    tasks: [
-      {
-        id: 't1788963795155',
-        title: 'COVA Escalation - TM',
-        ticketCode: '#17889',
-        priority: 'MEDIUM',
-        status: 'done',
-        estimate: '2h',
-        category: 'Escalation',
-        categoryColor: 'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950/60 dark:text-amber-300 dark:border-amber-800',
-        assignee: 'NR',
-        assigneeColor: 'bg-[#24537D]',
-      },
-      {
-        id: 't1788963639603',
-        title: 'Ms Cha schedule for CODI',
-        ticketCode: '#17889',
-        priority: 'HIGH',
-        status: 'done',
-        estimate: '4h',
-        category: 'High Importance',
-        categoryColor: 'bg-rose-50 text-rose-700 border-rose-200 dark:bg-rose-950/60 dark:text-rose-300 dark:border-rose-800',
-        assignee: 'MB',
-        assigneeColor: 'bg-[#C29B38]',
-      },
-      {
-        id: 't1788963617419',
-        title: 'Coaching Evaluation - QA FRIA',
-        ticketCode: '#17889',
-        priority: 'HIGH',
-        status: 'done',
-        estimate: '1h',
-        category: 'QA FRIA',
-        categoryColor: 'bg-rose-50 text-rose-700 border-rose-200 dark:bg-rose-950/60 dark:text-rose-300 dark:border-rose-800',
-        assignee: 'JC',
-        assigneeColor: 'bg-[#0E8A5E]',
-      },
-      {
-        id: 't1788963601411',
-        title: 'SL FORM - Matt Riner Balaba',
-        ticketCode: '#17889',
-        priority: 'HIGH',
-        status: 'done',
-        estimate: '2h',
-        category: 'HR Form',
-        categoryColor: 'bg-rose-50 text-rose-700 border-rose-200 dark:bg-rose-950/60 dark:text-rose-300 dark:border-rose-800',
-        assignee: 'EP',
-        assigneeColor: 'bg-[#E82159]',
-      },
-    ],
-    habits: [
-      {
-        id: 'h1',
-        name: 'Drink a glass of water',
-        category: 'hydration',
-        categoryLabel: 'Hydration',
-        duration: '5 min',
-        streak: 5,
-        completedToday: true,
-        timeOfDay: 'Morning Shift',
-      },
-      {
-        id: 'h2',
-        name: 'Meditate to relax & mindful reset',
-        category: 'mindfulness',
-        categoryLabel: 'Focus Breath',
-        duration: '15 min',
-        streak: 8,
-        completedToday: true,
-        timeOfDay: 'Mid Shift',
-      },
-      {
-        id: 'h3',
-        name: 'Stretch for 10 minutes (Neck & Spine)',
-        category: 'stretch',
-        categoryLabel: 'Ergonomics',
-        duration: '10 min',
-        streak: 6,
-        completedToday: false,
-        timeOfDay: 'Desk Routine',
-      },
-      {
-        id: 'h4',
-        name: 'Reconcile shift punch logs & attendance hours',
-        category: 'tracker',
-        categoryLabel: 'Time Tracker',
-        duration: '15 min',
-        streak: 14,
-        completedToday: false,
-        timeOfDay: 'Shift Review',
-      },
-      {
-        id: 'h5',
-        name: 'Healthy food & nourishment meal',
-        category: 'nutrition',
-        categoryLabel: 'Shift Fuel',
-        duration: '30 min',
-        streak: 7,
-        completedToday: false,
-        timeOfDay: 'Lunch Break',
-      },
-      {
-        id: 'h6',
-        name: 'Go for a short outdoor/step walk',
-        category: 'walk',
-        categoryLabel: 'Active Rest',
-        duration: '15 min',
-        streak: 4,
-        completedToday: false,
-        timeOfDay: 'Break Step',
-      },
-    ],
-    sessions: 0,
-    mindDump: {
-      title: 'Salsile Project Brief',
-      text: 'Salsile Inc. is a well-established fashion retailer specializing in high-quality clothing and accessories for men and women. The client is looking to revamp their existing e-commerce website to enhance user experience, improve overall aesthetics, and increase online sales. The new design should reflect their brand identity as a modern, and customer-centric fashion store.',
-    },
-    stickies: [
-      {
-        id: 's1',
-        title: 'QA Escalation #17889',
-        content: 'Call handling score issue on COVA simulation. Needs re-coaching before Friday certification.',
-        color: 'rose',
-        tag: 'Escalation',
-        isPinned: true,
-        timestamp: '02:15 AM',
-      },
-      {
-        id: 's2',
-        title: 'Batch 12 Attendance Note',
-        content: 'Maegan & Niño were present on time for morning huddle. Great reliability this week!',
-        color: 'green',
-        tag: 'Trainees',
-        isPinned: true,
-        timestamp: '01:45 AM',
-      },
-    ],
-    priorities: [
-      { id: 'p1', text: 'Batch 12 Module 3 Live Evaluation & QA Audit', completed: false, priority: 'HIGH' },
-      { id: 'p2', text: 'Follow-up on SL Form & Ticket #17889 (Matt Riner)', completed: true, priority: 'HIGH' },
-      { id: 'p3', text: 'End-of-shift attendance lock & supervisor punch sync', completed: false, priority: 'MEDIUM' },
-    ],
-  },
-  '1108': {
-    tasks: [],
-    habits: [
-      {
-        id: 'h1108_1',
-        name: 'Quality Calibration & Criticize',
-        category: 'tracker',
-        categoryLabel: 'Quality',
-        duration: '20 min',
-        streak: 3,
-        completedToday: false,
-        timeOfDay: 'Mid Shift',
-      },
-    ],
-    sessions: 0,
-    mindDump: {
-      title: 'Weekly Quality Objectives',
-      text: 'Quality calibration goals for Rocket Money batch 14.',
-    },
-    stickies: [],
-    priorities: [],
-  },
-  '1772': {
-    tasks: [
-      {
-        id: 't1789460244192',
-        title: 'Smoke Break & De-escalation Refresher',
-        ticketCode: '#17894',
-        priority: 'HIGH',
-        status: 'done',
-        estimate: '1h',
-        category: 'Training',
-        categoryColor: 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/60 dark:text-emerald-300 dark:border-emerald-800',
-        assignee: 'BC',
-        assigneeColor: 'bg-[#2F6798]',
-      },
-    ],
-    habits: [
-      {
-        id: 'h1789460227535',
-        name: 'No caffeine after 2:00 AM',
-        category: 'nutrition',
-        categoryLabel: 'Wellness',
-        duration: '21 days target',
-        streak: 4,
-        completedToday: true,
-        timeOfDay: 'Night Shift',
-      },
-    ],
-    sessions: 0,
-    mindDump: {
-      title: 'Training Module Notes',
-      text: 'Refresher session on conflict resolution with batch 12.',
-    },
-    stickies: [],
-    priorities: [],
-  },
-};
+function mapFocusTimer(row: Record<string, any> | null) {
+  if (!row) return { mode: 'focus', durationMinutes: 25, secondsRemaining: 1500, isActive: false, sessionToken: null };
+  const elapsed = row.is_active && row.started_at
+    ? Math.max(0, Math.floor((Date.now() - new Date(row.started_at).getTime()) / 1000))
+    : 0;
+  return {
+    mode: row.timer_mode,
+    durationMinutes: row.duration_minutes,
+    secondsRemaining: Math.max(0, row.remaining_seconds - elapsed),
+    isActive: Boolean(row.is_active),
+    sessionToken: row.session_token,
+  };
+}
+
+async function getActiveEmployee(request: NextRequest) {
+  const session = verifyAuthSession(request.cookies.get('ctnp_session')?.value);
+  if (!session) return { response: NextResponse.json({ error: 'Unauthorized' }, { status: 401 }) };
+
+  const supabase = getSupabaseAdmin();
+  const { data: employee, error } = await supabase
+    .from('employees')
+    .select('id, employee_name, employee_email, statuses(status_name)')
+    .ilike('employee_email', session.email)
+    .maybeSingle();
+
+  const status = (employee?.statuses as { status_name?: string } | null)?.status_name;
+  if (error || !employee || status?.toLowerCase() !== 'active') {
+    return { response: NextResponse.json({ error: 'Active employee access is required.' }, { status: 403 }) };
+  }
+
+  return { supabase, employee };
+}
+
+function initials(name: string) {
+  return name.split(/\s+/).filter(Boolean).slice(0, 2).map((part) => part[0]).join('').toUpperCase();
+}
+
+function mapTask(row: Record<string, any>, employeeName: string) {
+  const priority = (['HIGH', 'MEDIUM', 'LOW'].includes(row.priority) ? row.priority : 'MEDIUM') as TaskPriority;
+  return {
+    id: String(row.task_id),
+    title: row.title,
+    ticketCode: row.ticket_code || '',
+    priority,
+    status: row.status as TaskStatus,
+    estimate: row.estimate || '',
+    category: row.category || 'General',
+    categoryColor: taskColors[priority],
+    assignee: initials(employeeName),
+    assigneeColor: 'bg-[#24537D]',
+  };
+}
+
+function mapNote(row: Record<string, any>) {
+  const metadata = row.metadata && typeof row.metadata === 'object' ? row.metadata : {};
+  return {
+    id: String(row.note_id),
+    title: row.title || '',
+    content: row.content || '',
+    color: metadata.color || 'blue',
+    tag: metadata.tag || 'Late Arrival',
+    isPinned: Boolean(metadata.isPinned),
+    timestamp: row.created_at,
+  };
+}
+
+function localToday() {
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'Asia/Singapore', year: 'numeric', month: '2-digit', day: '2-digit',
+  }).formatToParts(new Date());
+  const values = Object.fromEntries(parts.map(({ type, value }) => [type, value]));
+  return `${values.year}-${values.month}-${values.day}`;
+}
+
+function categoryLabel(category: string) {
+  const labels: Record<string, string> = {
+    hydration: 'Hydration', mindfulness: 'Focus Breath', stretch: 'Ergonomics',
+    tracker: 'Time Tracker', nutrition: 'Shift Fuel', walk: 'Active Rest', general: 'Daily Routine',
+  };
+  return labels[category] || 'Daily Routine';
+}
+
+function mapRoutine(row: Record<string, any>, completedDates: Set<string>, today: string) {
+  const completedToday = completedDates.has(today);
+  const cursor = new Date(`${completedToday ? today : addDays(today, -1)}T00:00:00Z`);
+  let streak = 0;
+  while (completedDates.has(cursor.toISOString().slice(0, 10))) {
+    streak += 1;
+    cursor.setUTCDate(cursor.getUTCDate() - 1);
+  }
+  return {
+    id: String(row.routine_id), name: row.name, category: row.category,
+    categoryLabel: categoryLabel(row.category), duration: `${row.duration_minutes} min`,
+    streak, completedToday, timeOfDay: row.time_of_day,
+  };
+}
+
+function addDays(date: string, days: number) {
+  const value = new Date(`${date}T00:00:00Z`);
+  value.setUTCDate(value.getUTCDate() + days);
+  return value.toISOString().slice(0, 10);
+}
+
+function isStatus(value: unknown): value is TaskStatus {
+  return value === 'todo' || value === 'inprogress' || value === 'done';
+}
+
+function isPriority(value: unknown): value is TaskPriority {
+  return value === 'HIGH' || value === 'MEDIUM' || value === 'LOW';
+}
 
 export async function GET(request: NextRequest) {
   try {
-    const { searchParams } = new URL(request.url);
-    const empId = searchParams.get('empId') || '1597';
+    const auth = await getActiveEmployee(request);
+    if ('response' in auth) return auth.response;
+    const { supabase, employee } = auth;
 
-    // 1. Check if Supabase has persisted tasks
-    try {
-      const supabase = getSupabaseAdmin();
-      const { data: dbTasks, error: taskErr } = await supabase
-        .from('flowhub_tasks')
-        .select('*')
-        .eq('employee_id', empId)
-        .order('created_at', { ascending: false });
+    const today = localToday();
+    const [{ data: taskRows, error: taskError }, { data: noteRows, error: noteError }, { data: routineRows, error: routineError }, { data: completionRows, error: completionError }, { data: focusState, error: focusStateError }, { data: sessionRows, error: sessionsError }] = await Promise.all([
+      supabase
+        .from('time_tracker_tasks')
+        .select('task_id, title, ticket_code, priority, status, estimate, category, created_at')
+        .eq('employee_id', employee.id)
+        .order('created_at', { ascending: false }),
+      supabase
+        .from('time_tracker_notes')
+        .select('note_id, note_type, title, content, metadata, created_at')
+        .eq('employee_id', employee.id)
+        .order('created_at', { ascending: false }),
+      supabase.from('time_tracker_routines')
+        .select('routine_id, name, category, duration_minutes, time_of_day')
+        .eq('employee_id', employee.id).eq('is_active', true).order('created_at', { ascending: false }),
+      supabase.from('time_tracker_routine_completions')
+        .select('routine_id, completed_on').eq('employee_id', employee.id)
+        .gte('completed_on', addDays(today, -365)),
+      supabase.from('time_tracker_focus_state').select('*').eq('employee_id', employee.id).maybeSingle(),
+      supabase.from('time_tracker_focus_sessions').select('duration_minutes')
+        .eq('employee_id', employee.id).eq('completed_on', today),
+    ]);
 
-      if (!taskErr && dbTasks && dbTasks.length > 0) {
-        if (!flowHubData[empId]) {
-          flowHubData[empId] = {
-            tasks: [],
-            habits: flowHubData['1597']?.habits || [],
-            sessions: 0,
-            mindDump: { title: 'Notes', text: '' },
-            stickies: [],
-            priorities: [],
-          };
-        }
-        flowHubData[empId].tasks = dbTasks.map((d: any) => ({
-          id: String(d.task_id || d.id),
-          title: d.title,
-          ticketCode: d.ticket_code || '#17889',
-          priority: d.priority || 'HIGH',
-          status: d.status || 'todo',
-          estimate: d.estimate || '2h',
-          category: d.category || 'General',
-          categoryColor: d.category_color || 'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950/60 dark:text-amber-300 dark:border-amber-800',
-          assignee: d.assignee || 'NR',
-          assigneeColor: d.assignee_color || 'bg-[#24537D]',
-        }));
-      }
-    } catch (dbErr) {
-      // Graceful fallback to memory store
+    if (taskError || noteError || routineError || completionError || focusStateError || sessionsError) {
+      console.error('Failed to load Flow Hub records:', taskError || noteError || routineError || completionError || focusStateError || sessionsError);
+      return NextResponse.json({ error: 'Unable to load Flow Hub data.' }, { status: 500 });
     }
 
-    const userData = flowHubData[empId] || flowHubData['1597'];
+    const notes = noteRows || [];
+    const mindDump = notes.find((note) => note.note_type === 'mind_dump');
+    const shiftMemo = notes.find((note) => note.note_type === 'shift');
 
     return NextResponse.json({
       success: true,
-      empId,
-      data: userData,
+      data: {
+        tasks: (taskRows || []).map((task) => mapTask(task, employee.employee_name || '')),
+        mindDump: { id: mindDump ? String(mindDump.note_id) : '', title: mindDump?.title || '', text: mindDump?.content || '' },
+        shiftMemo: { id: shiftMemo ? String(shiftMemo.note_id) : '', title: shiftMemo?.title || '', text: shiftMemo?.content || '' },
+        notes: notes.filter((note) => note.note_type === 'sticky').map(mapNote),
+        habits: (routineRows || []).map((routine) => mapRoutine(
+          routine,
+          new Set((completionRows || []).filter((completion) => completion.routine_id === routine.routine_id).map((completion) => completion.completed_on)),
+          today,
+        )),
+        sessions: sessionRows?.length || 0,
+        sessionMinutes: (sessionRows || []).reduce((total, session) => total + session.duration_minutes, 0),
+        focusTimer: mapFocusTimer(focusState),
+      },
     });
-  } catch (err: any) {
-    return NextResponse.json({ error: err.message }, { status: 500 });
+  } catch (error) {
+    console.error('Flow Hub read failed:', error);
+    return NextResponse.json({ error: 'Unable to load Flow Hub data.' }, { status: 500 });
   }
 }
 
 export async function POST(request: NextRequest) {
   try {
+    const auth = await getActiveEmployee(request);
+    if ('response' in auth) return auth.response;
+    const { supabase, employee } = auth;
     const body = await request.json();
-    const { empId = '1597', type, payload } = body;
+    const payload = body?.payload;
 
-    if (!flowHubData[empId]) {
-      flowHubData[empId] = {
-        tasks: [],
-        habits: [],
-        sessions: 0,
-        mindDump: { title: 'Notes', text: '' },
-        stickies: [],
-        priorities: [],
-      };
-    }
-
-    const current = flowHubData[empId];
-
-    // Primary memory & live session sync
-    switch (type) {
-      case 'UPDATE_TASKS':
-        current.tasks = payload;
-        break;
-      case 'ADD_TASK':
-        current.tasks = [payload, ...current.tasks];
-        break;
-      case 'UPDATE_TASK':
-        current.tasks = current.tasks.map((t) => (t.id === payload.id ? { ...t, ...payload } : t));
-        break;
-      case 'DELETE_TASK':
-        current.tasks = current.tasks.filter((t) => t.id !== payload.id);
-        break;
-      case 'UPDATE_HABITS':
-        current.habits = payload;
-        break;
-      case 'TOGGLE_HABIT':
-        current.habits = current.habits.map((h) => {
-          if (h.id === payload.id) {
-            const nextDone = !h.completedToday;
-            return {
-              ...h,
-              completedToday: nextDone,
-              streak: nextDone ? h.streak + 1 : Math.max(0, h.streak - 1),
-            };
-          }
-          return h;
-        });
-        break;
-      case 'ADD_HABIT':
-        current.habits = [...current.habits, payload];
-        break;
-      case 'DELETE_HABIT':
-        current.habits = current.habits.filter((h) => h.id !== payload.id);
-        break;
-      case 'INCREMENT_SESSION':
-        current.sessions = (current.sessions || 0) + 1;
-        break;
-      case 'SAVE_MIND_DUMP':
-        current.mindDump = payload;
-        break;
-      case 'UPDATE_STICKIES':
-        current.stickies = payload;
-        break;
-      case 'UPDATE_PRIORITIES':
-        current.priorities = payload;
-        break;
-      case 'FULL_SYNC':
-        flowHubData[empId] = { ...current, ...payload };
-        break;
-      default:
-        break;
-    }
-
-    // Direct asynchronous Supabase persistence (non-blocking)
-    try {
-      const supabase = getSupabaseAdmin();
-      if (type === 'ADD_TASK' && payload) {
-        await supabase.from('flowhub_tasks').upsert([
-          {
-            task_id: String(payload.id),
-            employee_id: String(empId),
-            title: payload.title,
-            ticket_code: payload.ticketCode,
-            priority: payload.priority,
-            status: payload.status,
-            estimate: payload.estimate,
-            category: payload.category,
-            category_color: payload.categoryColor,
-            assignee: payload.assignee,
-            assignee_color: payload.assigneeColor,
-            created_at: new Date().toISOString(),
-          }
-        ], { onConflict: 'task_id' });
-      } else if (type === 'UPDATE_TASK' && payload) {
-        await supabase
-          .from('flowhub_tasks')
-          .update({
-            title: payload.title,
-            priority: payload.priority,
-            status: payload.status,
-            estimate: payload.estimate,
-            category: payload.category,
-            category_color: payload.categoryColor,
-            assignee: payload.assignee,
-            assignee_color: payload.assigneeColor,
-          })
-          .eq('task_id', String(payload.id));
-      } else if (type === 'UPDATE_TASKS' && Array.isArray(payload)) {
-        const upsertPayload = payload.map((t: any) => ({
-          task_id: String(t.id),
-          employee_id: String(empId),
-          title: t.title,
-          ticket_code: t.ticketCode,
-          priority: t.priority,
-          status: t.status,
-          estimate: t.estimate,
-          category: t.category,
-          category_color: t.categoryColor,
-          assignee: t.assignee,
-          assignee_color: t.assigneeColor,
-        }));
-        await supabase.from('flowhub_tasks').upsert(upsertPayload, { onConflict: 'task_id' });
-      } else if (type === 'DELETE_TASK' && payload?.id) {
-        await supabase.from('flowhub_tasks').delete().eq('task_id', String(payload.id));
+    if (body?.type === 'SAVE_FOCUS_TIMER') {
+      const mode = payload?.mode;
+      const durationMinutes = Number(payload?.durationMinutes);
+      const secondsRemaining = Number(payload?.secondsRemaining);
+      const isActive = payload?.isActive === true;
+      if (!isFocusMode(mode) || !Number.isInteger(durationMinutes) || durationMinutes < 1 || durationMinutes > 240 || !Number.isInteger(secondsRemaining) || secondsRemaining < 0 || secondsRemaining > 86400) {
+        return NextResponse.json({ error: 'The timer settings are invalid.' }, { status: 400 });
       }
-    } catch (dbErr) {
-      // Non-blocking fallback ensures 0 UI disruption if DB table is initializing
+      const { data: current, error: currentError } = await supabase.from('time_tracker_focus_state')
+        .select('session_token, session_started_at').eq('employee_id', employee.id).maybeSingle();
+      if (currentError) throw currentError;
+      const clearSession = payload?.clearSession === true;
+      const sessionToken = clearSession ? null : current?.session_token || null;
+      const sessionStartedAt = clearSession ? null : current?.session_started_at || null;
+      const { data, error } = await supabase.from('time_tracker_focus_state').upsert({
+        employee_id: employee.id, timer_mode: mode, duration_minutes: durationMinutes,
+        remaining_seconds: secondsRemaining, is_active: isActive,
+        started_at: isActive ? new Date().toISOString() : null,
+        session_token: isActive ? (sessionToken || randomUUID()) : sessionToken,
+        session_started_at: isActive ? (sessionStartedAt || new Date().toISOString()) : sessionStartedAt,
+        updated_at: new Date().toISOString(),
+      }).select('*').single();
+      if (error) throw error;
+      return NextResponse.json({ success: true, focusTimer: mapFocusTimer(data) });
     }
 
-    return NextResponse.json({
-      success: true,
-      empId,
-      data: flowHubData[empId],
-    });
-  } catch (err: any) {
-    return NextResponse.json({ error: err.message }, { status: 500 });
+    if (body?.type === 'START_FOCUS_TIMER' || body?.type === 'PAUSE_FOCUS_TIMER') {
+      const { data: current, error: currentError } = await supabase.from('time_tracker_focus_state')
+        .select('*').eq('employee_id', employee.id).maybeSingle();
+      if (currentError) throw currentError;
+      const state = current || {
+        timer_mode: 'focus', duration_minutes: 25, remaining_seconds: 1500,
+        is_active: false, started_at: null, session_token: null, session_started_at: null,
+      };
+      let next;
+      if (body.type === 'START_FOCUS_TIMER') {
+        next = state.is_active ? state : {
+          ...state, is_active: true,
+          remaining_seconds: state.remaining_seconds > 0 ? state.remaining_seconds : state.duration_minutes * 60,
+          started_at: new Date().toISOString(),
+          session_token: state.session_token || randomUUID(),
+          session_started_at: state.session_started_at || new Date().toISOString(),
+        };
+      } else {
+        const elapsed = state.is_active && state.started_at
+          ? Math.max(0, Math.floor((Date.now() - new Date(state.started_at).getTime()) / 1000)) : 0;
+        next = {
+          ...state, is_active: false, started_at: null,
+          remaining_seconds: Math.max(0, state.remaining_seconds - elapsed),
+        };
+      }
+      const { data, error } = await supabase.from('time_tracker_focus_state').upsert({
+        employee_id: employee.id, timer_mode: next.timer_mode, duration_minutes: next.duration_minutes,
+        remaining_seconds: next.remaining_seconds, is_active: next.is_active,
+        started_at: next.started_at, session_token: next.session_token, updated_at: new Date().toISOString(),
+        session_started_at: next.session_started_at,
+      }).select('*').single();
+      if (error) throw error;
+      return NextResponse.json({ success: true, focusTimer: mapFocusTimer(data) });
+    }
+
+    if (body?.type === 'COMPLETE_FOCUS_TIMER') {
+      const { data: current, error: currentError } = await supabase.from('time_tracker_focus_state')
+        .select('*').eq('employee_id', employee.id).maybeSingle();
+      if (currentError) throw currentError;
+      if (!current?.is_active || !payload?.sessionToken || current.session_token !== payload.sessionToken) {
+        return NextResponse.json({ error: 'This timer session is no longer active.' }, { status: 409 });
+      }
+      const elapsed = Math.max(0, Math.floor((Date.now() - new Date(current.started_at).getTime()) / 1000));
+      if (elapsed < current.remaining_seconds) {
+        return NextResponse.json({ error: 'The timer has not finished yet.' }, { status: 409 });
+      }
+      if (current.timer_mode === 'focus') {
+        const { error } = await supabase.from('time_tracker_focus_sessions').upsert({
+          employee_id: employee.id, session_token: current.session_token, timer_mode: 'focus',
+          duration_minutes: current.duration_minutes, started_at: current.session_started_at || current.started_at,
+          ended_at: new Date().toISOString(), completed_on: localToday(),
+        }, { onConflict: 'session_token', ignoreDuplicates: true });
+        if (error) throw error;
+      }
+      const { data, error } = await supabase.from('time_tracker_focus_state').update({
+        is_active: false, started_at: null, remaining_seconds: 0, session_token: null,
+        session_started_at: null, updated_at: new Date().toISOString(),
+      }).eq('employee_id', employee.id).eq('session_token', current.session_token).select('*').single();
+      if (error) throw error;
+      const { data: sessionRows, error: countError } = await supabase.from('time_tracker_focus_sessions')
+        .select('duration_minutes').eq('employee_id', employee.id).eq('completed_on', localToday());
+      if (countError) throw countError;
+      return NextResponse.json({
+        success: true, sessions: sessionRows?.length || 0,
+        sessionMinutes: (sessionRows || []).reduce((total, session) => total + session.duration_minutes, 0),
+        focusTimer: mapFocusTimer(data),
+      });
+    }
+    if (body?.type === 'ADD_HABIT' && payload) {
+      const name = typeof payload.name === 'string' ? payload.name.trim() : '';
+      const categories = ['hydration', 'mindfulness', 'stretch', 'tracker', 'nutrition', 'walk', 'general'];
+      const duration = typeof payload.duration === 'string' ? Number.parseInt(payload.duration, 10) : 10;
+      const timeOfDay = typeof payload.timeOfDay === 'string' ? payload.timeOfDay.trim() : 'Daily Routine';
+      if (!name || name.length > 200 || !categories.includes(payload.category) || !Number.isInteger(duration) || duration < 1 || duration > 1440 || timeOfDay.length > 100) {
+        return NextResponse.json({ error: 'Please provide valid routine details.' }, { status: 400 });
+      }
+      const { data, error } = await supabase.from('time_tracker_routines').insert({
+        employee_id: employee.id, name, category: payload.category, duration_minutes: duration, time_of_day: timeOfDay || 'Daily Routine',
+      }).select('routine_id, name, category, duration_minutes, time_of_day').single();
+      if (error) throw error;
+      return NextResponse.json({ success: true, habit: mapRoutine(data, new Set(), localToday()) });
+    }
+    if (body?.type === 'TOGGLE_HABIT' && payload?.id) {
+      const routineId = Number(payload.id);
+      if (!Number.isSafeInteger(routineId) || routineId < 1) return NextResponse.json({ error: 'A valid routine is required.' }, { status: 400 });
+      const today = localToday();
+      const { data: existing, error: lookupError } = await supabase.from('time_tracker_routine_completions')
+        .select('completion_id').eq('routine_id', routineId).eq('employee_id', employee.id).eq('completed_on', today).maybeSingle();
+      if (lookupError) throw lookupError;
+      if (existing) {
+        const { error } = await supabase.from('time_tracker_routine_completions').delete()
+          .eq('completion_id', existing.completion_id).eq('employee_id', employee.id);
+        if (error) throw error;
+      } else {
+        const { error } = await supabase.from('time_tracker_routine_completions').insert({ routine_id: routineId, employee_id: employee.id, completed_on: today });
+        if (error) throw error;
+      }
+      return NextResponse.json({ success: true });
+    }
+    if (body?.type === 'DELETE_HABIT' && payload?.id) {
+      const routineId = Number(payload.id);
+      if (!Number.isSafeInteger(routineId) || routineId < 1) return NextResponse.json({ error: 'A valid routine is required.' }, { status: 400 });
+      const { data, error } = await supabase.from('time_tracker_routines').delete()
+        .eq('routine_id', routineId).eq('employee_id', employee.id).select('routine_id').maybeSingle();
+      if (error) throw error;
+      if (!data) return NextResponse.json({ error: 'Routine not found.' }, { status: 404 });
+      return NextResponse.json({ success: true });
+    }
+
+    if (body?.type === 'ADD_TASK') {
+      const title = typeof payload?.title === 'string' ? payload.title.trim() : '';
+      if (!title || title.length > 500 || !isPriority(payload.priority) || !isStatus(payload.status)) {
+        return NextResponse.json({ error: 'A task title, valid priority, and status are required.' }, { status: 400 });
+      }
+
+      const { data, error } = await supabase
+        .from('time_tracker_tasks')
+        .insert({
+          employee_id: employee.id,
+          title,
+          ticket_code: typeof payload.ticketCode === 'string' ? payload.ticketCode.trim() || null : null,
+          priority: payload.priority,
+          status: payload.status,
+          estimate: typeof payload.estimate === 'string' ? payload.estimate.trim() || null : null,
+          category: typeof payload.category === 'string' ? payload.category.trim() || 'General' : 'General',
+        })
+        .select('task_id, title, ticket_code, priority, status, estimate, category')
+        .single();
+
+      if (error) throw error;
+      return NextResponse.json({ success: true, task: mapTask(data, employee.employee_name || '') });
+    }
+
+    if (body?.type === 'UPDATE_TASK') {
+      const taskId = Number(payload?.id);
+      const title = typeof payload?.title === 'string' ? payload.title.trim() : '';
+      if (!Number.isSafeInteger(taskId) || taskId < 1 || !title || title.length > 500 || !isPriority(payload.priority) || !isStatus(payload.status)) {
+        return NextResponse.json({ error: 'The task update is invalid.' }, { status: 400 });
+      }
+
+      const { data: updatedTask, error } = await supabase
+        .from('time_tracker_tasks')
+        .update({
+          title,
+          ticket_code: typeof payload.ticketCode === 'string' ? payload.ticketCode.trim() || null : null,
+          priority: payload.priority,
+          status: payload.status,
+          estimate: typeof payload.estimate === 'string' ? payload.estimate.trim() || null : null,
+          category: typeof payload.category === 'string' ? payload.category.trim() || 'General' : 'General',
+          updated_at: new Date().toISOString(),
+        })
+        .eq('task_id', taskId)
+        .eq('employee_id', employee.id)
+        .select('task_id')
+        .maybeSingle();
+
+      if (error) throw error;
+      if (!updatedTask) return NextResponse.json({ error: 'Task not found.' }, { status: 404 });
+      return NextResponse.json({ success: true });
+    }
+
+    if (body?.type === 'UPDATE_TASKS') {
+      if (!Array.isArray(payload)) return NextResponse.json({ error: 'Task updates must be a list.' }, { status: 400 });
+      const groups = new Map<TaskStatus, number[]>();
+      for (const task of payload) {
+        const id = Number(task?.id);
+        if (!Number.isSafeInteger(id) || id < 1 || !isStatus(task?.status)) continue;
+        groups.set(task.status, [...(groups.get(task.status) || []), id]);
+      }
+
+      for (const [status, ids] of groups) {
+        const { error } = await supabase
+          .from('time_tracker_tasks')
+          .update({ status, updated_at: new Date().toISOString() })
+          .eq('employee_id', employee.id)
+          .in('task_id', ids);
+        if (error) throw error;
+      }
+      return NextResponse.json({ success: true });
+    }
+
+    if (body?.type === 'DELETE_TASK') {
+      const taskId = Number(payload?.id);
+      if (!Number.isSafeInteger(taskId) || taskId < 1) return NextResponse.json({ error: 'A valid task ID is required.' }, { status: 400 });
+      const { data: deletedTask, error } = await supabase
+        .from('time_tracker_tasks')
+        .delete()
+        .eq('task_id', taskId)
+        .eq('employee_id', employee.id)
+        .select('task_id')
+        .maybeSingle();
+      if (error) throw error;
+      if (!deletedTask) return NextResponse.json({ error: 'Task not found.' }, { status: 404 });
+      return NextResponse.json({ success: true });
+    }
+
+    if (body?.type === 'ADD_NOTE') {
+      const title = typeof payload?.title === 'string' ? payload.title.trim().slice(0, 200) : '';
+      const content = typeof payload?.content === 'string' ? payload.content.trim() : '';
+      const color = ['blue', 'yellow', 'green', 'rose'].includes(payload?.color) ? payload.color : 'blue';
+      const allowedTags = ['Late Arrival', 'Meal Coverage', 'Shift Swap', 'Overtime Flag', 'Missing Punch', 'Approved Leave'];
+      const tag = allowedTags.includes(payload?.tag) ? payload.tag : 'Late Arrival';
+      if (!title || !content || content.length > 100_000) {
+        return NextResponse.json({ error: 'A note title and content are required.' }, { status: 400 });
+      }
+
+      const { data, error } = await supabase.from('time_tracker_notes').insert({
+        employee_id: employee.id,
+        note_type: 'sticky',
+        title,
+        content,
+        metadata: { color, tag, isPinned: false },
+      }).select('note_id, note_type, title, content, metadata, created_at').single();
+      if (error) throw error;
+      return NextResponse.json({ success: true, note: mapNote(data) });
+    }
+
+    if (body?.type === 'UPDATE_NOTE') {
+      const noteId = Number(payload?.id);
+      if (!Number.isSafeInteger(noteId) || noteId < 1 || typeof payload?.isPinned !== 'boolean') {
+        return NextResponse.json({ error: 'The note update is invalid.' }, { status: 400 });
+      }
+      const { data: note, error: lookupError } = await supabase.from('time_tracker_notes')
+        .select('metadata').eq('note_id', noteId).eq('employee_id', employee.id).eq('note_type', 'sticky').maybeSingle();
+      if (lookupError) throw lookupError;
+      if (!note) return NextResponse.json({ error: 'Note not found.' }, { status: 404 });
+
+      const { error } = await supabase.from('time_tracker_notes').update({
+        metadata: { ...(note.metadata || {}), isPinned: payload.isPinned },
+        updated_at: new Date().toISOString(),
+      }).eq('note_id', noteId).eq('employee_id', employee.id).eq('note_type', 'sticky');
+      if (error) throw error;
+      return NextResponse.json({ success: true });
+    }
+
+    if (body?.type === 'DELETE_NOTE') {
+      const noteId = Number(payload?.id);
+      if (!Number.isSafeInteger(noteId) || noteId < 1) return NextResponse.json({ error: 'A valid note ID is required.' }, { status: 400 });
+      const { data, error } = await supabase.from('time_tracker_notes').delete()
+        .eq('note_id', noteId).eq('employee_id', employee.id).select('note_id').maybeSingle();
+      if (error) throw error;
+      if (!data) return NextResponse.json({ error: 'Note not found.' }, { status: 404 });
+      return NextResponse.json({ success: true });
+    }
+
+    if (body?.type === 'SAVE_MIND_DUMP' || body?.type === 'SAVE_SHIFT_MEMO') {
+      const noteType = body.type === 'SAVE_SHIFT_MEMO' ? 'shift' : 'mind_dump';
+      const title = typeof payload?.title === 'string' ? payload.title.trim().slice(0, 200) : '';
+      const content = typeof payload?.text === 'string' ? payload.text : '';
+      if (content.length > 100_000) return NextResponse.json({ error: 'The note is too long.' }, { status: 400 });
+
+      const requestedId = Number(payload?.noteId);
+      let existing = null;
+      if (Number.isSafeInteger(requestedId) && requestedId > 0) {
+        const { data, error } = await supabase.from('time_tracker_notes').select('note_id')
+          .eq('note_id', requestedId).eq('employee_id', employee.id).eq('note_type', noteType).maybeSingle();
+        if (error) throw error;
+        existing = data;
+      }
+      if (!existing) {
+        const { data, error } = await supabase.from('time_tracker_notes').select('note_id')
+          .eq('employee_id', employee.id).eq('note_type', noteType).order('created_at').limit(1).maybeSingle();
+        if (error) throw error;
+        existing = data;
+      }
+
+      if (existing) {
+        const { data, error } = await supabase.from('time_tracker_notes').update({
+          title: title || 'Notes', content, updated_at: new Date().toISOString(),
+        }).eq('note_id', existing.note_id).eq('employee_id', employee.id).select('note_id').single();
+        if (error) throw error;
+        return NextResponse.json({ success: true, noteId: String(data.note_id) });
+      }
+
+      const { data, error } = await supabase.from('time_tracker_notes').insert({
+        employee_id: employee.id, note_type: noteType, title: title || 'Notes', content,
+      }).select('note_id').single();
+      if (error) throw error;
+      return NextResponse.json({ success: true, noteId: String(data.note_id) });
+    }
+
+    return NextResponse.json({ error: 'Unsupported Flow Hub action.' }, { status: 400 });
+  } catch (error) {
+    console.error('Flow Hub write failed:', error);
+    return NextResponse.json({ error: 'Unable to save the Flow Hub change.' }, { status: 500 });
   }
 }

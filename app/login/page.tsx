@@ -29,26 +29,12 @@ function LoginFullScreenLoader() {
   );
 }
 
-const AUTHORIZED_DOMAINS = [
-  '@cebutelenet.com',
-  '@cebutele-net.com',
-  '@cebutele-net.ph',
-  '.telenet@gmail.com',
-  'telenet@gmail.com',
-  '@gmail.com',
-];
-
-function isAuthorizedDomain(email: string): boolean {
-  const lower = email.toLowerCase().trim();
-  return AUTHORIZED_DOMAINS.some((domain) => lower.endsWith(domain));
-}
-
 function LoginFormContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
 
   // Storage Image URLs from Supabase
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://zhdmsmwrskxowvytedgh.supabase.co';
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
   const bgImageUrl = `${supabaseUrl}/storage/v1/object/public/Images/ctnp-bg-image-1.png`;
   const logoUrl = `${supabaseUrl}/storage/v1/object/public/Images/ctnp-logo-full.png`;
 
@@ -157,10 +143,6 @@ function LoginFormContent() {
       const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
       if (!emailRegex.test(trimmedEmail)) {
         setEmailError('Please enter a valid email address.');
-        isValid = false;
-      } else if (!isAuthorizedDomain(trimmedEmail)) {
-        // 3. Company Domain Restriction
-        setEmailError('Unauthorized domain. Please use your official company email.');
         isValid = false;
       }
     }

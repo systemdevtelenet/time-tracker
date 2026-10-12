@@ -30,7 +30,7 @@ export default function AnalyticsView({
   employees = [],
   accounts = [],
 }: AnalyticsViewProps) {
-  const totalRosterCount = employees.length > 0 ? employees.length : 13;
+  const totalRosterCount = employees.length;
 
   // 1. Core Total Durations and Calculations
   const { totalSeconds, regularSeconds, overtimeSeconds } = useMemo(() => {

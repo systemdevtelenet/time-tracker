@@ -57,7 +57,7 @@ const USER_FILTER_TABS = [
 
 export default function ActivityLogsView({
   onBackToDashboard,
-  supervisorName = 'Nissi-Jeh Reguero',
+  supervisorName = '',
   supervisor,
 }: ActivityLogsViewProps) {
   const [logs, setLogs] = useState<SystemActivityLog[]>([]);

@@ -39,27 +39,8 @@ export function isHeadOrAdminUser(supervisor?: { role?: string; position?: strin
   if (!supervisor) return false;
   const role = supervisor.role?.toLowerCase() || '';
   const position = supervisor.position?.toLowerCase() || '';
-  const name = supervisor.name?.toLowerCase() || '';
-
-  if (role === 'admin' || role === 'superadmin') return true;
-  if (
-    position.includes('head of training') ||
-    position.includes('head of quality') ||
-    position.includes('qa supervisor') ||
-    position.includes('supervisor') ||
-    position.includes('manager')
-  ) {
-    return true;
-  }
-  if (
-    name.includes('nissi') ||
-    name.includes('alasagas') ||
-    name.includes('reguero') ||
-    name.includes('raymundo')
-  ) {
-    return true;
-  }
-  return false;
+  return role === 'admin' || role === 'superadmin' ||
+    position.includes('head') || position.includes('supervisor') || position.includes('manager');
 }
 
 interface CompanySidebarProps {
@@ -94,7 +75,7 @@ export default function CompanySidebar({
   // Restore cached shift status on client mount after hydration
   useEffect(() => {
     try {
-      const cached = sessionStorage.getItem(`ctnp_cached_shift_status_${supervisor?.id || '1597'}`);
+      const cached = sessionStorage.getItem(`ctnp_cached_shift_status_${supervisor?.id || 'unknown'}`);
       if (cached) {
         const parsed = JSON.parse(cached);
         if (parsed) {
@@ -128,7 +109,7 @@ export default function CompanySidebar({
         }
         try {
           sessionStorage.setItem(
-            `ctnp_cached_shift_status_${supervisor.id || '1597'}`,
+            `ctnp_cached_shift_status_${supervisor.id || 'unknown'}`,
             JSON.stringify(data.currentStatus)
           );
         } catch (e) {}

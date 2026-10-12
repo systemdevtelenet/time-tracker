@@ -38,7 +38,7 @@ export default function CalendarModal({
                 Shift Punch Calendar — {employee.name}
               </h3>
               <p className="text-xs text-slate-500 dark:text-slate-400">
-                Employee ID: <span className="font-bold text-slate-700 dark:text-slate-300">{employee.employeeCode}</span> • Shift: 9:00 PM – 6:00 AM • Traffic: <span className="font-bold text-emerald-600 dark:text-emerald-400">{employee.trafficLight}</span>
+                Employee ID: <span className="font-bold text-slate-700 dark:text-slate-300">{employee.employeeCode}</span> • Shift: Not set • Traffic: <span className="font-bold text-emerald-600 dark:text-emerald-400">{employee.trafficLight}</span>
               </p>
             </div>
           </div>

@@ -1,5 +1,6 @@
 import { getSupabaseAdmin } from '@/lib/supabase/server';
 import { PunchActionType, ShiftPunchesState } from '@/lib/punchLogs';
+import { formatShiftRange, parseShiftStartHour } from '@/lib/shiftSchedule';
 
 export interface RawTimeTrackerRow {
   'LOG ID'?: string;
@@ -64,6 +65,13 @@ export interface RawEmployeeRow {
   'Traffic Light Status'?: string;
   // Fallbacks
   id?: string | number;
+  employee_code?: string | number;
+  employee_name?: string;
+  employee_email?: string;
+  position_name?: string;
+  role_name?: string;
+  account_code?: string;
+  account_name?: string;
   employee_id?: string | number;
   name?: string;
   role?: string;
@@ -79,19 +87,19 @@ export interface RawEmployeeRow {
 }
 
 export function normalizeEmployeeRow(row: RawEmployeeRow): NormalizedEmployee {
-  const empId = String(row['Employee ID'] || row.employee_id || row.id || '').trim();
-  const name = String(row['Name'] || row.name || 'Employee').trim();
-  const position = String(row['Position'] || row.position || row['Role'] || row.role || 'Agent').trim();
-  const userRole = String(row['Role'] || row.role || 'User').trim();
-  const shift = String(row['Shift'] || row.shift || '08:00 - 17:00').trim();
-  const shift_type = String(row['Shift Type'] || row.shift_type || 'Dayshift').trim();
-  const account = String(row['Account'] || row.account || 'DFT').trim();
-  const supervisor = String(row['Supervisor'] || row.supervisor || 'N/A').trim();
-  const department = String(row['Department'] || row.department || 'Operations').trim();
-  const hire_date = String(row['Hire Date'] || row.hire_date || '2023-01-01').trim();
-  const tenure = String(row['Tenure'] || row.tenure || '1 year').trim();
-  const traffic_light_status = String(row['Traffic Light Status'] || row.traffic_light_status || 'Green').trim();
-  const email = `${name.toLowerCase().replace(/[^a-z0-9]/g, '.')}@cebutele-net.ph`;
+  const empId = String(row.employee_code || row['Employee ID'] || row.employee_id || row.id || '').trim();
+  const name = String(row.employee_name || row['Name'] || row.name || '').trim();
+  const position = String(row.position_name || row['Position'] || row.position || row['Role'] || row.role || '').trim();
+  const userRole = String(row.role_name || row['Role'] || row.role || '').trim();
+  const shift = String(row['Shift'] || row.shift || '').trim();
+  const shift_type = String(row['Shift Type'] || row.shift_type || '').trim();
+  const account = String(row.account_code || row.account_name || row['Account'] || row.account || '').trim();
+  const supervisor = String(row['Supervisor'] || row.supervisor || '').trim();
+  const department = String(row['Department'] || row.department || '').trim();
+  const hire_date = String(row.hire_date || row['Hire Date'] || '').trim();
+  const tenure = String(row['Tenure'] || row.tenure || '').trim();
+  const traffic_light_status = String(row['Traffic Light Status'] || row.traffic_light_status || '').trim();
+  const email = String(row.employee_email || '').trim();
 
   return {
     id: empId,
@@ -112,81 +120,70 @@ export function normalizeEmployeeRow(row: RawEmployeeRow): NormalizedEmployee {
   };
 }
 
-export const TARGET_13_EMPLOYEE_IDS = [
-  '1597', // Nissi-Jeh Reguero (Head of Training)
-  '1108', // Raymundo Alasagas III (Head of Quality)
-  '1772', // Bianca Kaye Ernestine Colonia (Trainer)
-  '2385', // Michelle Yncierto (Trainer)
-  '1035', // Rommel Mendoza (Trainer)
-  '1820', // Ronelyn Baguio (Trainer)
-  '836',  // Krisland Pepito (Trainer)
-  '1006', // Niño Elijah R. Reyes (Trainer)
-  '1880', // Kier Ariola (Trainer)
-  '946',  // Vincent Luis Celdran (Trainer)
-  '2298', // Nina Joy Briones (Trainer)
-  '1954', // Matt Riner Balaba (Trainer)
-  '2610', // Maegan Marie Cabardo (Trainer)
-];
-
 export async function getTimeTrackerEmployeesFromDb(): Promise<NormalizedEmployee[]> {
-  try {
-    const supabase = getSupabaseAdmin();
-    // 1. Try time_tracker_employees table
-    const { data: tteData, error: tteError } = await supabase
-      .from('time_tracker_employees')
-      .select('*');
+  const supabase = getSupabaseAdmin();
+  const [
+    { data: employees, error: employeesError },
+    { data: assignments, error: assignmentsError },
+    { data: schedules, error: schedulesError },
+  ] = await Promise.all([
+    supabase.from('employees')
+      .select('id, employee_code, employee_name, employee_email, hire_date, statuses(status_name), roles(role_name), positions(position_name)')
+      .order('employee_name'),
+    supabase.from('employee_assignments')
+      .select('employee_id, effective_from, effective_to, accounts(account_code, account_name, is_active)'),
+    supabase.from('employee_work_schedules')
+      .select('employee_id, shift_start, shift_end, shift_type, time_zone, effective_from, effective_to')
+      .eq('is_active', true)
+      .order('effective_from', { ascending: false }),
+  ]);
 
-    if (!tteError && tteData && tteData.length > 0) {
-      const all = tteData.map(normalizeEmployeeRow);
-      // Filter for the 13 target employees (Head of Training, Head of Quality, and 11 Trainers)
-      const filtered = all.filter((emp) =>
-        TARGET_13_EMPLOYEE_IDS.includes(emp.employee_id) ||
-        emp.position.toLowerCase().includes('trainer') ||
-        emp.position.toLowerCase().includes('head of')
-      );
-      // Sort to match the standard sequence (Head of Training, Head of Quality, Trainers)
-      filtered.sort((a, b) => {
-        const idxA = TARGET_13_EMPLOYEE_IDS.indexOf(a.employee_id);
-        const idxB = TARGET_13_EMPLOYEE_IDS.indexOf(b.employee_id);
-        return (idxA === -1 ? 999 : idxA) - (idxB === -1 ? 999 : idxB);
+  if (employeesError) throw employeesError;
+  if (assignmentsError) throw assignmentsError;
+  if (schedulesError) throw schedulesError;
+  const now = Date.now();
+
+  return (employees || [])
+    .filter((employee) => (employee.statuses as { status_name?: string } | null)?.status_name?.toLowerCase() === 'active')
+    .map((employee) => {
+      const currentAssignment = (assignments || [])
+        .filter((assignment) => {
+          if (String(assignment.employee_id) !== String(employee.id)) return false;
+          const start = assignment.effective_from ? new Date(assignment.effective_from).getTime() : 0;
+          const end = assignment.effective_to ? new Date(assignment.effective_to).getTime() : Infinity;
+          const account = assignment.accounts as { is_active?: boolean } | null;
+          return start <= now && end >= now && account?.is_active !== false;
+        })
+        .sort((a, b) => new Date(b.effective_from || 0).getTime() - new Date(a.effective_from || 0).getTime())[0];
+      const account = currentAssignment?.accounts as { account_code?: string; account_name?: string } | null;
+      const currentSchedule = (schedules || []).find((schedule) => {
+        if (String(schedule.employee_id) !== String(employee.id)) return false;
+        const startsAt = schedule.effective_from ? new Date(schedule.effective_from).getTime() : 0;
+        const endsAt = schedule.effective_to ? new Date(schedule.effective_to).getTime() : Infinity;
+        return startsAt <= now && endsAt >= now;
       });
-      return filtered;
-    }
-
-    // 2. Fallback to team_roster table
-    const { data: rosterData, error: rosterError } = await supabase
-      .from('team_roster')
-      .select('*');
-
-    if (!rosterError && rosterData && rosterData.length > 0) {
-      const all = rosterData.map(normalizeEmployeeRow);
-      const filtered = all.filter((emp) =>
-        TARGET_13_EMPLOYEE_IDS.includes(emp.employee_id) ||
-        emp.position.toLowerCase().includes('trainer') ||
-        emp.position.toLowerCase().includes('head of')
-      );
-      filtered.sort((a, b) => {
-        const idxA = TARGET_13_EMPLOYEE_IDS.indexOf(a.employee_id);
-        const idxB = TARGET_13_EMPLOYEE_IDS.indexOf(b.employee_id);
-        return (idxA === -1 ? 999 : idxA) - (idxB === -1 ? 999 : idxB);
+      return normalizeEmployeeRow({
+        id: employee.id,
+        employee_code: employee.employee_code,
+        employee_name: employee.employee_name,
+        employee_email: employee.employee_email,
+        hire_date: employee.hire_date,
+        role_name: (employee.roles as { role_name?: string } | null)?.role_name,
+        position_name: (employee.positions as { position_name?: string } | null)?.position_name,
+        account_code: account?.account_code,
+        account_name: account?.account_name,
+        Shift: formatShiftRange(currentSchedule?.shift_start, currentSchedule?.shift_end),
+        'Shift Type': currentSchedule?.shift_type || '',
       });
-      return filtered;
-    }
-
-    return [];
-  } catch (err) {
-    console.error('Error fetching employees from db:', err);
-    return [];
-  }
+    });
 }
-
 
 /**
  * Normalizes any row format from time_tracker_logs into a standard object
  */
 export function normalizeTimeTrackerRow(row: RawTimeTrackerRow): NormalizedTimeTrackerLog {
   const id = String(row['LOG ID'] || row.id || `log-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`);
-  const employee_id = String(row['EMPLOYEE ID'] || row.employee_id || '1597').trim();
+  const employee_id = String(row['EMPLOYEE ID'] || row.employee_id || '').trim();
   const punch_type = String(row['TYPE'] || row.punch_type || row.type || 'Shift Start').trim();
   const rawTimestamp = String(row['TIMESTAMP'] || row.timestamp || new Date().toISOString()).trim();
   const duration = String(row['DURATION'] || row.duration || 'N/A').trim();
@@ -297,8 +294,9 @@ export async function getTimeTrackerLogsFromDb(options?: {
     if (options?.empId && options.empId !== 'ALL') {
       normalized = normalized.filter((l) => l.employee_id === String(options.empId));
     } else {
-      // Filter for the 13 target employees
-      normalized = normalized.filter((l) => TARGET_13_EMPLOYEE_IDS.includes(l.employee_id));
+      const employees = await getTimeTrackerEmployeesFromDb();
+      const activeEmployeeIds = new Set(employees.map((employee) => employee.employee_id));
+      normalized = normalized.filter((log) => activeEmployeeIds.has(log.employee_id));
     }
 
     if (options?.date) {
@@ -369,6 +367,15 @@ export async function deleteTimeTrackerPunchesForDay(
       .from('time_tracker_logs')
       .select('*')
       .eq('EMPLOYEE ID', numEmpId);
+    const { data: employee } = await supabase.from('employees').select('id').eq('employee_code', String(empId)).maybeSingle();
+    const { data: schedules } = employee
+      ? await supabase.from('employee_work_schedules')
+        .select('shift_start, shift_end')
+        .eq('employee_id', employee.id)
+        .eq('is_active', true)
+      : { data: [] };
+    const currentSchedule = schedules?.[0];
+    const shiftStartHour = parseShiftStartHour(formatShiftRange(currentSchedule?.shift_start, currentSchedule?.shift_end));
 
     if (!fetchErr && logs && logs.length > 0) {
       const idsToDelete = logs.filter((row: any) => {
@@ -378,11 +385,10 @@ export async function deleteTimeTrackerPunchesForDay(
         if (isNaN(d.getTime())) return false;
         if (d.getFullYear() !== year) return false;
         
-        // Night shift grace: hours < 9 belong to previous shift date
         const h = d.getHours();
         let sDay = d.getDate();
         let sMonth = d.getMonth();
-        if (h < 9) {
+        if (shiftStartHour !== null && h < shiftStartHour) {
           const prev = new Date(d);
           prev.setDate(prev.getDate() - 1);
           sDay = prev.getDate();

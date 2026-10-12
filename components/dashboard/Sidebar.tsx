@@ -224,7 +224,7 @@ export default function Sidebar({
               POSITION
             </span>
             <p className="font-extrabold text-white text-xs sm:text-sm">
-              {supervisor.position || 'Head of Training'}
+              {supervisor.position || 'Position not assigned'}
             </p>
           </div>
 
@@ -233,7 +233,7 @@ export default function Sidebar({
               SHIFT SCHEDULE
             </span>
             <p className="font-extrabold text-white text-xs sm:text-sm">
-              {supervisor.shift || '9:00 PM to 6:00 AM'}
+              {supervisor.shift || 'Shift schedule not set'}
             </p>
           </div>
 
@@ -243,7 +243,7 @@ export default function Sidebar({
                 ACCOUNT
               </span>
               <p className="font-extrabold text-white text-xs sm:text-sm">
-                {supervisor.account || 'Corporate'}
+                {supervisor.account}
               </p>
             </div>
             <div className="text-right">

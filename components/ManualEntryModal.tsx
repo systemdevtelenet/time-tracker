@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { X, PlusCircle } from 'lucide-react';
 import { AccountOption, PhoneTimeRecord } from '@/lib/types';
 import { getTodayFormatted } from '@/lib/utils';
@@ -23,7 +23,7 @@ export default function ManualEntryModal({
 }: ManualEntryModalProps) {
   const [dateOfShift, setDateOfShift] = useState<string>(getTodayFormatted());
   const [name, setName] = useState<string>(currentAgent || '');
-  const [account, setAccount] = useState<string>('DFT');
+  const [account, setAccount] = useState<string>(accounts[0]?.account_code || '');
   const [minutes, setMinutes] = useState<string>('15');
   const [seconds, setSeconds] = useState<string>('0');
   const [ticketNumber, setTicketNumber] = useState<string>('');
@@ -34,6 +34,12 @@ export default function ManualEntryModal({
   const [summaryError, setSummaryError] = useState<string | null>(null);
   const [durationError, setDurationError] = useState<string | null>(null);
   const [nameError, setNameError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!accounts.some((option) => option.account_code === account)) {
+      setAccount(accounts[0]?.account_code || '');
+    }
+  }, [accounts, account]);
 
   if (!isOpen) return null;
 
@@ -74,8 +80,8 @@ export default function ManualEntryModal({
 
     const payload: PhoneTimeRecord = {
       date_of_shift: dateOfShift,
-      name: name.trim() || currentAgent || 'Anonymous Agent',
-      account: account || 'DFT',
+      name: name.trim(),
+      account,
       total_minutes: totalMinutesFormatted,
       ticket_number: ticketNumber.trim() || Math.random().toString(16).substring(2, 10),
       tagging: tagging.trim() || 'General',
@@ -175,7 +181,7 @@ export default function ManualEntryModal({
                   setName(e.target.value);
                   if (nameError) setNameError(null);
                 }}
-                placeholder="e.g. Matt Riner Balaba"
+                placeholder="Enter employee name"
                 className={`w-full h-10 px-3 rounded-xl bg-slate-50 dark:bg-slate-800 text-xs font-semibold text-slate-800 dark:text-slate-200 focus:outline-none ${
                   nameError 
                     ? 'border border-[#EF4444] text-[#EF4444]' 
@@ -208,9 +214,7 @@ export default function ManualEntryModal({
                       {acc.account_name} ({acc.account_code})
                     </option>
                   ))
-                ) : (
-                  <option value="Corporate">Corporate Training</option>
-                )}
+                ) : <option value="">No active accounts available</option>}
               </select>
             </div>
 

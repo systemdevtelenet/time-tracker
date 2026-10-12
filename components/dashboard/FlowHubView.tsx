@@ -62,10 +62,10 @@ import {
 
 import FlowHubNotesPlanner from './FlowHubNotesPlanner';
 import ConfirmActionModal from './ConfirmActionModal';
+import { showToast } from '@/lib/toast';
 
 interface FlowHubViewProps {
   onBackToPortal: () => void;
-  supervisorId?: string;
 }
 
 interface TaskItem {
@@ -92,7 +92,98 @@ interface HabitItem {
   timeOfDay: string;
 }
 
-export default function FlowHubView({ onBackToPortal, supervisorId = '1597' }: FlowHubViewProps) {
+function RoutineFilterSelect({
+  label,
+  value,
+  options,
+  onChange,
+}: {
+  label: string;
+  value: string;
+  options: string[];
+  onChange: (value: string) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const rootRef = useRef<HTMLDivElement>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const closeOnOutsideClick = (event: MouseEvent) => {
+      if (event.target instanceof Node && !rootRef.current?.contains(event.target)) setOpen(false);
+    };
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setOpen(false);
+        triggerRef.current?.focus();
+      }
+    };
+    document.addEventListener('mousedown', closeOnOutsideClick);
+    document.addEventListener('keydown', closeOnEscape);
+    return () => {
+      document.removeEventListener('mousedown', closeOnOutsideClick);
+      document.removeEventListener('keydown', closeOnEscape);
+    };
+  }, [open]);
+
+  return (
+    <div ref={rootRef} className="relative space-y-1.5">
+      <label className="block text-[10px] font-extrabold text-slate-400 uppercase tracking-wider">{label}</label>
+      <button
+        ref={triggerRef}
+        type="button"
+        aria-haspopup="listbox"
+        aria-expanded={open}
+        onClick={() => setOpen((current) => !current)}
+        onKeyDown={(event) => {
+          if ((event.key === 'ArrowDown' || event.key === 'ArrowUp') && !open) {
+            event.preventDefault();
+            setOpen(true);
+            requestAnimationFrame(() => rootRef.current?.querySelector<HTMLButtonElement>('[role="option"]')?.focus());
+          }
+        }}
+        className="w-full flex items-center justify-between gap-2 px-3 py-2 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-800 dark:text-slate-100 outline-none transition-colors hover:border-[#2F6798]/50 focus-visible:ring-2 focus-visible:ring-[#2F6798]/30"
+      >
+        <span>{value}</span>
+        <ChevronRight className={`w-4 h-4 text-slate-500 transition-transform ${open ? '-rotate-90' : 'rotate-90'}`} />
+      </button>
+      {open && (
+        <div
+          role="listbox"
+          aria-label={label}
+          className="absolute left-0 right-0 top-full z-30 mt-1.5 p-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 shadow-lg shadow-slate-900/10"
+        >
+          {options.map((option) => {
+            const selected = option === value;
+            return (
+              <button
+                key={option}
+                type="button"
+                role="option"
+                aria-selected={selected}
+                onClick={() => {
+                  onChange(option);
+                  setOpen(false);
+                  triggerRef.current?.focus();
+                }}
+                className={`w-full flex items-center justify-between rounded-lg px-2.5 py-2 text-left text-xs font-semibold transition-colors ${
+                  selected
+                    ? 'bg-[#2F6798] text-white shadow-xs'
+                    : 'text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700'
+                }`}
+              >
+                <span>{option}</span>
+                {selected && <Check className="w-3.5 h-3.5" />}
+              </button>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
+export default function FlowHubView({ onBackToPortal }: FlowHubViewProps) {
   // Live Date & Time
   const [currentDateTime, setCurrentDateTime] = useState({
     dateStr: 'Tuesday, September 15, 2026',
@@ -105,6 +196,10 @@ export default function FlowHubView({ onBackToPortal, supervisorId = '1597' }: F
   const [isTimerActive, setIsTimerActive] = useState<boolean>(false);
   const [timerMode, setTimerMode] = useState<'focus' | 'short_break' | 'long_break'>('focus');
   const [sessionsCompleted, setSessionsCompleted] = useState<number>(0);
+  const [sessionMinutes, setSessionMinutes] = useState<number>(0);
+  const [timerSessionToken, setTimerSessionToken] = useState<string | null>(null);
+  const [timerLoaded, setTimerLoaded] = useState(false);
+  const completionInFlightRef = useRef(false);
   const [activeAmbient, setActiveAmbient] = useState<string | null>(null);
   const [ambientVolume, setAmbientVolume] = useState<number>(0.35);
 
@@ -127,132 +222,18 @@ export default function FlowHubView({ onBackToPortal, supervisorId = '1597' }: F
   const [newTaskPriority, setNewTaskPriority] = useState<'HIGH' | 'MEDIUM' | 'LOW'>('HIGH');
   const [newTaskCategory, setNewTaskCategory] = useState('Website');
   const [newTaskEstimate, setNewTaskEstimate] = useState('2h');
-  const [newTaskAssignee, setNewTaskAssignee] = useState('NR');
   const [newTaskColumn, setNewTaskColumn] = useState<'todo' | 'inprogress' | 'done'>('todo');
-
-  const [tasks, setTasks] = useState<TaskItem[]>([
-    {
-      id: '1',
-      title: 'COVA Escalation - TM',
-      ticketCode: '#17889',
-      priority: 'MEDIUM',
-      status: 'done',
-      estimate: '2h',
-      category: 'Escalation',
-      categoryColor: 'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950/60 dark:text-amber-300 dark:border-amber-800',
-      assignee: 'NR',
-      assigneeColor: 'bg-[#24537D]',
-    },
-    {
-      id: '2',
-      title: 'Ms Cha schedule for CODI',
-      ticketCode: '#17889',
-      priority: 'HIGH',
-      status: 'done',
-      estimate: '4h',
-      category: 'High Importance',
-      categoryColor: 'bg-rose-50 text-rose-700 border-rose-200 dark:bg-rose-950/60 dark:text-rose-300 dark:border-rose-800',
-      assignee: 'MB',
-      assigneeColor: 'bg-[#C29B38]',
-    },
-    {
-      id: '3',
-      title: 'Coaching Evaluation - QA FRIA',
-      ticketCode: '#17889',
-      priority: 'HIGH',
-      status: 'done',
-      estimate: '1h',
-      category: 'QA FRIA',
-      categoryColor: 'bg-rose-50 text-rose-700 border-rose-200 dark:bg-rose-950/60 dark:text-rose-300 dark:border-rose-800',
-      assignee: 'JC',
-      assigneeColor: 'bg-[#0E8A5E]',
-    },
-    {
-      id: '4',
-      title: 'SL FORM - Matt Riner Balaba',
-      ticketCode: '#17889',
-      priority: 'HIGH',
-      status: 'done',
-      estimate: '2h',
-      category: 'HR Form',
-      categoryColor: 'bg-rose-50 text-rose-700 border-rose-200 dark:bg-rose-950/60 dark:text-rose-300 dark:border-rose-800',
-      assignee: 'EP',
-      assigneeColor: 'bg-[#E82159]',
-    },
-  ]);
+  const [tasks, setTasks] = useState<TaskItem[]>([]);
 
   // Mind Dump State matching screenshot
-  const [mindDumpTitle, setMindDumpTitle] = useState('Salsile Project Brief');
+  const [mindDumpTitle, setMindDumpTitle] = useState('');
   const [isEditingTitle, setIsEditingTitle] = useState(false);
-  const [mindDumpText, setMindDumpText] = useState(
-    'Salsile Inc. is a well-established fashion retailer specializing in high-quality clothing and accessories for men and women. The client is looking to revamp their existing e-commerce website to enhance user experience, improve overall aesthetics, and increase online sales. The new design should reflect their brand identity as a modern, and customer-centric fashion store.'
-  );
+  const [mindDumpText, setMindDumpText] = useState('');
   const [isCopied, setIsCopied] = useState(false);
   const [isSaved, setIsSaved] = useState(false);
 
   // Habit Tracker State
-  const [habits, setHabits] = useState<HabitItem[]>([
-    {
-      id: 'h1',
-      name: 'Drink a glass of water',
-      category: 'hydration',
-      categoryLabel: 'Hydration',
-      duration: '5 min',
-      streak: 5,
-      completedToday: true,
-      timeOfDay: 'Morning Shift',
-    },
-    {
-      id: 'h2',
-      name: 'Meditate to relax & mindful reset',
-      category: 'mindfulness',
-      categoryLabel: 'Focus Breath',
-      duration: '15 min',
-      streak: 8,
-      completedToday: true,
-      timeOfDay: 'Mid Shift',
-    },
-    {
-      id: 'h3',
-      name: 'Stretch for 10 minutes (Neck & Spine)',
-      category: 'stretch',
-      categoryLabel: 'Ergonomics',
-      duration: '10 min',
-      streak: 6,
-      completedToday: false,
-      timeOfDay: 'Desk Routine',
-    },
-    {
-      id: 'h4',
-      name: 'Reconcile shift punch logs & attendance hours',
-      category: 'tracker',
-      categoryLabel: 'Time Tracker',
-      duration: '15 min',
-      streak: 14,
-      completedToday: false,
-      timeOfDay: 'Shift Review',
-    },
-    {
-      id: 'h5',
-      name: 'Healthy food & nourishment meal',
-      category: 'nutrition',
-      categoryLabel: 'Shift Fuel',
-      duration: '30 min',
-      streak: 7,
-      completedToday: false,
-      timeOfDay: 'Lunch Break',
-    },
-    {
-      id: 'h6',
-      name: 'Go for a short outdoor/step walk',
-      category: 'walk',
-      categoryLabel: 'Active Rest',
-      duration: '15 min',
-      streak: 4,
-      completedToday: false,
-      timeOfDay: 'Break Step',
-    },
-  ]);
+  const [habits, setHabits] = useState<HabitItem[]>([]);
 
   const [activeHabitTab, setActiveHabitTab] = useState<'routine' | 'highlights' | 'stats'>('routine');
   const [selectedDayIndex, setSelectedDayIndex] = useState<number>(1); // Tuesday active
@@ -286,25 +267,30 @@ export default function FlowHubView({ onBackToPortal, supervisorId = '1597' }: F
   // Flow Hub Database / API Load
   const fetchFlowHubData = React.useCallback(async () => {
     try {
-      const res = await fetch(`/api/flow-hub?empId=${supervisorId}`);
+      const res = await fetch('/api/flow-hub');
       const json = await res.json();
+      if (!res.ok) throw new Error(json.error || 'Unable to load Flow Hub data.');
       if (json.data) {
-        if (json.data.tasks && Array.isArray(json.data.tasks) && json.data.tasks.length > 0) {
-          setTasks(json.data.tasks);
-        }
-        if (json.data.habits && Array.isArray(json.data.habits) && json.data.habits.length > 0) {
-          setHabits(json.data.habits);
-        }
+        setTasks(Array.isArray(json.data.tasks) ? json.data.tasks : []);
+        setHabits(Array.isArray(json.data.habits) ? json.data.habits : []);
         if (json.data.sessions !== undefined) {
           setSessionsCompleted(json.data.sessions);
         }
-        if (json.data.mindDump) {
-          if (json.data.mindDump.text) setMindDumpText(json.data.mindDump.text);
-          if (json.data.mindDump.title) setMindDumpTitle(json.data.mindDump.title);
+        if (json.data.sessionMinutes !== undefined) setSessionMinutes(json.data.sessionMinutes);
+        if (json.data.focusTimer) {
+          setTimerMode(json.data.focusTimer.mode);
+          setSelectedDuration(json.data.focusTimer.durationMinutes);
+          setTimerSecondsLeft(json.data.focusTimer.secondsRemaining);
+          setIsTimerActive(json.data.focusTimer.isActive);
+          setTimerSessionToken(json.data.focusTimer.sessionToken || null);
         }
+        setMindDumpText(json.data.mindDump?.text || '');
+        setMindDumpTitle(json.data.mindDump?.title || '');
       }
     } catch (err) {
       console.error('Error fetching Flow Hub data:', err);
+    } finally {
+      setTimerLoaded(true);
     }
   }, []);
 
@@ -312,32 +298,48 @@ export default function FlowHubView({ onBackToPortal, supervisorId = '1597' }: F
     fetchFlowHubData();
   }, [fetchFlowHubData]);
 
+  const saveTimerAction = React.useCallback(async (type: string, payload: Record<string, unknown> = {}) => {
+    const response = await fetch('/api/flow-hub', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ type, payload }),
+    });
+    const json = await response.json();
+    if (!response.ok) throw new Error(json.error || 'Unable to save your focus timer.');
+    if (json.focusTimer) {
+      setTimerMode(json.focusTimer.mode);
+      setSelectedDuration(json.focusTimer.durationMinutes);
+      setTimerSecondsLeft(json.focusTimer.secondsRemaining);
+      setIsTimerActive(json.focusTimer.isActive);
+      setTimerSessionToken(json.focusTimer.sessionToken || null);
+    }
+    if (json.sessions !== undefined) setSessionsCompleted(json.sessions);
+    if (json.sessionMinutes !== undefined) setSessionMinutes(json.sessionMinutes);
+    return json;
+  }, []);
+
   const handleMindDumpChange = (val: string) => {
     setMindDumpText(val);
-    if (typeof window !== 'undefined') {
-      localStorage.setItem('flow_hub_mind_dump', val);
-    }
   };
 
   const handleSaveMindDump = async () => {
-    if (typeof window !== 'undefined') {
-      localStorage.setItem('flow_hub_mind_dump', mindDumpText);
-      localStorage.setItem('flow_hub_mind_dump_title', mindDumpTitle);
-    }
-    setIsSaved(true);
-    setTimeout(() => setIsSaved(false), 2000);
     try {
-      await fetch('/api/flow-hub', {
+      const response = await fetch('/api/flow-hub', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          empId: supervisorId,
           type: 'SAVE_MIND_DUMP',
           payload: { title: mindDumpTitle, text: mindDumpText },
         }),
       });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error || 'Unable to save note.');
+      setIsSaved(true);
+      setTimeout(() => setIsSaved(false), 2000);
+      showToast({ title: 'Note saved', message: 'Your note is saved.', type: 'success' });
     } catch (err) {
       console.error('Error saving mind dump:', err);
+      showToast({ title: 'Note not saved', message: 'Could not save your note. Please try again.', type: 'error' });
     }
   };
 
@@ -481,51 +483,67 @@ export default function FlowHubView({ onBackToPortal, supervisorId = '1597' }: F
     }
   };
 
-  // Focus Timer Tick
+  // Focus timer counts against a server start time and records a session once on completion.
   useEffect(() => {
     let interval: NodeJS.Timeout | null = null;
+    let completionTimeout: NodeJS.Timeout | null = null;
+    if (!timerLoaded) return;
     if (isTimerActive && timerSecondsLeft > 0) {
       interval = setInterval(() => {
         setTimerSecondsLeft((prev) => prev - 1);
       }, 1000);
-    } else if (timerSecondsLeft === 0 && isTimerActive) {
-      setIsTimerActive(false);
-      setSessionsCompleted((s) => s + 1);
-      fetch('/api/flow-hub', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ empId: '1597', type: 'INCREMENT_SESSION' }),
-      }).catch(console.error);
+    } else if (timerSecondsLeft === 0 && isTimerActive && timerSessionToken && !completionInFlightRef.current) {
+      // Small grace period prevents a clock/round-trip difference from completing early.
+      completionTimeout = setTimeout(async () => {
+        completionInFlightRef.current = true;
+        try {
+          await saveTimerAction('COMPLETE_FOCUS_TIMER', { sessionToken: timerSessionToken });
+          if (timerMode === 'focus') {
+            showToast({ title: 'Focus session complete', message: 'Your session has been added to today’s total.', type: 'success' });
+          }
+        } catch (err) {
+          console.error('Error completing focus timer:', err);
+          setIsTimerActive(false);
+          showToast({ title: 'Session not saved', message: 'Could not save this session. Refresh and try again.', type: 'error' });
+        } finally {
+          completionInFlightRef.current = false;
+        }
+      }, 1200);
     }
     return () => {
       if (interval) clearInterval(interval);
+      if (completionTimeout) clearTimeout(completionTimeout);
     };
-  }, [isTimerActive, timerSecondsLeft, timerMode]);
+  }, [isTimerActive, timerSecondsLeft, timerMode, timerLoaded, timerSessionToken, saveTimerAction]);
 
   const handleSelectMode = (mode: 'focus' | 'short_break' | 'long_break', mins: number) => {
     setTimerMode(mode);
     setSelectedDuration(mins);
     setTimerSecondsLeft(mins * 60);
     setIsTimerActive(false);
+    saveTimerAction('SAVE_FOCUS_TIMER', { mode, durationMinutes: mins, secondsRemaining: mins * 60, isActive: false, clearSession: true })
+      .catch((err) => { console.error(err); showToast({ title: 'Timer not saved', message: 'Could not update your timer settings.', type: 'error' }); fetchFlowHubData(); });
   };
 
   const handleSelectDuration = (mins: number) => {
     setSelectedDuration(mins);
     setTimerSecondsLeft(mins * 60);
     setIsTimerActive(false);
+    saveTimerAction('SAVE_FOCUS_TIMER', { mode: timerMode, durationMinutes: mins, secondsRemaining: mins * 60, isActive: false, clearSession: true })
+      .catch((err) => { console.error(err); showToast({ title: 'Timer not saved', message: 'Could not update your timer settings.', type: 'error' }); fetchFlowHubData(); });
   };
 
   const handleAdjustMinutes = (deltaMins: number) => {
-    setTimerSecondsLeft((prev) => {
-      const updated = Math.max(60, prev + deltaMins * 60);
-      return updated;
-    });
+    const updated = Math.max(60, timerSecondsLeft + deltaMins * 60);
+    setTimerSecondsLeft(updated);
+    saveTimerAction('SAVE_FOCUS_TIMER', {
+      mode: timerMode, durationMinutes: selectedDuration, secondsRemaining: updated,
+      isActive: isTimerActive, clearSession: false,
+    }).catch((err) => { console.error(err); showToast({ title: 'Timer not saved', message: 'Could not update the remaining time.', type: 'error' }); fetchFlowHubData(); });
   };
 
   const handleSkipSession = () => {
-    setIsTimerActive(false);
     if (timerMode === 'focus') {
-      setSessionsCompleted((s) => s + 1);
       handleSelectMode('short_break', 5);
     } else {
       handleSelectMode('focus', 25);
@@ -535,6 +553,19 @@ export default function FlowHubView({ onBackToPortal, supervisorId = '1597' }: F
   const handleResetTimer = () => {
     setIsTimerActive(false);
     setTimerSecondsLeft(selectedDuration * 60);
+    saveTimerAction('SAVE_FOCUS_TIMER', {
+      mode: timerMode, durationMinutes: selectedDuration, secondsRemaining: selectedDuration * 60,
+      isActive: false, clearSession: true,
+    }).catch((err) => { console.error(err); showToast({ title: 'Timer not reset', message: 'Could not save the timer reset.', type: 'error' }); fetchFlowHubData(); });
+  };
+
+  const handleToggleTimer = async () => {
+    try {
+      await saveTimerAction(isTimerActive ? 'PAUSE_FOCUS_TIMER' : 'START_FOCUS_TIMER');
+    } catch (err) {
+      console.error('Error updating focus timer:', err);
+      showToast({ title: 'Timer not updated', message: 'Could not save the timer change. Please try again.', type: 'error' });
+    }
   };
 
   const formatTimerMinutes = (secs: number) => {
@@ -559,9 +590,9 @@ export default function FlowHubView({ onBackToPortal, supervisorId = '1597' }: F
     e.preventDefault();
     if (!newTaskTitle.trim()) return;
     const newTask: TaskItem = {
-      id: `t${Date.now()}`,
+      id: '',
       title: newTaskTitle.trim(),
-      ticketCode: `#${Math.floor(10000 + Math.random() * 90000)}`,
+      ticketCode: '',
       priority: newTaskPriority,
       status: newTaskColumn,
       estimate: newTaskEstimate || '2h',
@@ -571,20 +602,24 @@ export default function FlowHubView({ onBackToPortal, supervisorId = '1597' }: F
         : newTaskPriority === 'MEDIUM'
         ? 'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950/60 dark:text-amber-300 dark:border-amber-800'
         : 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/60 dark:text-emerald-300 dark:border-emerald-800',
-      assignee: newTaskAssignee || 'NR',
-      assigneeColor: newTaskAssignee === 'NR' ? 'bg-[#2F6798]' : newTaskAssignee === 'EP' ? 'bg-rose-500' : newTaskAssignee === 'MB' ? 'bg-[#C8A54B]' : 'bg-emerald-600',
+      assignee: '',
+      assigneeColor: 'bg-[#24537D]',
     };
-    setTasks((prev) => [newTask, ...prev]);
-    setNewTaskTitle('');
-    setIsAddTaskOpen(false);
     try {
-      await fetch('/api/flow-hub', {
+      const response = await fetch('/api/flow-hub', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ empId: supervisorId, type: 'ADD_TASK', payload: newTask }),
+        body: JSON.stringify({ type: 'ADD_TASK', payload: newTask }),
       });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error || 'Unable to save task.');
+      setTasks((prev) => [result.task, ...prev]);
+      setNewTaskTitle('');
+      setIsAddTaskOpen(false);
+      showToast({ title: 'Task created', message: 'Your task is now on your task board.', type: 'success' });
     } catch (err) {
       console.error('Error adding task:', err);
+      showToast({ title: 'Task not saved', message: 'Could not save your task. Please try again.', type: 'error' });
     }
   };
 
@@ -592,13 +627,15 @@ export default function FlowHubView({ onBackToPortal, supervisorId = '1597' }: F
     const updated = tasks.map((t) => (t.id === id ? { ...t, status: newStatus } : t));
     setTasks(updated);
     try {
-      await fetch('/api/flow-hub', {
+      const response = await fetch('/api/flow-hub', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ empId: supervisorId, type: 'UPDATE_TASKS', payload: updated }),
+        body: JSON.stringify({ type: 'UPDATE_TASKS', payload: updated }),
       });
+      if (!response.ok) throw new Error('Unable to save task status.');
     } catch (err) {
       console.error('Error moving task:', err);
+      fetchFlowHubData();
     }
   };
 
@@ -622,13 +659,17 @@ export default function FlowHubView({ onBackToPortal, supervisorId = '1597' }: F
     const remaining = tasks.filter((t) => t.id !== id);
     setTasks(remaining);
     try {
-      await fetch('/api/flow-hub', {
+      const response = await fetch('/api/flow-hub', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ empId: supervisorId, type: 'DELETE_TASK', payload: { id } }),
+        body: JSON.stringify({ type: 'DELETE_TASK', payload: { id } }),
       });
+      if (!response.ok) throw new Error('Unable to delete task.');
+      showToast({ title: 'Task deleted', message: 'The task has been removed from your board.', type: 'success' });
     } catch (err) {
       console.error('Error deleting task:', err);
+      fetchFlowHubData();
+      showToast({ title: 'Task not deleted', message: 'Could not delete the task. Please try again.', type: 'error' });
     }
   };
 
@@ -637,13 +678,15 @@ export default function FlowHubView({ onBackToPortal, supervisorId = '1597' }: F
     setTasks(updatedTasks);
     setSelectedTaskForEdit(null);
     try {
-      await fetch('/api/flow-hub', {
+      const response = await fetch('/api/flow-hub', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ empId: supervisorId, type: 'UPDATE_TASK', payload: updated }),
+        body: JSON.stringify({ type: 'UPDATE_TASK', payload: updated }),
       });
+      if (!response.ok) throw new Error('Unable to update task.');
     } catch (err) {
       console.error('Error updating task:', err);
+      fetchFlowHubData();
     }
   };
 
@@ -679,71 +722,68 @@ export default function FlowHubView({ onBackToPortal, supervisorId = '1597' }: F
   const handleAddHabit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newHabitName.trim()) return;
-    const categoryLabels: Record<string, string> = {
-      hydration: 'Hydration',
-      mindfulness: 'Focus Breath',
-      stretch: 'Ergonomics',
-      tracker: 'Time Tracker',
-      nutrition: 'Shift Fuel',
-      walk: 'Active Rest',
-      general: 'Daily Routine',
-    };
-    const newHabit: HabitItem = {
-      id: `h${Date.now()}`,
+    const newHabit = {
       name: newHabitName.trim(),
       category: newHabitCategory,
-      categoryLabel: categoryLabels[newHabitCategory] || 'Routine',
       duration: newHabitDuration || '10 min',
-      streak: 1,
-      completedToday: false,
       timeOfDay: newHabitTimeOfDay || 'Daily Routine',
     };
-    setHabits((prev) => [newHabit, ...prev]);
-    setNewHabitName('');
-    setIsAddHabitOpen(false);
     try {
-      await fetch('/api/flow-hub', {
+      const response = await fetch('/api/flow-hub', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ empId: '1597', type: 'ADD_HABIT', payload: newHabit }),
+        body: JSON.stringify({ type: 'ADD_HABIT', payload: newHabit }),
       });
+      const json = await response.json();
+      if (!response.ok) throw new Error(json.error || 'Unable to add routine.');
+      setHabits((prev) => [json.habit, ...prev]);
+      setNewHabitName('');
+      setIsAddHabitOpen(false);
+      showToast({ title: 'Routine added', message: 'Your routine is ready to track.', type: 'success' });
     } catch (err) {
       console.error('Error adding habit:', err);
+      showToast({ title: 'Routine not added', message: 'Could not add your routine. Please try again.', type: 'error' });
     }
   };
 
   const handleToggleHabit = async (id: string) => {
-    const updatedHabits = habits.map((h) =>
-      h.id === id
-        ? {
-            ...h,
-            completedToday: !h.completedToday,
-            streak: !h.completedToday ? h.streak + 1 : Math.max(0, h.streak - 1),
-          }
-        : h
-    );
-    setHabits(updatedHabits);
+    const before = habits;
+    const existing = habits.find((h) => h.id === id);
+    if (!existing) return;
+    const completedToday = !existing.completedToday;
+    setHabits(habits.map((h) => h.id === id ? {
+      ...h, completedToday,
+      streak: completedToday ? h.streak + 1 : Math.max(0, h.streak - (h.completedToday ? 1 : 0)),
+    } : h));
     try {
-      await fetch('/api/flow-hub', {
+      const response = await fetch('/api/flow-hub', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ empId: '1597', type: 'TOGGLE_HABIT', payload: { id } }),
+        body: JSON.stringify({ type: 'TOGGLE_HABIT', payload: { id } }),
       });
+      const json = await response.json();
+      if (!response.ok) throw new Error(json.error || 'Unable to update routine.');
     } catch (err) {
       console.error('Error toggling habit:', err);
+      setHabits(before);
+      showToast({ title: 'Routine not updated', message: 'Could not update your routine. Please try again.', type: 'error' });
     }
   };
 
   const handleDeleteHabit = async (id: string) => {
-    setHabits((prev) => prev.filter((h) => h.id !== id));
     try {
-      await fetch('/api/flow-hub', {
+      const response = await fetch('/api/flow-hub', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ empId: '1597', type: 'DELETE_HABIT', payload: { id } }),
+        body: JSON.stringify({ type: 'DELETE_HABIT', payload: { id } }),
       });
+      const json = await response.json();
+      if (!response.ok) throw new Error(json.error || 'Unable to delete routine.');
+      setHabits((prev) => prev.filter((h) => h.id !== id));
+      showToast({ title: 'Routine deleted', message: 'The routine was removed.', type: 'success' });
     } catch (err) {
       console.error('Error deleting habit:', err);
+      showToast({ title: 'Routine not deleted', message: 'Could not remove the routine. Please try again.', type: 'error' });
     }
   };
 
@@ -795,7 +835,7 @@ export default function FlowHubView({ onBackToPortal, supervisorId = '1597' }: F
     if (!matchesSearch) return false;
 
     if (taskFilter === 'HIGH') return t.priority === 'HIGH';
-    if (taskFilter === 'MINE') return t.assignee === 'NR';
+    if (taskFilter === 'MINE') return true;
 
     return true;
   });
@@ -992,7 +1032,7 @@ export default function FlowHubView({ onBackToPortal, supervisorId = '1597' }: F
             </h3>
             <div className="flex items-center gap-2 mt-0.5">
               <span className="text-xs text-slate-400 dark:text-slate-500 font-semibold whitespace-nowrap">
-                Visual Task Boards 3
+                Visual Task Board
               </span>
               <span className="px-2.5 py-0.5 rounded-full text-[10px] font-extrabold bg-[#2F6798]/15 text-[#2F6798] dark:bg-blue-900/30 dark:text-blue-300 border border-[#2F6798]/30 shrink-0">
                 Live Workflow
@@ -1260,7 +1300,7 @@ export default function FlowHubView({ onBackToPortal, supervisorId = '1597' }: F
                 />
               </div>
               <span className="text-[10px] font-semibold text-slate-500 dark:text-slate-400">
-                {sessionsCompleted * 25}m recorded
+                {sessionMinutes}m recorded
               </span>
             </div>
           </div>
@@ -1601,8 +1641,9 @@ export default function FlowHubView({ onBackToPortal, supervisorId = '1597' }: F
           {/* Action Hero Controls: Start/Pause, Reset, Skip */}
           <div className="flex items-center gap-1.5 pt-0.5">
             <button
-              onClick={() => setIsTimerActive(!isTimerActive)}
-              className={`flex-1 py-2.5 px-3 rounded-xl font-black text-xs tracking-wide transition-all shadow-md flex items-center justify-center gap-1.5 cursor-pointer active:scale-98 ${
+              onClick={handleToggleTimer}
+              disabled={!timerLoaded}
+              className={`flex-1 py-2.5 px-3 rounded-xl font-black text-xs tracking-wide transition-all shadow-md flex items-center justify-center gap-1.5 cursor-pointer active:scale-98 disabled:cursor-wait disabled:opacity-60 ${
                 isTimerActive
                   ? 'bg-[#C8A54B] hover:bg-[#b5923c] text-slate-900 shadow-amber-500/25'
                   : 'bg-[#2F6798] hover:bg-[#235179] text-white shadow-[#2F6798]/30'
@@ -1816,6 +1857,20 @@ export default function FlowHubView({ onBackToPortal, supervisorId = '1597' }: F
               <div className="relative pl-6 space-y-3">
                 {/* Vertical connecting line */}
                 <div className="absolute left-[11px] top-4 bottom-4 w-[2px] bg-dashed border-l-2 border-dashed border-slate-300 dark:border-slate-700" />
+
+                {habits.length === 0 && (
+                  <div className="rounded-2xl border border-dashed border-slate-300 dark:border-slate-700 bg-white/70 dark:bg-[#101D3D]/70 p-6 text-center">
+                    <p className="text-sm font-bold text-slate-700 dark:text-slate-200">No routines yet</p>
+                    <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">Add a routine to start tracking your day.</p>
+                    <button
+                      type="button"
+                      onClick={() => setIsAddHabitOpen(true)}
+                      className="mt-3 rounded-full bg-[#2F6798] px-4 py-2 text-xs font-bold text-white hover:bg-[#24537D]"
+                    >
+                      Add Routine
+                    </button>
+                  </div>
+                )}
 
                 {habits.map((habit) => (
                   <div key={habit.id} className="relative group">
@@ -2236,52 +2291,11 @@ export default function FlowHubView({ onBackToPortal, supervisorId = '1597' }: F
                 </div>
               </div>
 
-              {/* Assignee Card */}
               <div className="p-4 rounded-2xl bg-slate-50/70 dark:bg-slate-900/50 border border-slate-200/80 dark:border-slate-800 space-y-2.5">
-                <div className="flex items-center justify-between">
-                  <label className="block text-[10px] font-extrabold text-slate-400 uppercase tracking-wider">
-                    ASSIGNED TEAM MEMBER
-                  </label>
-                  <span className="text-[10px] font-bold text-[#2F6798]">
-                    Selected: {selectedTaskForEdit.assignee}
-                  </span>
-                </div>
-
-                <div className="grid grid-cols-4 gap-2">
-                  {[
-                    { id: 'NR', name: 'Nissi-Jeh', role: 'Supervisor', color: 'bg-[#24537D]' },
-                    { id: 'EP', name: 'Lead QA', role: 'QA Lead', color: 'bg-[#E82159]' },
-                    { id: 'JC', name: 'Trainer', role: 'Trainer', color: 'bg-[#0E8A5E]' },
-                    { id: 'MB', name: 'Matt Riner', role: 'Operations', color: 'bg-[#C29B38]' },
-                  ].map((user) => {
-                    const isSelected = selectedTaskForEdit.assignee === user.id;
-                    return (
-                      <button
-                        key={user.id}
-                        type="button"
-                        onClick={() => {
-                          setSelectedTaskForEdit({
-                            ...selectedTaskForEdit,
-                            assignee: user.id,
-                            assigneeColor: user.color,
-                          });
-                        }}
-                        className={`p-2 rounded-xl transition-all flex flex-col items-center justify-center gap-1 cursor-pointer border ${
-                          isSelected
-                            ? 'border-[#2F6798] bg-blue-50 dark:bg-blue-950/60 shadow-xs ring-1 ring-[#2F6798]'
-                            : 'border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-slate-50'
-                        }`}
-                      >
-                        <div className={`w-7 h-7 rounded-full text-white font-black text-xs flex items-center justify-center shadow-xs ${user.color}`}>
-                          {user.id}
-                        </div>
-                        <span className="text-[10px] font-bold text-slate-700 dark:text-slate-200 truncate max-w-full">
-                          {user.name}
-                        </span>
-                      </button>
-                    );
-                  })}
-                </div>
+                <label className="block text-[10px] font-extrabold text-slate-400 uppercase tracking-wider">
+                  TASK OWNER
+                </label>
+                <p className="text-xs font-bold text-[#2F6798]">Your employee account</p>
               </div>
 
             </div>
@@ -2289,7 +2303,7 @@ export default function FlowHubView({ onBackToPortal, supervisorId = '1597' }: F
             {/* 3. Footer Bar matching Attendance Details reference */}
             <div className="p-4 sm:p-5 border-t border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/30 flex items-center justify-between gap-3 shrink-0">
               <span className="text-[11px] font-semibold text-slate-400 dark:text-slate-500 font-mono">
-                Date Reference: September 2, 2026
+                Date Reference: {currentDateTime.dateStr}
               </span>
 
               <div className="flex items-center gap-2">
@@ -2471,45 +2485,8 @@ export default function FlowHubView({ onBackToPortal, supervisorId = '1597' }: F
                 </div>
               </div>
 
-              {/* Assignee Selection */}
-              <div className="p-3.5 rounded-2xl bg-slate-50/70 dark:bg-slate-900/50 border border-slate-200/80 dark:border-slate-800 space-y-2">
-                <div className="flex items-center justify-between">
-                  <label className="block text-[10px] font-extrabold text-slate-400 uppercase tracking-wider">
-                    ASSIGNED TEAM MEMBER
-                  </label>
-                  <span className="text-[10px] font-bold text-[#2F6798]">
-                    Selected: {newTaskAssignee}
-                  </span>
-                </div>
-                <div className="grid grid-cols-4 gap-2">
-                  {[
-                    { id: 'NR', name: 'Nissi-Jeh', color: 'bg-[#24537D]' },
-                    { id: 'EP', name: 'Lead QA', color: 'bg-[#E82159]' },
-                    { id: 'JC', name: 'Trainer', color: 'bg-[#0E8A5E]' },
-                    { id: 'MB', name: 'Operations', color: 'bg-[#C29B38]' },
-                  ].map((user) => {
-                    const isSelected = newTaskAssignee === user.id;
-                    return (
-                      <button
-                        key={user.id}
-                        type="button"
-                        onClick={() => setNewTaskAssignee(user.id)}
-                        className={`p-2 rounded-xl transition-all flex flex-col items-center justify-center gap-1 cursor-pointer border ${
-                          isSelected
-                            ? 'border-[#2F6798] bg-blue-50/70 dark:bg-blue-950/50 shadow-xs ring-1 ring-[#2F6798]'
-                            : 'border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-slate-100'
-                        }`}
-                      >
-                        <div className={`w-7 h-7 rounded-full text-white font-black text-xs flex items-center justify-center shadow-xs ${user.color}`}>
-                          {user.id}
-                        </div>
-                        <span className="text-[10px] font-bold text-slate-600 dark:text-slate-300 truncate max-w-full">
-                          {user.name}
-                        </span>
-                      </button>
-                    );
-                  })}
-                </div>
+              <div className="rounded-xl border border-blue-100 bg-blue-50/60 p-3 text-[11px] font-semibold text-slate-600 dark:border-slate-700 dark:bg-slate-900/50 dark:text-slate-300">
+                This task will be saved to your employee account.
               </div>
             </form>
 
@@ -2638,39 +2615,22 @@ export default function FlowHubView({ onBackToPortal, supervisorId = '1597' }: F
 
               {/* Duration & Time of Day */}
               <div className="grid grid-cols-2 gap-3">
-                <div className="p-3.5 rounded-2xl bg-slate-50/70 dark:bg-slate-900/50 border border-slate-200/80 dark:border-slate-800 space-y-1.5">
-                  <label className="block text-[10px] font-extrabold text-slate-400 uppercase tracking-wider">
-                    DURATION
-                  </label>
-                  <select
+                <div className="p-3.5 rounded-2xl bg-slate-50/70 dark:bg-slate-900/50 border border-slate-200/80 dark:border-slate-800">
+                  <RoutineFilterSelect
+                    label="Duration"
                     value={newHabitDuration}
-                    onChange={(e) => setNewHabitDuration(e.target.value)}
-                    className="w-full px-3 py-2 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 font-bold text-slate-800 dark:text-slate-200 outline-none focus:ring-2 focus:ring-[#2F6798] text-xs cursor-pointer"
-                  >
-                    <option value="5 min">5 min</option>
-                    <option value="10 min">10 min</option>
-                    <option value="15 min">15 min</option>
-                    <option value="30 min">30 min</option>
-                    <option value="45 min">45 min</option>
-                  </select>
+                    options={['5 min', '10 min', '15 min', '30 min', '45 min']}
+                    onChange={setNewHabitDuration}
+                  />
                 </div>
 
-                <div className="p-3.5 rounded-2xl bg-slate-50/70 dark:bg-slate-900/50 border border-slate-200/80 dark:border-slate-800 space-y-1.5">
-                  <label className="block text-[10px] font-extrabold text-slate-400 uppercase tracking-wider">
-                    SHIFT TIMING
-                  </label>
-                  <select
+                <div className="p-3.5 rounded-2xl bg-slate-50/70 dark:bg-slate-900/50 border border-slate-200/80 dark:border-slate-800">
+                  <RoutineFilterSelect
+                    label="Shift Timing"
                     value={newHabitTimeOfDay}
-                    onChange={(e) => setNewHabitTimeOfDay(e.target.value)}
-                    className="w-full px-3 py-2 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 font-bold text-slate-800 dark:text-slate-200 outline-none focus:ring-2 focus:ring-[#2F6798] text-xs cursor-pointer"
-                  >
-                    <option value="Morning Shift">Morning Shift</option>
-                    <option value="Mid Shift">Mid Shift</option>
-                    <option value="Shift Review">Shift Review</option>
-                    <option value="Lunch Break">Lunch Break</option>
-                    <option value="Desk Routine">Desk Routine</option>
-                    <option value="Break Step">Break Step</option>
-                  </select>
+                    options={['Morning Shift', 'Mid Shift', 'Shift Review', 'Lunch Break', 'Desk Routine', 'Break Step']}
+                    onChange={setNewHabitTimeOfDay}
+                  />
                 </div>
               </div>
             </form>

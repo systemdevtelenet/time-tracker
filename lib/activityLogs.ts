@@ -108,35 +108,9 @@ export function isHeadOrAdminUser(supervisor?: {
   if (!supervisor) return false;
   const role = (supervisor.role || '').toLowerCase();
   const position = (supervisor.position || '').toLowerCase();
-  const name = (supervisor.name || '').toLowerCase();
-  const email = (supervisor.email || '').toLowerCase();
-
-  if (role === 'admin' || role === 'superadmin') return true;
-  if (
-    position.includes('head of training') ||
-    position.includes('head of quality') ||
-    position.includes('qa supervisor') ||
-    position.includes('supervisor') ||
-    position.includes('manager') ||
-    position.includes('administrator')
-  ) {
-    return true;
-  }
-  if (
-    name.includes('nissi') ||
-    name.includes('alasagas') ||
-    name.includes('reguero') ||
-    name.includes('raymundo')
-  ) {
-    return true;
-  }
-  if (
-    email.includes('nreguero') ||
-    email.includes('ralasagas')
-  ) {
-    return true;
-  }
-  return false;
+  return role === 'admin' || role === 'superadmin' ||
+    position.includes('head') || position.includes('supervisor') || position.includes('manager') ||
+    position.includes('administrator');
 }
 
 /**

@@ -127,8 +127,8 @@ export default function MemberAttendanceRosterTable({
         lateCount: 0,
         totalSeconds: 0,
         role: actualRole,
-        shift: (emp as any)?.shift || '9:00 PM to 6:00 AM',
-        account: (emp as any)?.account || (emp as any)?.department || 'Corporate',
+        shift: (emp as any)?.shift || 'Not set',
+        account: (emp as any)?.account || (emp as any)?.department || '',
       };
     });
 
@@ -193,7 +193,7 @@ export default function MemberAttendanceRosterTable({
         totalSeconds: member.totalSeconds,
         formattedTime: member.totalSeconds > 0 ? formatTotalDurationHuman(member.totalSeconds) : '0h 0m',
         role: member.role || 'Trainer',
-        shift: member.shift || '9:00 PM to 6:00 AM',
+        shift: member.shift || 'Not set',
         account: member.account,
         onTimeRate,
         onTimeRateText: onTimeRate !== null ? `${onTimeRate}%` : 'N/A',

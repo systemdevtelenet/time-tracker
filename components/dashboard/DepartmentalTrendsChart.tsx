@@ -7,9 +7,10 @@ import { parseDurationToSeconds } from '@/lib/utils';
 
 interface DepartmentalTrendsChartProps {
   records?: PhoneTimeRecord[];
+  employeeCount?: number;
 }
 
-export default function DepartmentalTrendsChart({ records = [] }: DepartmentalTrendsChartProps) {
+export default function DepartmentalTrendsChart({ records = [], employeeCount = 0 }: DepartmentalTrendsChartProps) {
   const [viewMode, setViewMode] = useState<'weekly' | 'status'>('weekly');
 
   // Compute actual attendance status breakdown from database records
@@ -32,8 +33,8 @@ export default function DepartmentalTrendsChart({ records = [] }: DepartmentalTr
 
     const present = Math.max(0, totalLogs - late);
     const activeStaffCount = new Set(records.map(r => r.name?.trim()).filter(Boolean)).size;
-    const absent = Math.max(0, 13 - activeStaffCount);
-    const baseTotal = (present + absent + late + undertime) || 13;
+    const absent = Math.max(0, employeeCount - activeStaffCount);
+    const baseTotal = present + absent + late + undertime;
 
     const rate = (present + late) > 0 ? Math.round((present / (present + late)) * 100) : (totalLogs > 0 ? 100 : 0);
 
@@ -42,13 +43,13 @@ export default function DepartmentalTrendsChart({ records = [] }: DepartmentalTr
       lateCount: late,
       absentCount: absent,
       undertimeCount: undertime,
-      presentPct: Math.round((present / baseTotal) * 100),
-      latePct: Math.round((late / baseTotal) * 100),
-      absentPct: Math.round((absent / baseTotal) * 100),
-      undertimePct: Math.round((undertime / baseTotal) * 100),
+      presentPct: baseTotal ? Math.round((present / baseTotal) * 100) : 0,
+      latePct: baseTotal ? Math.round((late / baseTotal) * 100) : 0,
+      absentPct: baseTotal ? Math.round((absent / baseTotal) * 100) : 0,
+      undertimePct: baseTotal ? Math.round((undertime / baseTotal) * 100) : 0,
       punctualityRate: rate,
     };
-  }, [records]);
+  }, [records, employeeCount]);
 
   // Weekly attendance data (Mon - Sun) derived from real shift dates
   const weeklyTrends = useMemo(() => {

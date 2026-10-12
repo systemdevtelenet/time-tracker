@@ -42,7 +42,7 @@ function HomePageContent() {
 
   // Navigation & View State (SSR and Hydration identical via useSearchParams)
   const [activeTab, setActiveTab] = useState<string>(initialTab);
-  const [currentAgent, setCurrentAgent] = useState<string>('Matt Riner Balaba');
+  const [currentAgent, setCurrentAgent] = useState<string>('');
   const [records, setRecords] = useState<PhoneTimeRecord[]>([]);
   const [accounts, setAccounts] = useState<AccountOption[]>([]);
   const [employees, setEmployees] = useState<EmployeeOption[]>([]);
@@ -63,7 +63,7 @@ function HomePageContent() {
   const [filterAccount, setFilterAccount] = useState('ALL');
   const [filterSearch, setFilterSearch] = useState('');
 
-  // Supervisor / Active User Profile (Dynamic state linked to team_roster & logged-in user)
+  // Active profile is loaded from the authenticated employee record.
   const [supervisor, setSupervisor] = useState({
     name: '',
     id: '',
@@ -151,12 +151,12 @@ function HomePageContent() {
               account: parsed.account || parsed.accounts || '',
               tenure: parsed.tenure ? (String(parsed.tenure).includes('mos') ? parsed.tenure : `${parsed.tenure} mos`) : '',
               directSupervisor: parsed.directSupervisor || parsed.supervisor || '',
-              email: parsed.email || (parsed.name ? `${parsed.name.toLowerCase().replace(/\s+/g, '.')}@cebutelenet.com` : ''),
+              email: parsed.email || '',
               avatarUrl: validAvatar,
               firstName: parsed.firstName || (parsed.name ? parsed.name.split(' ').slice(0, -1).join(' ') || parsed.name : ''),
               middleName: parsed.middleName || '—',
               lastName: parsed.lastName || (parsed.name ? parsed.name.split(' ').slice(-1).join('') : ''),
-              suffix: parsed.suffix || 'N/A',
+              suffix: parsed.suffix || '',
               department: parsed.department || '',
               startDate: parsed.startDate || parsed.hire_date || '',
               accounts: parsed.accounts || parsed.account || '',
@@ -243,14 +243,16 @@ function HomePageContent() {
   const fetchData = useCallback(async () => {
     try {
       // Fetch time entries and meta in parallel
-      const [resLogs, resMeta] = await Promise.all([
+      const [resLogs, resMeta, resUser] = await Promise.all([
         fetch('/api/time-entries'),
         fetch('/api/meta'),
+        fetch('/api/auth/me'),
       ]);
 
-      const [dataLogs, dataMeta] = await Promise.all([
+      const [dataLogs, dataMeta, dataUser] = await Promise.all([
         resLogs.json(),
         resMeta.json(),
+        resUser.ok ? resUser.json() : Promise.resolve({}),
       ]);
 
       if (dataLogs.data) {
@@ -266,11 +268,11 @@ function HomePageContent() {
       if (dataMeta.employees) {
         setEmployees(dataMeta.employees);
 
-        let activeId = '';
-        let activeName = '';
-        let activeEmail = '';
+        let activeId = String(dataUser.user?.id || '');
+        let activeName = String(dataUser.user?.name || '').toLowerCase();
+        let activeEmail = String(dataUser.user?.email || '').toLowerCase();
         if (typeof window !== 'undefined') {
-          const savedUser = localStorage.getItem('ctnp_current_user');
+          const savedUser = dataUser.user ? null : localStorage.getItem('ctnp_current_user');
           if (savedUser) {
             try {
               const parsed = JSON.parse(savedUser);
@@ -285,23 +287,27 @@ function HomePageContent() {
           (activeId && String(e.id) === String(activeId)) ||
           (activeName && e.name && String(e.name).toLowerCase() === activeName) ||
           (activeEmail && e.email && String(e.email).toLowerCase() === activeEmail)
-        ) || (activeId ? null : dataMeta.employees[0]);
+        ) || null;
 
         if (activeEmp) {
+          setCurrentAgent(activeEmp.name || '');
           setSupervisor((prev) => ({
             ...prev,
-            id: String(activeEmp.id || prev.id || ''),
-            name: activeEmp.name || prev.name || '',
-            role: (activeEmp.userRole || activeEmp.role || prev.role || 'User').toUpperCase(),
-            position: activeEmp.position || activeEmp.role || prev.position || '',
-            shift: activeEmp.shift || prev.shift || '',
-            account: activeEmp.account || prev.account || '',
-            tenure: activeEmp.tenure ? (String(activeEmp.tenure).includes('mos') ? activeEmp.tenure : `${activeEmp.tenure} mos`) : prev.tenure || '',
-            directSupervisor: activeEmp.supervisor || prev.directSupervisor || '',
-            startDate: activeEmp.hire_date || prev.startDate || '',
-            accounts: activeEmp.account || prev.accounts || '',
-            primaryTask: activeEmp.position || prev.primaryTask || '',
+            id: String(activeEmp.id || ''),
+            name: activeEmp.name || '',
+            role: String(activeEmp.userRole || activeEmp.role || '').toUpperCase(),
+            position: activeEmp.position || '',
+            shift: activeEmp.shift || '',
+            account: activeEmp.account || '',
+            tenure: activeEmp.tenure || '',
+            directSupervisor: activeEmp.supervisor || '',
+            startDate: activeEmp.hire_date || '',
+            accounts: activeEmp.account || '',
+            primaryTask: activeEmp.position || '',
           }));
+          if (typeof window !== 'undefined' && dataUser.user) {
+            localStorage.setItem('ctnp_current_user', JSON.stringify({ ...dataUser.user, ...activeEmp }));
+          }
         }
 
         if (typeof window !== 'undefined') {
@@ -320,6 +326,20 @@ function HomePageContent() {
   useEffect(() => {
     fetchData();
   }, [fetchData]);
+
+  useEffect(() => {
+    const handleScheduleUpdate = (event: Event) => {
+      const detail = (event as CustomEvent<{ employee_code?: string; shift?: string }>).detail;
+      if (!detail || String(detail.employee_code || '') !== String(supervisor.id)) return;
+      setSupervisor((current) => ({ ...current, shift: detail.shift || '' }));
+      try {
+        const savedUser = localStorage.getItem('ctnp_current_user');
+        if (savedUser) localStorage.setItem('ctnp_current_user', JSON.stringify({ ...JSON.parse(savedUser), shift: detail.shift || '' }));
+      } catch {}
+    };
+    window.addEventListener('work-schedule-updated', handleScheduleUpdate);
+    return () => window.removeEventListener('work-schedule-updated', handleScheduleUpdate);
+  }, [supervisor.id]);
 
   // RBAC Permission Check: Heads & Admins have full access to all; Trainees, Trainers, QA, and Agents see only their own
   const isHeadOrAdmin = useMemo(() => isHeadOrAdminUser(supervisor), [supervisor]);
@@ -384,8 +404,8 @@ function HomePageContent() {
       totalDurationFormatted: formatTotalDurationHuman(totalSecs),
       totalSeconds: totalSecs,
       averageDurationFormatted: formatTotalDurationHuman(avgSecs),
-      uniqueAgentsCount: isHeadOrAdmin ? (employees.length > 0 ? employees.length : (agentSet.size || 13)) : 1,
-      uniqueAccountsCount: accountSet.size || 1,
+      uniqueAgentsCount: isHeadOrAdmin ? employees.length : 1,
+      uniqueAccountsCount: accountSet.size,
       topTag: topTag !== 'None' ? `${topTag} (${maxTagCount}x)` : 'None',
     };
   }, [accessibleRecords, employees, isHeadOrAdmin]);
@@ -395,7 +415,7 @@ function HomePageContent() {
     setRecords((prev) => [newRecord, ...prev]);
     addActivityLog({
       title: 'New Time Log Entry',
-      description: `Logged ${newRecord.total_minutes} for ${newRecord.account || 'Corporate'} (Ticket #${newRecord.ticket_number}).`,
+      description: `Logged ${newRecord.total_minutes} for ${newRecord.account || 'Unassigned'} (Ticket #${newRecord.ticket_number}).`,
       performedBy: newRecord.name || supervisor.name,
       category: 'TIME LOG',
       type: 'timelog',
@@ -553,12 +573,6 @@ function HomePageContent() {
               {/* Dashboard Top Header: Operations Shift Summary (Left) & Weather Widget (Right) */}
               <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 items-center">
                 <div className="lg:col-span-8 flex flex-col justify-center space-y-2 py-1">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 flex items-center gap-1.5">
-                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                      Shift Active (9:00 PM – 6:00 AM)
-                    </span>
-                  </div>
                   <h2 className="text-2xl sm:text-3xl font-extrabold text-slate-900 dark:text-slate-100 tracking-tight">
                     Welcome back, <span className="text-[#2F6798] dark:text-blue-400">{supervisor.name}</span>
                   </h2>
@@ -580,8 +594,8 @@ function HomePageContent() {
                 isHeadOrAdmin={isHeadOrAdmin}
                 userShift={supervisor.shift}
                 stats={{ 
-                  activeCount: isHeadOrAdmin ? (employees.length > 0 ? employees.length : 13) : 1,
-                  totalEmployees: isHeadOrAdmin ? (employees.length > 0 ? employees.length : 13) : 1
+                  activeCount: isHeadOrAdmin ? employees.length : 1,
+                  totalEmployees: isHeadOrAdmin ? employees.length : 1
                 }} 
               />
 
@@ -607,7 +621,7 @@ function HomePageContent() {
                     <ExecutivePerformanceOverview records={filteredDashboardRecords} kpiStats={kpiStats} />
                   </div>
                   <div className="lg:col-span-5">
-                    <DepartmentalTrendsChart records={filteredDashboardRecords} />
+                    <DepartmentalTrendsChart records={filteredDashboardRecords} employeeCount={employees.length} />
                   </div>
                 </div>
 
@@ -685,7 +699,6 @@ function HomePageContent() {
             <div className="animate-in fade-in">
               <FlowHubView 
                 onBackToPortal={() => handleSelectTab('dashboard')} 
-                supervisorId={supervisor.id}
               />
             </div>
           )}

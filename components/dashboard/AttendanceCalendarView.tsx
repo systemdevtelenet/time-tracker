@@ -36,6 +36,8 @@ import { showToast } from '@/lib/toast';
 import AttendanceDetailModal, { TeamMemberDayStatus } from './AttendanceDetailModal';
 import AttendanceCellPopover from './AttendanceCellPopover';
 import DatePickerPopover from './DatePickerPopover';
+import { getShiftDate } from '@/lib/shiftSchedule';
+import { parseShiftStartHour } from '@/lib/shiftSchedule';
 
 interface AttendanceCalendarViewProps {
   employeeName?: string;
@@ -55,22 +57,6 @@ export interface DayPunchItem {
 }
 
 export type DayAttendanceStatus = 'Present' | 'Late' | 'Undertime' | 'Late / UT' | 'Absent' | 'Rest Day' | 'P' | 'L' | 'U' | 'A' | 'RD' | string | null;
-
-const ALL_ROSTER_EMPLOYEES = [
-  { id: '1597', name: 'Nissi-Jeh Reguero', role: 'Head of Training', department: 'TQA', account: 'TRAINING' },
-  { id: '1108', name: 'Raymundo Alasagas III', role: 'Head of Quality', department: 'TQA', account: 'QUALITY' },
-  { id: '1772', name: 'Bianca Kaye Ernestine Colonia', role: 'Trainer', department: 'TQA', account: 'TRAINING' },
-  { id: '2385', name: 'Michelle Yncierto', role: 'Trainer', department: 'TQA', account: 'TRAINING' },
-  { id: '1035', name: 'Rommel Mendoza', role: 'Trainer', department: 'TQA', account: 'TRAINING' },
-  { id: '1820', name: 'Ronelyn Baguio', role: 'Trainer', department: 'TQA', account: 'TRAINING' },
-  { id: '836', name: 'Krisland Pepito', role: 'Trainer', department: 'TQA', account: 'TRAINING' },
-  { id: '1006', name: 'Niño Elijah R. Reyes', role: 'Trainer', department: 'TQA', account: 'TRAINING' },
-  { id: '1880', name: 'Kier Ariola', role: 'Trainer', department: 'TQA', account: 'TRAINING' },
-  { id: '946', name: 'Vincent Luis Celdran', role: 'Trainer', department: 'TQA', account: 'TRAINING' },
-  { id: '2298', name: 'Nina Joy Briones', role: 'Trainer', department: 'TQA', account: 'TRAINING' },
-  { id: '1954', name: 'Matt Riner Balaba', role: 'Trainer', department: 'TQA', account: 'TRAINING' },
-  { id: '2610', name: 'Maegan Marie Cabardo', role: 'Trainer', department: 'TQA', account: 'TRAINING' },
-];
 
 const PUNCH_TYPES = [
   'Shift Start',
@@ -235,16 +221,6 @@ function PunchTypeCustomDropdown({
   );
 }
 
-function assignShiftDay(date: Date): number {
-  const h = date.getHours();
-  if (h < 9) {
-    const prev = new Date(date);
-    prev.setDate(prev.getDate() - 1);
-    return prev.getDate();
-  }
-  return date.getDate();
-}
-
 function formatTime(d: Date): string {
   return d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit', hour12: true });
 }
@@ -305,32 +281,29 @@ export function getFullStatusLabel(status: DayAttendanceStatus): string {
   }
 }
 
-function parseTimeToDate(dayNumber: number, monthIndex: number, year: number, timeStr: string): string {
-  const isAM = /am/i.test(timeStr);
+function parseTimeToDate(dayNumber: number, monthIndex: number, year: number, timeStr: string, shift?: string): string {
   const match = timeStr.match(/(\d+):(\d+)/);
-  let hour = match ? parseInt(match[1], 10) : 8;
+  let hour = match ? parseInt(match[1], 10) : 0;
   if (/pm/i.test(timeStr) && hour < 12) hour += 12;
   if (/am/i.test(timeStr) && hour === 12) hour = 0;
 
-  // Night shift rule: AM punches (< 9 AM) belong to next morning of this shift
-  let targetDay = dayNumber;
-  if (isAM && hour < 9) {
-    targetDay = dayNumber + 1;
-  }
-  return `${monthIndex + 1}/${targetDay}/${year} ${timeStr}`;
+  const shiftStartHour = parseShiftStartHour(shift);
+  const targetDate = new Date(year, monthIndex, dayNumber);
+  if (shiftStartHour !== null && hour < shiftStartHour) targetDate.setDate(targetDate.getDate() + 1);
+  return `${targetDate.getMonth() + 1}/${targetDate.getDate()}/${targetDate.getFullYear()} ${timeStr}`;
 }
 
 export default function AttendanceCalendarView({
-  employeeName = 'Nissi-Jeh Reguero',
-  supervisorName = 'Nissi-Jeh Reguero',
+  employeeName = '',
+  supervisorName = '',
   onBackToRoster,
   records = [],
 }: AttendanceCalendarViewProps) {
-  const [rosterEmployees, setRosterEmployees] = useState(ALL_ROSTER_EMPLOYEES);
+  const [rosterEmployees, setRosterEmployees] = useState<any[]>([]);
   const [selectedEmpName, setSelectedEmpName] = useState<string>(employeeName);
   const [viewMode, setViewMode] = useState<'Month' | 'Week' | 'Day'>('Month');
-  const [currentMonthIndex, setCurrentMonthIndex] = useState(8); // September (0-indexed)
-  const [currentYear, setCurrentYear] = useState(2026);
+  const [currentMonthIndex, setCurrentMonthIndex] = useState(new Date().getMonth());
+  const [currentYear, setCurrentYear] = useState(new Date().getFullYear());
   const [personSearch, setPersonSearch] = useState('');
   const [isViewDropdownOpen, setIsViewDropdownOpen] = useState(false);
   const [isEmpDropdownOpen, setIsEmpDropdownOpen] = useState(false);
@@ -348,23 +321,26 @@ export default function AttendanceCalendarView({
       try {
         const res = await fetch('/api/team-roster');
         const json = await res.json();
-        if (json.success && Array.isArray(json.data) && json.data.length > 0) {
-          setRosterEmployees(
-            json.data.map((emp: any) => ({
+        if (json.success && Array.isArray(json.data)) {
+          const nextRoster = json.data.map((emp: any) => ({
               id: String(emp.employee_id || emp.id),
               name: emp.name,
-              role: emp.position || emp.role || 'Trainer',
-              department: emp.department || 'TQA',
-              account: emp.account || 'TRAINING',
-            }))
-          );
+              role: emp.position || emp.role || '',
+              department: emp.department || '',
+              account: emp.account || '',
+              shift: emp.shift || '',
+            }));
+          setRosterEmployees(nextRoster);
+          if (!employeeName && !nextRoster.some((employee: any) => employee.name === selectedEmpName)) {
+            setSelectedEmpName(nextRoster[0]?.name || '');
+          }
         }
       } catch (err) {
         console.warn('Could not fetch dynamic team roster:', err);
       }
     }
     fetchRoster();
-  }, []);
+  }, [employeeName, selectedEmpName]);
 
   useEffect(() => {
     async function loadInitialOverrides() {
@@ -426,12 +402,16 @@ export default function AttendanceCalendarView({
     return (
       rosterEmployees.find(
         (e) => e.name.toLowerCase() === selectedEmpName.toLowerCase() || e.id === selectedEmpName
-      ) || rosterEmployees[0]
+      ) || rosterEmployees[0] || { id: '', name: '', role: '', account: '', department: '' }
     );
   }, [selectedEmpName, rosterEmployees]);
 
   // Fetch real punch logs for the selected employee from Supabase
   const loadLogsForEmployee = async () => {
+    if (!activeEmployee.id) {
+      setPunchLogs([]);
+      return;
+    }
     setIsLoadingLogs(true);
     try {
       const res = await fetch(`/api/punch-logs?empId=${activeEmployee.id}`);
@@ -482,18 +462,10 @@ export default function AttendanceCalendarView({
       const d = new Date(rawTs);
       if (isNaN(d.getTime())) return;
 
-      const logMonth = d.getMonth();
-      const logYear = d.getFullYear();
-      const shiftDay = assignShiftDay(d);
-
-      let shiftMonth = logMonth;
-      let shiftYear = logYear;
-      if (d.getHours() < 9 && d.getDate() === 1) {
-        const prev = new Date(d);
-        prev.setDate(prev.getDate() - 1);
-        shiftMonth = prev.getMonth();
-        shiftYear = prev.getFullYear();
-      }
+      const shiftDate = getShiftDate(d, activeEmployee.shift);
+      const shiftDay = shiftDate.getDate();
+      const shiftMonth = shiftDate.getMonth();
+      const shiftYear = shiftDate.getFullYear();
 
       const key = `${shiftYear}-${shiftMonth}-${shiftDay}`;
       if (!map[key]) {
@@ -826,7 +798,7 @@ export default function AttendanceCalendarView({
 
       if (editPunches.length > 0) {
         for (const p of editPunches) {
-          const formattedTs = parseTimeToDate(dayNumber, currentMonthIndex, currentYear, p.time);
+          const formattedTs = parseTimeToDate(dayNumber, currentMonthIndex, currentYear, p.time, activeEmployee.shift);
           await fetch('/api/punch-logs', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -1014,7 +986,7 @@ export default function AttendanceCalendarView({
             className="flex items-center gap-2.5 px-3 py-1.5 rounded-xl bg-slate-50 dark:bg-[#111C3D] border border-slate-200 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600 transition-all cursor-pointer shadow-2xs"
           >
             <div className="w-6 h-6 rounded-full bg-[#2F6798] text-white font-black text-[10px] flex items-center justify-center shrink-0">
-              {activeEmployee.name.split(' ').map((n) => n[0]).join('').slice(0, 2)}
+              {String(activeEmployee.name).split(' ').map((n: string) => n[0]).join('').slice(0, 2)}
             </div>
             <div className="text-left">
               <span className="block text-xs font-extrabold text-slate-900 dark:text-slate-100 leading-tight">

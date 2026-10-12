@@ -26,7 +26,7 @@ export default function AttendanceCellPopover({
   employeeName,
   employeeId,
   position = 'Trainer',
-  account = 'TRAINING',
+  account = '',
   dayNumber,
   monthName,
   year,

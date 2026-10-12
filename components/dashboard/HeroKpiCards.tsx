@@ -29,7 +29,7 @@ export default function HeroKpiCards({
   activeFilter,
   onSelectFilter,
   isHeadOrAdmin = true,
-  userShift = '9:00 PM to 6:00 AM',
+  userShift,
 }: HeroKpiCardsProps) {
   const heroImageUrl = 'https://zhdmsmwrskxowvytedgh.supabase.co/storage/v1/object/public/Images/design%20(1).png';
 
@@ -49,8 +49,8 @@ export default function HeroKpiCards({
 
   const avgTaskDurationFormatted = kpiStats?.averageDurationFormatted ?? '0m 00s';
 
-  const totalAgents = stats?.totalEmployees ?? kpiStats?.uniqueAgentsCount ?? (new Set(records.map(r => r.name).filter(Boolean)).size || 1);
-  const totalAccounts = kpiStats?.uniqueAccountsCount ?? (new Set(records.map(r => r.account).filter(Boolean)).size || 1);
+  const totalAgents = stats?.totalEmployees ?? kpiStats?.uniqueAgentsCount ?? (new Set(records.map(r => r.name).filter(Boolean)).size);
+  const totalAccounts = kpiStats?.uniqueAccountsCount ?? (new Set(records.map(r => r.account).filter(Boolean)).size);
 
   const cards = [
     {
@@ -93,8 +93,8 @@ export default function HeroKpiCards({
       : {
           id: 'shift_schedule',
           title: 'MY SHIFT SCHEDULE',
-          value: userShift || '9:00 PM – 6:00 AM',
-          subtext: 'Assigned Work Window',
+          value: userShift || 'Not set',
+          subtext: userShift ? 'Assigned Work Window' : 'No shift schedule assigned',
           valueColor: 'text-[#C8A54B] dark:text-amber-400',
           icon: Clock,
           iconBg: 'bg-amber-50 dark:bg-amber-950/50 text-[#C8A54B] dark:text-amber-300 border border-amber-100 dark:border-amber-900/40',

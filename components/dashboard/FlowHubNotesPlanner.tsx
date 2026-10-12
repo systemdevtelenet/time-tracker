@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { 
   Pin, 
   Plus, 
@@ -29,44 +29,7 @@ export default function FlowHubNotesPlanner() {
   const [activeTab, setActiveTab] = useState<'stickies' | 'memo'>('stickies');
 
   // 1. Attendance Sticky Notes State
-  const [stickyNotes, setStickyNotes] = useState<AttendanceStickyNote[]>([
-    {
-      id: 's1',
-      title: 'Auto-Capped Punch-Out Verification',
-      content: 'Shift end duration auto-capped to 8.0 hrs regular for unclosed 06:00 AM punch-out. Verified by Head of Training.',
-      color: 'yellow',
-      tag: 'Missing Punch',
-      isPinned: true,
-      timestamp: '09:42 PM',
-    },
-    {
-      id: 's2',
-      title: 'Meal / Lunch Break Coverage',
-      content: 'Michelle Yncierto covered the 1-hour lunch period from 04:47 AM to 05:47 AM on Corporate queue.',
-      color: 'blue',
-      tag: 'Meal Coverage',
-      isPinned: true,
-      timestamp: '04:50 AM',
-    },
-    {
-      id: 's3',
-      title: 'Schedule Swap — Corporate Training',
-      content: 'Raymundo Alasagas III approved for 8.0 hrs shift coverage on QA queue. Attendance logged and verified.',
-      color: 'green',
-      tag: 'Shift Swap',
-      isPinned: true,
-      timestamp: 'Yesterday',
-    },
-    {
-      id: 's4',
-      title: 'Rain Grace Period Approval',
-      content: 'Matt Riner Balaba - 15 min weather delay arrival approved under company typhoon/rain grace period policy.',
-      color: 'rose',
-      tag: 'Late Arrival',
-      isPinned: false,
-      timestamp: 'Sep 24',
-    },
-  ]);
+  const [stickyNotes, setStickyNotes] = useState<AttendanceStickyNote[]>([]);
 
   const [newNoteTitle, setNewNoteTitle] = useState('');
   const [newNoteContent, setNewNoteContent] = useState('');
@@ -76,82 +39,105 @@ export default function FlowHubNotesPlanner() {
   const [stickyToDelete, setStickyToDelete] = useState<string | null>(null);
 
   // 2. Attendance Shift Memo State
-  const [memoTitle, setMemoTitle] = useState('Daily Shift Attendance & Adherence Memo');
-  const [memoText, setMemoText] = useState(
-    `CEBU TELE-NET OPERATIONS — DAILY ATTENDANCE SUMMARY
-Date of Shift: September 25, 2026
-Shift Window: 9:00 PM to 6:00 AM
-Supervisor / Head of Training: Nissi-Jeh Reguero
-
-1. PUNCTUALITY & ATTENDANCE COMPLIANCE:
-• Total Active Roster: 13 Members
-• Verified Shifts Logged: 10 Shifts
-• On-Time Punctuality Rate: 100% (No unexcused tardiness)
-
-2. BREAK & MEAL ADHERENCE:
-• 1st & 2nd Paid Breaks (15m): 100% compliance across all trainers.
-• 1-Hour Meal / Lunch: All lunch periods properly recorded.
-
-3. SCHEDULE OVERRIDES & COVERAGE:
-• Charles Espinosa covered 8.0 hrs on Fleet Queue.
-• Badz covered 1.0 hr lunch coverage on ONO account.
-
-4. END-OF-SHIFT PUNCH VALIDATION:
-• All shift logs verified against Cebu Tele-Net Attendance Audit Trail.`
-  );
+  const [memoTitle, setMemoTitle] = useState('');
+  const [memoText, setMemoText] = useState('');
+  const [memoNoteId, setMemoNoteId] = useState('');
   const [isSavedMemo, setIsSavedMemo] = useState(false);
   const [isCopiedMemo, setIsCopiedMemo] = useState(false);
 
-  // Handlers
-  const handleAddStickyNote = () => {
-    if (!newNoteTitle.trim() && !newNoteContent.trim()) return;
-    const noteTitle = newNoteTitle.trim() || 'Attendance Note';
-    setStickyNotes(prev => [
-      {
-        id: Date.now().toString(),
-        title: noteTitle,
-        content: newNoteContent.trim(),
-        color: newNoteColor,
-        tag: newNoteTag,
-        isPinned: false,
-        timestamp: 'Just now',
-      },
-      ...prev
-    ]);
-    showToast({
-      title: 'Remark Added',
-      message: `New note added: "${noteTitle}".`,
-      type: 'success',
-      duration: 4000,
-    });
-    setNewNoteTitle('');
-    setNewNoteContent('');
-    setIsAddingSticky(false);
+  useEffect(() => {
+    let cancelled = false;
+    fetch('/api/flow-hub')
+      .then(async (response) => {
+        const result = await response.json();
+        if (!response.ok) throw new Error(result.error || 'Unable to load notes.');
+        if (cancelled) return;
+        const notes = Array.isArray(result.data?.notes) ? result.data.notes : [];
+        setStickyNotes(notes.map((note: AttendanceStickyNote) => ({
+          ...note,
+          timestamp: note.timestamp ? new Date(note.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '',
+        })));
+        setMemoNoteId(result.data?.shiftMemo?.id || '');
+        setMemoTitle(result.data?.shiftMemo?.title || '');
+        setMemoText(result.data?.shiftMemo?.text || '');
+      })
+      .catch((error) => {
+        console.error('Error loading Flow Hub notes:', error);
+        showToast({ title: 'Notes unavailable', message: 'Could not load your notes. Please try again.', type: 'error' });
+      });
+    return () => { cancelled = true; };
+  }, []);
+
+  // Note changes are only shown as complete after the server confirms the database write.
+  const handleAddStickyNote = async () => {
+    if (!newNoteContent.trim()) return;
+    try {
+      const response = await fetch('/api/flow-hub', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type: 'ADD_NOTE', payload: { title: newNoteTitle.trim() || 'Attendance Note', content: newNoteContent, color: newNoteColor, tag: newNoteTag } }),
+      });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error || 'Unable to save note.');
+      setStickyNotes((prev) => [{ ...result.note, timestamp: new Date(result.note.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) }, ...prev]);
+      showToast({ title: 'Note added', message: 'Your note is saved.', type: 'success' });
+      setNewNoteTitle('');
+      setNewNoteContent('');
+      setIsAddingSticky(false);
+    } catch (error) {
+      console.error('Error adding note:', error);
+      showToast({ title: 'Note not saved', message: 'Could not save your note. Please try again.', type: 'error' });
+    }
   };
 
-  const handleDeleteSticky = (id: string) => {
-    setStickyNotes(prev => prev.filter(s => s.id !== id));
-    showToast({
-      title: 'Note Removed',
-      message: 'Attendance note has been removed.',
-      type: 'info',
-      duration: 3500,
-    });
+  const handleDeleteSticky = async (id: string) => {
+    try {
+      const response = await fetch('/api/flow-hub', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type: 'DELETE_NOTE', payload: { id } }),
+      });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error || 'Unable to delete note.');
+      setStickyNotes((prev) => prev.filter((note) => note.id !== id));
+      showToast({ title: 'Note deleted', message: 'Your note has been removed.', type: 'success' });
+    } catch (error) {
+      console.error('Error deleting note:', error);
+      showToast({ title: 'Note not deleted', message: 'Could not delete the note. Please try again.', type: 'error' });
+    }
   };
 
-  const handleTogglePinSticky = (id: string) => {
-    setStickyNotes(prev => prev.map(s => s.id === id ? { ...s, isPinned: !s.isPinned } : s));
+  const handleTogglePinSticky = async (id: string) => {
+    const note = stickyNotes.find((item) => item.id === id);
+    if (!note) return;
+    try {
+      const response = await fetch('/api/flow-hub', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type: 'UPDATE_NOTE', payload: { id, isPinned: !note.isPinned } }),
+      });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error || 'Unable to update note.');
+      setStickyNotes((prev) => prev.map((item) => item.id === id ? { ...item, isPinned: !item.isPinned } : item));
+    } catch (error) {
+      console.error('Error updating note:', error);
+      showToast({ title: 'Note not updated', message: 'Could not update the note. Please try again.', type: 'error' });
+    }
   };
 
-  const handleSaveMemo = () => {
-    setIsSavedMemo(true);
-    showToast({
-      title: 'Memo Saved',
-      message: 'Shift handover memo saved successfully.',
-      type: 'success',
-      duration: 4000,
-    });
-    setTimeout(() => setIsSavedMemo(false), 2000);
+  const handleSaveMemo = async () => {
+    try {
+      const response = await fetch('/api/flow-hub', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type: 'SAVE_SHIFT_MEMO', payload: { noteId: memoNoteId, title: memoTitle, text: memoText } }),
+      });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error || 'Unable to save memo.');
+      setMemoNoteId(result.noteId);
+      setIsSavedMemo(true);
+      showToast({ title: 'Memo saved', message: 'Your shift memo is saved.', type: 'success' });
+      setTimeout(() => setIsSavedMemo(false), 2000);
+    } catch (error) {
+      console.error('Error saving memo:', error);
+      showToast({ title: 'Memo not saved', message: 'Could not save the memo. Please try again.', type: 'error' });
+    }
   };
 
   const handleCopyMemo = () => {

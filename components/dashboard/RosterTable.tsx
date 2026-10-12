@@ -33,6 +33,9 @@ export interface RosterEmployee {
   trafficLight: 'GREEN' | 'YELLOW' | 'RED';
   department?: string;
   account?: string;
+  position?: string;
+  shiftTime?: string;
+  shiftType?: string;
 }
 
 interface RosterTableProps {
