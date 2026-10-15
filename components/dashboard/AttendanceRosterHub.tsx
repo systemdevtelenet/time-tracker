@@ -24,6 +24,7 @@ import HoursReportTab from './HoursReportTab';
 import EmployeeDetailsTab from './EmployeeDetailsTab';
 import EndShiftModal from './EndShiftModal';
 import DatePickerPopover from './DatePickerPopover';
+import { RangeViewOption } from './AttendanceCalendarTab';
 import { PhoneTimeRecord } from '@/lib/types';
 import { isHeadOrAdminUser } from './CompanySidebar';
 import { showToast } from '@/lib/toast';
@@ -190,11 +191,15 @@ export default function AttendanceRosterHub({
   // Selected date in Roster DatePicker (defaults to Sept 26, 2026 or current active date)
   const [filterDate, setFilterDate] = useState<Date | null>(new Date());
   const [filterQuarter, setFilterQuarter] = useState('all');
-  const [filterMonth, setFilterMonth] = useState('all');
   const [filterAccount, setFilterAccount] = useState('all');
+  const [attendanceRange, setAttendanceRange] = useState<RangeViewOption>('all_30');
+  const [attendancePosition, setAttendancePosition] = useState('all');
+  const [attendanceView, setAttendanceView] = useState<'matrix' | 'google-calendar'>('matrix');
 
   // Raw team roster data and punch logs from DB
   const [dbRoster, setDbRoster] = useState<any[]>([]);
+  const [accountCatalog, setAccountCatalog] = useState<Array<{ account_code: string; account_name?: string }>>([]);
+  const [positionCatalog, setPositionCatalog] = useState<Array<{ position_name: string }>>([]);
   const [allPunchLogs, setAllPunchLogs] = useState<any[]>([]);
   const [attendanceOverrides, setAttendanceOverrides] = useState<Record<string, string>>({});
 
@@ -208,41 +213,30 @@ export default function AttendanceRosterHub({
     return () => clearInterval(timer);
   }, []);
 
-  // Load manual attendance overrides from local storage & server
-  const loadLocalOverrides = async () => {
-    let combined: Record<string, string> = {};
+  // Load saved attendance records from the shared database.
+  const loadAttendanceOverrides = async () => {
     try {
       const res = await fetch('/api/attendance-overrides');
       const json = await res.json();
-      if (json?.success && json?.overrides) {
-        combined = { ...json.overrides };
-      }
-    } catch (e) {}
-
-    if (typeof window !== 'undefined') {
-      try {
-        const saved = localStorage.getItem('attendance_overrides_v1');
-        if (saved) {
-          combined = { ...combined, ...JSON.parse(saved) };
-        }
-      } catch (e) {}
-    }
-    if (Object.keys(combined).length > 0) {
-      setAttendanceOverrides(combined);
+      if (res.ok && json?.success) setAttendanceOverrides(json.overrides || {});
+    } catch (error) {
+      console.warn('Could not load saved attendance:', error);
     }
   };
 
   // Fetch actual live roster and compute live punch metrics from time_tracker_logs
   const loadRosterFromDb = async () => {
     try {
-      const [rosterRes, punchRes] = await Promise.all([
+      const [rosterRes, punchRes, metaRes] = await Promise.all([
         fetch('/api/team-roster'),
         fetch('/api/punch-logs?empId=ALL'),
+        fetch('/api/meta'),
       ]);
 
-      const [rosterJson, punchJson] = await Promise.all([
+      const [rosterJson, punchJson, metaJson] = await Promise.all([
         rosterRes.json(),
         punchRes.json(),
+        metaRes.json(),
       ]);
 
       if (rosterJson.success && Array.isArray(rosterJson.data)) {
@@ -251,7 +245,9 @@ export default function AttendanceRosterHub({
       if (punchJson.success && Array.isArray(punchJson.data)) {
         setAllPunchLogs(punchJson.data);
       }
-      loadLocalOverrides();
+      if (Array.isArray(metaJson.accounts)) setAccountCatalog(metaJson.accounts);
+      if (Array.isArray(metaJson.positions)) setPositionCatalog(metaJson.positions);
+      loadAttendanceOverrides();
     } catch (err) {
       console.error('Failed to load roster from database:', err);
     }
@@ -262,7 +258,7 @@ export default function AttendanceRosterHub({
 
     const handleSync = () => {
       loadRosterFromDb();
-      loadLocalOverrides();
+      loadAttendanceOverrides();
     };
 
     if (typeof window !== 'undefined') {
@@ -786,7 +782,7 @@ export default function AttendanceRosterHub({
       {/* 3. ONE Unified External White Container for Filters, Tabs & Content */}
       <div className="rounded-2xl bg-white dark:bg-[#363435] border border-slate-200/90 dark:border-[#434142] shadow-xs overflow-visible">
 
-        {/* Row A: Top Filters Bar (4 filters: 2 + 2 + 3 + 5 = 12 cols) */}
+        {/* Row A: Shared workforce filters, with calendar-specific controls when viewing attendance */}
         <div className="p-4 sm:p-5 border-b border-slate-100 dark:border-[#434142]">
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-12 gap-3 sm:gap-4 items-end">
 
@@ -807,25 +803,8 @@ export default function AttendanceRosterHub({
               />
             </div>
 
-            {/* Month Filter (Span 2) */}
-            <div className="md:col-span-2">
-              <FilterDropdown
-                label="MONTH"
-                icon={<Calendar className="w-3.5 h-3.5 text-[#3678B0]" />}
-                value={filterMonth}
-                onChange={setFilterMonth}
-                options={[
-                  { label: 'All Months', value: 'all' },
-                  { label: 'September 2026', value: '9' },
-                  { label: 'August 2026', value: '8' },
-                  { label: 'July 2026', value: '7' },
-                  { label: 'June 2026', value: '6' },
-                ]}
-              />
-            </div>
-
             {/* Client Account Filter (Span 3) */}
-            <div className="md:col-span-3">
+            <div className={activeSubTab === 'calendar' ? 'md:col-span-2' : 'md:col-span-3'}>
               <FilterDropdown
                 label="CLIENT ACCOUNT"
                 icon={<Building2 className="w-3.5 h-3.5 text-[#3678B0]" />}
@@ -833,15 +812,52 @@ export default function AttendanceRosterHub({
                 onChange={setFilterAccount}
                 options={[
                   { label: 'All Client Accounts', value: 'all' },
-                  ...Array.from(new Set(dbRoster.map((employee) => employee.account).filter(Boolean)))
-                    .sort((a, b) => a.localeCompare(b))
-                    .map((account) => ({ label: account, value: account })),
+                  ...accountCatalog.map((account) => ({
+                    label: `${account.account_code}${account.account_name ? ` - ${account.account_name}` : ''}`,
+                    value: account.account_code,
+                  })),
                 ]}
               />
             </div>
 
             {/* Search Employee / Trainee (Span 5) */}
-            <div className="md:col-span-5">
+            {activeSubTab === 'calendar' && (
+              <div className="md:col-span-2">
+                <FilterDropdown
+                  label="DATE RANGE"
+                  icon={<CalendarDays className="w-3.5 h-3.5 text-[#3678B0]" />}
+                  value={attendanceRange}
+                  onChange={(value) => setAttendanceRange(value as RangeViewOption)}
+                  options={[
+                    { label: 'Full Month', value: 'all_30' },
+                    { label: '1st Pay Period (1–15)', value: 'period_1' },
+                    { label: '2nd Pay Period (16–end)', value: 'period_2' },
+                    { label: 'Current Week', value: 'current_week' },
+                  ]}
+                />
+              </div>
+            )}
+
+            {activeSubTab === 'calendar' && (
+              <div className="md:col-span-2">
+                <FilterDropdown
+                  label="POSITION"
+                  icon={<Users className="w-3.5 h-3.5 text-[#3678B0]" />}
+                  value={attendancePosition}
+                  onChange={setAttendancePosition}
+                  options={[
+                    { label: 'All Positions', value: 'all' },
+                    ...positionCatalog
+                      .map((position) => position.position_name)
+                      .filter(Boolean)
+                      .sort((a, b) => a.localeCompare(b))
+                      .map((position) => ({ label: position, value: position })),
+                  ]}
+                />
+              </div>
+            )}
+
+            <div className={activeSubTab === 'calendar' ? 'md:col-span-4' : 'md:col-span-7'}>
               <label className="block text-[10px] font-extrabold text-slate-500 dark:text-[#94A3B8] uppercase tracking-wider mb-1.5 flex items-center gap-1.5 select-none">
                 <Search className="w-3.5 h-3.5 text-[#3678B0]" />
                 <span>SEARCH EMPLOYEE / TRAINEE</span>
@@ -869,7 +885,7 @@ export default function AttendanceRosterHub({
           </div>
         </div>
 
-        {/* Row B: Sub-Navigation Tabs Placed BELOW the Filters with Date Picker exclusively on Roster Tab */}
+        {/* Row B: Workforce sections and attendance calendar view mode */}
         <div className="px-4 sm:px-5 py-2.5 bg-slate-50/60 dark:bg-[#272626]/60 border-b border-slate-100 dark:border-[#434142] flex flex-wrap items-center justify-between gap-3">
 
           {/* Left: Tab Buttons */}
@@ -927,6 +943,25 @@ export default function AttendanceRosterHub({
             </button>
           </div>
 
+          {activeSubTab === 'calendar' && (
+            <div className="flex items-center rounded-xl border border-slate-200 bg-white p-1 text-xs font-semibold shadow-2xs dark:border-[#434142] dark:bg-[#272626]">
+              <button
+                type="button"
+                onClick={() => setAttendanceView('matrix')}
+                className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 transition-all ${attendanceView === 'matrix' ? 'bg-[#2F6798] text-white shadow-xs' : 'text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white'}`}
+              >
+                <Users className="h-3.5 w-3.5" /> All Employees
+              </button>
+              <button
+                type="button"
+                onClick={() => setAttendanceView('google-calendar')}
+                className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 transition-all ${attendanceView === 'google-calendar' ? 'bg-[#2F6798] text-white shadow-xs' : 'text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white'}`}
+              >
+                <CalendarDays className="h-3.5 w-3.5" /> Calendar View
+              </button>
+            </div>
+          )}
+
           {/* Right: Date Picker ONLY visible when on Roster tab (activeSubTab === 'roster') */}
           {activeSubTab === 'roster' && (
             <div className="flex items-center gap-2 shrink-0 animate-in fade-in duration-200">
@@ -955,7 +990,6 @@ export default function AttendanceRosterHub({
             searchTerm={searchTerm}
             onSearchTermChange={setSearchTerm}
             filterQuarter={filterQuarter}
-            filterMonth={filterMonth}
             filterAccount={filterAccount}
             onToast={(msg) => {
               setToastMsg(msg);
@@ -971,11 +1005,16 @@ export default function AttendanceRosterHub({
           <div className="p-4 sm:p-5 animate-in fade-in">
             <AttendanceCalendarTab
               records={records}
-              onBackToRoster={() => setActiveSubTab('roster')}
               searchFilter={searchTerm}
+              selectedAccountFilter={filterAccount}
               isHeadOrAdmin={isHeadOrAdmin}
               supervisorName={supervisorName}
               supervisorId={supervisorId}
+              rangeView={attendanceRange}
+              selectedPositionFilter={attendancePosition}
+              onPositionFilterChange={setAttendancePosition}
+              viewFormat={attendanceView}
+              onViewFormatChange={setAttendanceView}
             />
           </div>
         )}

@@ -17,7 +17,6 @@ import {
   Sparkles, 
   ChevronDown, 
   RotateCw, 
-  CalendarDays, 
   Coffee, 
   Utensils, 
   AlertTriangle, 
@@ -28,7 +27,6 @@ import {
   Save,
   PlusCircle,
   LogIn,
-  LayoutGrid
 } from 'lucide-react';
 import { PhoneTimeRecord } from '@/lib/types';
 import { logAttendanceUpdate } from '@/lib/activityLogs';
@@ -42,7 +40,6 @@ import { parseShiftStartHour } from '@/lib/shiftSchedule';
 interface AttendanceCalendarViewProps {
   employeeName?: string;
   supervisorName?: string;
-  onBackToRoster?: () => void;
   records?: PhoneTimeRecord[];
 }
 
@@ -296,16 +293,13 @@ function parseTimeToDate(dayNumber: number, monthIndex: number, year: number, ti
 export default function AttendanceCalendarView({
   employeeName = '',
   supervisorName = '',
-  onBackToRoster,
   records = [],
 }: AttendanceCalendarViewProps) {
   const [rosterEmployees, setRosterEmployees] = useState<any[]>([]);
   const [selectedEmpName, setSelectedEmpName] = useState<string>(employeeName);
-  const [viewMode, setViewMode] = useState<'Month' | 'Week' | 'Day'>('Month');
   const [currentMonthIndex, setCurrentMonthIndex] = useState(new Date().getMonth());
   const [currentYear, setCurrentYear] = useState(new Date().getFullYear());
   const [personSearch, setPersonSearch] = useState('');
-  const [isViewDropdownOpen, setIsViewDropdownOpen] = useState(false);
   const [isEmpDropdownOpen, setIsEmpDropdownOpen] = useState(false);
   const [isLoadingLogs, setIsLoadingLogs] = useState(false);
   const [punchLogs, setPunchLogs] = useState<any[]>([]);
@@ -324,6 +318,7 @@ export default function AttendanceCalendarView({
         if (json.success && Array.isArray(json.data)) {
           const nextRoster = json.data.map((emp: any) => ({
               id: String(emp.employee_id || emp.id),
+              databaseId: String(emp.database_id || ''),
               name: emp.name,
               role: emp.position || emp.role || '',
               department: emp.department || '',
@@ -356,20 +351,6 @@ export default function AttendanceCalendarView({
         }
       } catch (e) {}
 
-      if (typeof window !== 'undefined') {
-        try {
-          const saved = localStorage.getItem('attendance_overrides_v1');
-          if (saved) {
-            combined = { ...combined, ...JSON.parse(saved) };
-          }
-        } catch (e) {}
-        try {
-          const savedNotes = localStorage.getItem('attendance_notes_v1');
-          if (savedNotes) {
-            setAttendanceNotes((prev) => ({ ...prev, ...JSON.parse(savedNotes) }));
-          }
-        } catch (e) {}
-      }
       if (Object.keys(combined).length > 0) {
         setAttendanceOverrides(combined);
       }
@@ -402,7 +383,7 @@ export default function AttendanceCalendarView({
     return (
       rosterEmployees.find(
         (e) => e.name.toLowerCase() === selectedEmpName.toLowerCase() || e.id === selectedEmpName
-      ) || rosterEmployees[0] || { id: '', name: '', role: '', account: '', department: '' }
+      ) || rosterEmployees[0] || { id: '', databaseId: '', name: '', role: '', account: '', department: '' }
     );
   }, [selectedEmpName, rosterEmployees]);
 
@@ -429,12 +410,16 @@ export default function AttendanceCalendarView({
   useEffect(() => {
     loadLogsForEmployee();
 
-    const handleExternalSync = () => {
-      if (typeof window !== 'undefined') {
-        try {
-          const saved = localStorage.getItem('attendance_overrides_v1');
-          if (saved) setAttendanceOverrides(JSON.parse(saved));
-        } catch (e) {}
+    const handleExternalSync = async () => {
+      try {
+        const response = await fetch('/api/attendance-overrides');
+        const data = await response.json();
+        if (response.ok && data.success) {
+          setAttendanceOverrides(data.overrides || {});
+          setAttendanceNotes(data.notes || {});
+        }
+      } catch (error) {
+        console.warn('Could not refresh saved attendance:', error);
       }
       loadLogsForEmployee();
     };
@@ -683,9 +668,9 @@ export default function AttendanceCalendarView({
           }))
         : []
     );
-    const key = `${activeEmployee.name}-${dayNumber}`;
-    const codeKey = `${activeEmployee.id}-${dayNumber}`;
-    setEditNote(attendanceNotes[key] || attendanceNotes[codeKey] || '');
+    const codeDateKey = `${activeEmployee.id}-${currentYear}-${currentMonthIndex}-${dayNumber}`;
+    const nameDateKey = `${activeEmployee.name}-${currentYear}-${currentMonthIndex}-${dayNumber}`;
+    setEditNote(attendanceNotes[codeDateKey] || attendanceNotes[nameDateKey] || '');
   };
 
   // Add a new punch in edit mode
@@ -717,66 +702,31 @@ export default function AttendanceCalendarView({
     if (!selectedDayDetail) return;
     setIsSaving(true);
     const dayNumber = selectedDayDetail.dayNumber;
-    const nameKey = `${activeEmployee.name}-${dayNumber}`;
-    const codeKey = `${activeEmployee.id}-${dayNumber}`;
-    const fullDateKey = `${activeEmployee.id}-${currentYear}-${currentMonthIndex}-${dayNumber}`;
-    const nameFullDateKey = `${activeEmployee.name}-${currentYear}-${currentMonthIndex}-${dayNumber}`;
-
     try {
-      // 1. Update local overrides & notes
-      const updatedOverrides = { ...attendanceOverrides };
-      if (editStatus) {
-        updatedOverrides[nameKey] = editStatus;
-        updatedOverrides[codeKey] = editStatus;
-        updatedOverrides[fullDateKey] = editStatus;
-        updatedOverrides[nameFullDateKey] = editStatus;
-      } else {
-        // User explicitly set to Clear -> mark as Clear so no status or fallback badge displays
-        updatedOverrides[nameKey] = 'Clear';
-        updatedOverrides[codeKey] = 'Clear';
-        updatedOverrides[fullDateKey] = 'Clear';
-        updatedOverrides[nameFullDateKey] = 'Clear';
-      }
-      setAttendanceOverrides(updatedOverrides);
-      if (typeof window !== 'undefined') {
-        try {
-          localStorage.setItem('attendance_overrides_v1', JSON.stringify(updatedOverrides));
-        } catch (e) {}
-      }
-
-      if (editNote !== undefined) {
-        const updatedNotes = {
-          ...attendanceNotes,
-          [nameKey]: editNote,
-          [codeKey]: editNote,
-          [fullDateKey]: editNote,
-          [nameFullDateKey]: editNote,
-        };
-        setAttendanceNotes(updatedNotes);
-        if (typeof window !== 'undefined') {
-          try {
-            localStorage.setItem('attendance_notes_v1', JSON.stringify(updatedNotes));
-          } catch (e) {}
-        }
-      }
-
-      // Persist to server API
-      fetch('/api/attendance-overrides', {
+      const attendanceResponse = await fetch('/api/attendance-overrides', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          empId: activeEmployee.id,
-          employeeName: activeEmployee.name,
+          employeeDbId: activeEmployee.databaseId,
           year: currentYear,
           month: currentMonthIndex,
           day: dayNumber,
           status: editStatus === 'Clear' ? null : editStatus,
           note: editNote || '',
-          performedBy: supervisorName || 'Supervisor',
         }),
-      }).catch((err) => console.warn('Failed to persist attendance override:', err));
+      });
+      const attendanceResult = await attendanceResponse.json();
+      if (!attendanceResponse.ok || !attendanceResult.success) {
+        throw new Error(attendanceResult.error || 'Failed to save attendance.');
+      }
+      const savedAttendanceResponse = await fetch('/api/attendance-overrides');
+      const savedAttendance = await savedAttendanceResponse.json();
+      if (savedAttendanceResponse.ok && savedAttendance.success) {
+        setAttendanceOverrides(savedAttendance.overrides || {});
+        setAttendanceNotes(savedAttendance.notes || {});
+      }
 
-      // 2. Persist to Supabase time_tracker_logs
+      // Persist punch events separately in time_tracker_logs.
       // Clean previous punches for this specific employee & day first
       await fetch(
         `/api/punch-logs?empId=${activeEmployee.id}&month=${currentMonthIndex}&day=${dayNumber}&year=${currentYear}`,
@@ -1015,9 +965,9 @@ export default function AttendanceCalendarView({
                 {rosterEmployees.filter((emp) =>
                   emp.name.toLowerCase().includes(personSearch.toLowerCase()) ||
                   emp.id.includes(personSearch)
-                ).map((emp) => (
+                ).map((emp, empIndex) => (
                   <button
-                    key={emp.id}
+                    key={emp.databaseId || `${emp.id}-${emp.name}-${empIndex}`}
                     type="button"
                     onClick={() => {
                       setSelectedEmpName(emp.name);
@@ -1041,27 +991,8 @@ export default function AttendanceCalendarView({
           )}
         </div>
 
-        {/* Right: View Format Toggle (All Employees vs Calendar View) + Refresh + Unified DatePicker + View Dropdown */}
+        {/* Right: Refresh and unified month/date navigation */}
         <div className="flex items-center gap-2 flex-wrap">
-          {/* View Format Toggle (Matching All Employees Position) */}
-          <div className="flex items-center p-1 rounded-xl bg-slate-100 dark:bg-[#111C3D] border border-slate-200 dark:border-slate-700 text-xs font-semibold">
-            <button
-              type="button"
-              onClick={onBackToRoster}
-              className="px-3 py-1.5 rounded-lg flex items-center gap-1.5 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-[#F8F8F6] transition-all cursor-pointer"
-            >
-              <LayoutGrid className="w-3.5 h-3.5" />
-              <span>All Employees</span>
-            </button>
-            <button
-              type="button"
-              className="px-3 py-1.5 rounded-lg flex items-center gap-1.5 bg-[#2F6798] dark:bg-[#3678B0] text-white shadow-xs font-semibold transition-all cursor-pointer"
-            >
-              <CalendarDays className="w-3.5 h-3.5" />
-              <span>Calendar View</span>
-            </button>
-          </div>
-
           {/* Refresh Database Logs Button */}
           <button
             type="button"
@@ -1083,40 +1014,6 @@ export default function AttendanceCalendarView({
             showArrows
             align="right"
           />
-
-          {/* View Mode Toggle */}
-          <div className="relative">
-            <button
-              type="button"
-              onClick={() => setIsViewDropdownOpen(!isViewDropdownOpen)}
-              className="px-3.5 py-1.5 rounded-xl bg-white dark:bg-[#111C3D] border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-800 dark:text-slate-200 flex items-center gap-1.5 hover:bg-slate-50 dark:hover:bg-slate-800 transition-all cursor-pointer shadow-2xs"
-            >
-              <span>{viewMode}</span>
-              <ChevronDown className="w-3.5 h-3.5 text-slate-400" />
-            </button>
-
-            {isViewDropdownOpen && (
-              <div className="absolute right-0 top-full mt-1.5 z-50 w-28 bg-white dark:bg-[#111C3D] border border-slate-200 dark:border-slate-700 rounded-xl shadow-xl p-1 animate-in fade-in zoom-in-95">
-                {(['Month', 'Week', 'Day'] as const).map((mode) => (
-                  <button
-                    key={mode}
-                    type="button"
-                    onClick={() => {
-                      setViewMode(mode);
-                      setIsViewDropdownOpen(false);
-                    }}
-                    className={`w-full px-3 py-1.5 text-xs text-left rounded-lg font-bold transition-colors cursor-pointer ${
-                      viewMode === mode
-                        ? 'bg-[#2F6798]/10 text-[#2F6798] dark:text-blue-300'
-                        : 'text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800'
-                    }`}
-                  >
-                    {mode}
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
 
         </div>
 

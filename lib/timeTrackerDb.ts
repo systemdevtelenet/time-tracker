@@ -33,6 +33,7 @@ export interface NormalizedTimeTrackerLog {
 
 export interface NormalizedEmployee {
   id: string;
+  database_id: string;
   employee_id: string;
   name: string;
   email: string;
@@ -103,6 +104,7 @@ export function normalizeEmployeeRow(row: RawEmployeeRow): NormalizedEmployee {
 
   return {
     id: empId,
+    database_id: String(row.id || '').trim(),
     employee_id: empId,
     name,
     email,

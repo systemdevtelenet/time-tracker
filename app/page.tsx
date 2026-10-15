@@ -355,13 +355,19 @@ function HomePageContent() {
     });
   }, [records, supervisor.name, isHeadOrAdmin]);
 
-  // If a non-head user accesses ?tab=analytics or ?tab=attendance, automatically redirect to time tracker
+  // Wait for the authenticated employee profile before enforcing restricted tabs.
+  // The initial placeholder profile has role USER and would otherwise redirect
+  // heads/admins away from Attendance during page refresh before their role loads.
   useEffect(() => {
+    if (isLoading) return;
     if (!isHeadOrAdmin && (activeTab === 'analytics' || activeTab === 'attendance')) {
       setActiveTab('tracker');
       router.replace('/?tab=tracker', { scroll: false });
+      try {
+        localStorage.setItem('tele_active_tab', 'tracker');
+      } catch {}
     }
-  }, [isHeadOrAdmin, activeTab, router]);
+  }, [isLoading, isHeadOrAdmin, activeTab, router]);
 
   // Compute live KPIs
   const kpiStats: KpiSummaryStats = useMemo(() => {

@@ -181,14 +181,13 @@ export default function HoursReportTab({
   const [attendanceOverrides, setAttendanceOverrides] = useState<Record<string, string>>({});
   const [isLoading, setIsLoading] = useState<boolean>(false);
 
-  const loadLocalOverrides = () => {
-    if (typeof window !== 'undefined') {
-      try {
-        const saved = localStorage.getItem('attendance_overrides_v1');
-        if (saved) {
-          setAttendanceOverrides(JSON.parse(saved));
-        }
-      } catch (e) {}
+  const loadAttendanceOverrides = async () => {
+    try {
+      const response = await fetch('/api/attendance-overrides');
+      const data = await response.json();
+      if (response.ok && data.success) setAttendanceOverrides(data.overrides || {});
+    } catch (error) {
+      console.warn('Could not load saved attendance:', error);
     }
   };
 
@@ -212,7 +211,7 @@ export default function HoursReportTab({
           setPunchLogs(punchJson.data);
         }
 
-        loadLocalOverrides();
+        await loadAttendanceOverrides();
       } catch (err) {
         console.error('Error loading hours report data:', err);
       } finally {
@@ -224,7 +223,7 @@ export default function HoursReportTab({
 
     const handleSync = () => {
       loadData();
-      loadLocalOverrides();
+      loadAttendanceOverrides();
     };
 
     if (typeof window !== 'undefined') {

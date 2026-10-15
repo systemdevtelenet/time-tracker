@@ -57,7 +57,6 @@ export default function CalendarModal({
         <div className="p-3 sm:p-5 overflow-y-auto flex-1">
           <AttendanceCalendarView
             employeeName={employee.name}
-            onBackToRoster={onClose}
           />
         </div>
 

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { 
   Search, 
   Calendar, 
@@ -164,6 +164,31 @@ export default function RosterTable({
   }, [employees, searchTerm, filterAccount, activeStatusFilter, sortField, sortAsc, currentUserName, currentUserId]);
 
   const totalPages = Math.max(1, Math.ceil(filteredEmployees.length / rowsPerPage));
+
+  const paginationItems = useMemo<Array<number | 'ellipsis-left' | 'ellipsis-right'>>(() => {
+    if (totalPages <= 7) return Array.from({ length: totalPages }, (_, index) => index + 1);
+
+    let startPage = Math.max(2, currentPage - 1);
+    let endPage = Math.min(totalPages - 1, currentPage + 1);
+    if (currentPage <= 3) {
+      startPage = 2;
+      endPage = 4;
+    } else if (currentPage >= totalPages - 2) {
+      startPage = totalPages - 3;
+      endPage = totalPages - 1;
+    }
+
+    const items: Array<number | 'ellipsis-left' | 'ellipsis-right'> = [1];
+    if (startPage > 2) items.push('ellipsis-left');
+    for (let page = startPage; page <= endPage; page += 1) items.push(page);
+    if (endPage < totalPages - 1) items.push('ellipsis-right');
+    items.push(totalPages);
+    return items;
+  }, [currentPage, totalPages]);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, filterAccount, activeStatusFilter, rowsPerPage]);
 
   const paginatedEmployees = useMemo(() => {
     const start = (currentPage - 1) * rowsPerPage;
@@ -455,55 +480,61 @@ export default function RosterTable({
       </div>
 
       {/* Table Footer Bar with Interactive Pagination Controls */}
-      <div className="p-3.5 sm:p-4 border-t border-slate-100 dark:border-[#434142] bg-white dark:bg-[#363435] text-xs flex flex-col sm:flex-row items-center justify-between gap-3 select-none font-sans">
-        <div className="text-slate-500 dark:text-slate-400 font-medium">
-          Showing <span className="font-bold text-slate-800 dark:text-[#F8F8F6]">{filteredEmployees.length === 0 ? 0 : (currentPage - 1) * rowsPerPage + 1}</span> to <span className="font-bold text-slate-800 dark:text-[#F8F8F6]">{Math.min(currentPage * rowsPerPage, filteredEmployees.length)}</span> of <span className="font-bold text-slate-800 dark:text-[#F8F8F6]">{filteredEmployees.length}</span> employees
+      <div className="p-3.5 sm:px-4 sm:py-3 border-t border-slate-100 dark:border-[#434142] bg-white dark:bg-[#363435] text-xs flex flex-col sm:flex-row items-center justify-between gap-2.5 sm:gap-4 select-none font-sans">
+        <div className="whitespace-nowrap text-center sm:text-left text-slate-500 dark:text-slate-400 font-medium">
+          Showing <span className="font-bold text-slate-800 dark:text-[#F8F8F6]">{filteredEmployees.length === 0 ? 0 : (currentPage - 1) * rowsPerPage + 1}</span>–<span className="font-bold text-slate-800 dark:text-[#F8F8F6]">{Math.min(currentPage * rowsPerPage, filteredEmployees.length)}</span> of <span className="font-bold text-slate-800 dark:text-[#F8F8F6]">{filteredEmployees.length}</span> employees
         </div>
 
-        <div className="flex items-center gap-1.5">
+        <nav aria-label="Employee roster pages" className="flex max-w-full items-center justify-center gap-1 sm:justify-end">
           <button
             type="button"
             disabled={currentPage <= 1}
             onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
-            className={`px-3 py-1.5 rounded-xl border text-xs font-semibold flex items-center gap-1 transition-all ${
+            aria-label="Previous page"
+            className={`h-8 px-2 sm:px-2.5 rounded-lg border text-xs font-semibold flex items-center gap-1 transition-all ${
               currentPage <= 1
                 ? 'opacity-40 cursor-not-allowed border-slate-200 dark:border-[#434142] text-slate-400'
                 : 'cursor-pointer hover:bg-slate-50 dark:hover:bg-[#272626] border-slate-200 dark:border-[#434142] text-slate-700 dark:text-[#F8F8F6] shadow-2xs'
             }`}
           >
             <ChevronLeft className="w-3.5 h-3.5" />
-            <span>Previous</span>
+            <span className="hidden sm:inline">Previous</span>
           </button>
 
-          {Array.from({ length: totalPages }, (_, i) => i + 1).map((pageNum) => (
+          {paginationItems.map((item) => typeof item === 'number' ? (
             <button
-              key={pageNum}
+              key={item}
               type="button"
-              onClick={() => setCurrentPage(pageNum)}
-              className={`w-8 h-8 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center justify-center ${
-                currentPage === pageNum
+              onClick={() => setCurrentPage(item)}
+              aria-label={`Page ${item}`}
+              aria-current={currentPage === item ? 'page' : undefined}
+              className={`h-8 min-w-8 px-2 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center justify-center ${
+                currentPage === item
                   ? 'bg-[#2F6798] dark:bg-[#3678B0] text-white shadow-xs'
                   : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-[#272626] border border-slate-200/80 dark:border-[#434142]'
               }`}
             >
-              {pageNum}
+              {item}
             </button>
+          ) : (
+            <span key={item} aria-hidden="true" className="w-4 text-center text-slate-400">…</span>
           ))}
 
           <button
             type="button"
             disabled={currentPage >= totalPages}
             onClick={() => setCurrentPage((prev) => Math.min(totalPages, prev + 1))}
-            className={`px-3 py-1.5 rounded-xl border text-xs font-semibold flex items-center gap-1 transition-all ${
+            aria-label="Next page"
+            className={`h-8 px-2 sm:px-2.5 rounded-lg border text-xs font-semibold flex items-center gap-1 transition-all ${
               currentPage >= totalPages
                 ? 'opacity-40 cursor-not-allowed border-slate-200 dark:border-[#434142] text-slate-400'
                 : 'cursor-pointer hover:bg-slate-50 dark:hover:bg-[#272626] border-slate-200 dark:border-[#434142] text-slate-700 dark:text-[#F8F8F6] shadow-2xs'
             }`}
           >
-            <span>Next</span>
+            <span className="hidden sm:inline">Next</span>
             <ChevronRight className="w-3.5 h-3.5" />
           </button>
-        </div>
+        </nav>
       </div>
 
     </div>

@@ -4,8 +4,6 @@ import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { 
   ChevronLeft, 
   ChevronRight, 
-  Search, 
-  Calendar as CalendarIcon, 
   Download, 
   User, 
   Info,
@@ -13,10 +11,7 @@ import {
   Clock,
   AlertTriangle,
   XCircle,
-  CalendarDays,
-  LayoutGrid,
-  Sparkles,
-  ArrowRight
+  CalendarDays
 } from 'lucide-react';
 import AttendanceCalendarView from './AttendanceCalendarView';
 import AttendanceDetailModal, { TeamMemberDayStatus } from './AttendanceDetailModal';
@@ -28,11 +23,16 @@ import { showToast } from '@/lib/toast';
 
 interface AttendanceCalendarTabProps {
   records?: PhoneTimeRecord[];
-  onBackToRoster?: () => void;
   searchFilter?: string;
   isHeadOrAdmin?: boolean;
   supervisorName?: string;
   supervisorId?: string;
+  selectedAccountFilter: string;
+  rangeView: RangeViewOption;
+  selectedPositionFilter: string;
+  onPositionFilterChange: (value: string) => void;
+  viewFormat: 'matrix' | 'google-calendar';
+  onViewFormatChange: (value: 'matrix' | 'google-calendar') => void;
 }
 
 export type AttendanceStatus = 
@@ -52,6 +52,7 @@ export type AttendanceStatus =
 
 interface EmployeeAttendanceRow {
   id: string;
+  databaseId: string;
   startDate: string;
   position: string;
   name: string;
@@ -123,45 +124,32 @@ function getNoteForEmployee(
   return '';
 }
 
-type RangeViewOption = 'all_30' | 'period_1' | 'period_2' | 'current_week';
+export type RangeViewOption = 'all_30' | 'period_1' | 'period_2' | 'current_week';
 
 export default function AttendanceCalendarTab({
   records = [],
-  onBackToRoster,
   searchFilter = '',
   isHeadOrAdmin = true,
   supervisorName,
   supervisorId,
+  selectedAccountFilter,
+  rangeView,
+  selectedPositionFilter,
+  onPositionFilterChange,
+  viewFormat,
+  onViewFormatChange,
 }: AttendanceCalendarTabProps) {
-  const [viewFormat, setViewFormat] = useState<'matrix' | 'google-calendar'>('matrix');
-  const [rangeView, setRangeView] = useState<RangeViewOption>('all_30');
   const [currentMonthIndex, setCurrentMonthIndex] = useState(new Date().getMonth());
   const [currentYear, setCurrentYear] = useState(new Date().getFullYear());
   const [selectedStatusFilter, setSelectedStatusFilter] = useState<string>('all');
+  const [employeePage, setEmployeePage] = useState(1);
   const [selectedIndividualEmployee, setSelectedIndividualEmployee] = useState<string>(
     supervisorName || ''
   );
 
-  // Synchronously load existing local overrides to prevent flicker or resets
-  const [attendanceOverrides, setAttendanceOverrides] = useState<Record<string, AttendanceStatus>>(() => {
-    if (typeof window !== 'undefined') {
-      try {
-        const saved = localStorage.getItem('attendance_overrides_v1');
-        if (saved) return JSON.parse(saved);
-      } catch (e) {}
-    }
-    return {};
-  });
-
-  const [attendanceNotes, setAttendanceNotes] = useState<Record<string, string>>(() => {
-    if (typeof window !== 'undefined') {
-      try {
-        const saved = localStorage.getItem('attendance_notes_v1');
-        if (saved) return JSON.parse(saved);
-      } catch (e) {}
-    }
-    return {};
-  });
+  // Attendance tags and notes loaded from the shared attendance records API.
+  const [attendanceOverrides, setAttendanceOverrides] = useState<Record<string, AttendanceStatus>>({});
+  const [attendanceNotes, setAttendanceNotes] = useState<Record<string, string>>({});
 
   // Dynamic Database Team Roster List with immediate override integration on first mount
   const [attendanceDataList, setAttendanceDataList] = useState<EmployeeAttendanceRow[]>([]);
@@ -177,6 +165,7 @@ export default function AttendanceCalendarTab({
     isOpen: boolean;
     employeeName: string;
     employeeId?: string;
+    employeeDbId?: string;
     position?: string;
     account?: string;
     dayNumber: number;
@@ -190,16 +179,16 @@ export default function AttendanceCalendarTab({
   });
 
   useEffect(() => {
-    const syncOverrides = () => {
-      if (typeof window !== 'undefined') {
-        try {
-          const saved = localStorage.getItem('attendance_overrides_v1');
-          if (saved) setAttendanceOverrides(JSON.parse(saved));
-        } catch (e) {}
-        try {
-          const savedNotes = localStorage.getItem('attendance_notes_v1');
-          if (savedNotes) setAttendanceNotes(JSON.parse(savedNotes));
-        } catch (e) {}
+    const syncOverrides = async () => {
+      try {
+        const response = await fetch('/api/attendance-overrides');
+        const data = await response.json();
+        if (response.ok && data.success) {
+          setAttendanceOverrides(data.overrides || {});
+          setAttendanceNotes(data.notes || {});
+        }
+      } catch (error) {
+        console.warn('Could not refresh saved attendance:', error);
       }
     };
 
@@ -225,6 +214,7 @@ export default function AttendanceCalendarTab({
       isOpen: true,
       employeeName: emp.name,
       employeeId: emp.id,
+      employeeDbId: emp.databaseId,
       position: emp.position,
       account: emp.account || '',
       dayNumber: dayNum,
@@ -234,12 +224,33 @@ export default function AttendanceCalendarTab({
   };
 
   const handleSelectCellStatus = async (newStatus: AttendanceStatus, note?: string) => {
-    const { employeeName, dayNumber, employeeId } = cellPopover;
+    const { employeeName, dayNumber, employeeId, employeeDbId } = cellPopover;
     const cleanEmpId = (employeeId || '').replace(/^emp-/, '').trim();
     const trimmedName = employeeName.trim();
     const lowerName = trimmedName.toLowerCase();
 
-    // 1. Update React state immediately for snappy UI
+    try {
+      const response = await fetch('/api/attendance-overrides', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          employeeDbId,
+          year: currentYear,
+          month: currentMonthIndex,
+          day: dayNumber,
+          status: newStatus,
+          note,
+        }),
+      });
+      const result = await response.json();
+      if (!response.ok || !result.success) throw new Error(result.error || 'Unable to save attendance.');
+    } catch (error) {
+      console.error('Failed to save attendance status:', error);
+      showToast({ title: 'Attendance not saved', message: 'Please try again.', type: 'error' });
+      return;
+    }
+
+    // Update the visible matrix after the database confirms the change.
     setAttendanceDataList((prev) =>
       prev.map((emp) => {
         const empClean = emp.id.replace(/^emp-/, '').trim();
@@ -263,7 +274,7 @@ export default function AttendanceCalendarTab({
       })
     );
 
-    // 2. Persist overrides to localStorage across all lookup keys
+    // Keep the current matrix in sync with the persisted record.
     const updatedOverrides = {
       ...attendanceOverrides,
       [`${cleanEmpId}-${currentYear}-${currentMonthIndex}-${dayNumber}`]: newStatus,
@@ -274,12 +285,6 @@ export default function AttendanceCalendarTab({
       [`${lowerName}-${dayNumber}`]: newStatus,
     };
     setAttendanceOverrides(updatedOverrides);
-    if (typeof window !== 'undefined') {
-      try {
-        localStorage.setItem('attendance_overrides_v1', JSON.stringify(updatedOverrides));
-      } catch (e) {}
-    }
-
     let updatedNotes = { ...attendanceNotes };
     if (note !== undefined) {
       updatedNotes = {
@@ -292,28 +297,7 @@ export default function AttendanceCalendarTab({
         [`${lowerName}-${dayNumber}`]: note,
       };
       setAttendanceNotes(updatedNotes);
-      if (typeof window !== 'undefined') {
-        try {
-          localStorage.setItem('attendance_notes_v1', JSON.stringify(updatedNotes));
-        } catch (e) {}
-      }
     }
-
-    // 3. Persist to server API in background so changes persist across devices/refreshes
-    fetch('/api/attendance-overrides', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        empId: cleanEmpId,
-        employeeName: trimmedName,
-        year: currentYear,
-        month: currentMonthIndex,
-        day: dayNumber,
-        status: newStatus,
-        note: note ?? undefined,
-        performedBy: supervisorName || 'Supervisor',
-      }),
-    }).catch((err) => console.warn('Failed to persist attendance override to server:', err));
 
     // 4. Record to Activity Logs
     const fullStatusLabelMap: Record<string, string> = {
@@ -411,27 +395,17 @@ export default function AttendanceCalendarTab({
     });
   }, [attendanceDataList, modalDayNumber]);
 
-  // Jump to active day column
-  const handleJumpToToday = () => {
-    const now = new Date();
-    if (currentMonthIndex !== now.getMonth() || currentYear !== now.getFullYear()) {
-      setCurrentMonthIndex(now.getMonth());
-      setCurrentYear(now.getFullYear());
-    }
-    setTimeout(() => {
-      if (scrollContainerRef.current) {
-        const todayTh = scrollContainerRef.current.querySelector('[data-today-header="true"]');
-        if (todayTh) {
-          todayTh.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
-        }
-      }
-    }, 50);
-  };
-
   // Days list based on active range
   const totalDaysInMonth = useMemo(() => {
     return new Date(currentYear, currentMonthIndex + 1, 0).getDate();
   }, [currentYear, currentMonthIndex]);
+
+  const currentWeekRange = useMemo(() => {
+    const now = new Date();
+    const currentDay = isCurrentViewMonth ? now.getDate() : 16;
+    const start = Math.max(1, currentDay - 3);
+    return { start, end: Math.min(totalDaysInMonth, start + 6) };
+  }, [isCurrentViewMonth, totalDaysInMonth]);
 
   const displayedDays = useMemo(() => {
     const days: number[] = [];
@@ -445,17 +419,15 @@ export default function AttendanceCalendarTab({
       start = 16;
       end = totalDaysInMonth;
     } else if (rangeView === 'current_week') {
-      const now = new Date();
-      const currentDay = isCurrentViewMonth ? now.getDate() : 16;
-      start = Math.max(1, currentDay - 3);
-      end = Math.min(totalDaysInMonth, start + 6);
+      start = currentWeekRange.start;
+      end = currentWeekRange.end;
     }
 
     for (let i = start; i <= end; i++) {
       days.push(i);
     }
     return days;
-  }, [rangeView, totalDaysInMonth, isCurrentViewMonth]);
+  }, [rangeView, totalDaysInMonth, currentWeekRange]);
 
   // Fetch actual live roster & punch logs from database and compute attendance matrix
   useEffect(() => {
@@ -484,33 +456,14 @@ export default function AttendanceCalendarTab({
         const punchLogs: any[] = punchJson.success && Array.isArray(punchJson.data) ? punchJson.data : [];
 
         // Combine local overrides and server-persisted overrides
-        let combinedOverrides: Record<string, AttendanceStatus> = {};
-        if (serverOverrides?.success && serverOverrides?.overrides) {
-          combinedOverrides = { ...serverOverrides.overrides };
-        }
-        if (typeof window !== 'undefined') {
-          try {
-            const saved = localStorage.getItem('attendance_overrides_v1');
-            if (saved) {
-              const parsed = JSON.parse(saved);
-              combinedOverrides = { ...combinedOverrides, ...parsed };
-            }
-          } catch (e) {}
-        }
-
-        let combinedNotes: Record<string, string> = {};
-        if (serverOverrides?.success && serverOverrides?.notes) {
-          combinedNotes = { ...serverOverrides.notes };
-        }
-        if (typeof window !== 'undefined') {
-          try {
-            const savedNotes = localStorage.getItem('attendance_notes_v1');
-            if (savedNotes) {
-              const parsed = JSON.parse(savedNotes);
-              combinedNotes = { ...combinedNotes, ...parsed };
-            }
-          } catch (e) {}
-        }
+        const combinedOverrides: Record<string, AttendanceStatus> = serverOverrides?.success
+          ? serverOverrides.overrides || {}
+          : {};
+        const combinedNotes: Record<string, string> = serverOverrides?.success
+          ? serverOverrides.notes || {}
+          : {};
+        setAttendanceOverrides(combinedOverrides);
+        setAttendanceNotes(combinedNotes);
 
         const now = new Date();
         const liveTodayDate = now.getDate();
@@ -551,6 +504,14 @@ export default function AttendanceCalendarTab({
               continue;
             }
 
+            // Match the individual calendar: weekends without punches default to Rest Day.
+            // Manual overrides and recorded punches above take precedence.
+            const weekday = new Date(currentYear, currentMonthIndex, d).getDay();
+            if (weekday === 0 || weekday === 6) {
+              attendanceMap[d] = 'RD';
+              continue;
+            }
+
             // 1. Check if this date is today (the current day)
             const isToday = currentYear === liveTodayYear && currentMonthIndex === liveTodayMonth && d === liveTodayDate;
 
@@ -573,6 +534,7 @@ export default function AttendanceCalendarTab({
 
           return {
             id: `emp-${empCode}`,
+            databaseId: String(r.database_id || ''),
             name: r.name,
             startDate: r.hire_date || '',
             position: r.position || '',
@@ -596,7 +558,7 @@ export default function AttendanceCalendarTab({
       }
     }
     loadDbTeam();
-  }, [currentMonthIndex, currentYear, totalDaysInMonth, isHeadOrAdmin, supervisorName, supervisorId, attendanceOverrides]);
+  }, [currentMonthIndex, currentYear, totalDaysInMonth, isHeadOrAdmin, supervisorName, supervisorId]);
 
   const isCurrentUser = (emp: EmployeeAttendanceRow) => {
     if (!supervisorName && !supervisorId) return false;
@@ -611,6 +573,9 @@ export default function AttendanceCalendarTab({
   // Filter employees with top search and status
   const filteredEmployees = useMemo(() => {
     const matches = attendanceDataList.filter((emp) => {
+      if (selectedPositionFilter !== 'all' && emp.position.trim() !== selectedPositionFilter) return false;
+      if (selectedAccountFilter !== 'all' && (emp.account || '').toLowerCase() !== selectedAccountFilter.toLowerCase()) return false;
+
       const matchesSearch = 
         emp.name.toLowerCase().includes(searchFilter.toLowerCase()) ||
         emp.position.toLowerCase().includes(searchFilter.toLowerCase());
@@ -637,7 +602,22 @@ export default function AttendanceCalendarTab({
     });
 
     return [...currentUserList, ...otherList];
-  }, [attendanceDataList, searchFilter, selectedStatusFilter, supervisorName, supervisorId]);
+  }, [attendanceDataList, searchFilter, selectedStatusFilter, selectedPositionFilter, selectedAccountFilter, supervisorName, supervisorId]);
+
+  const employeesPerPage = 10;
+  const pageCount = Math.max(1, Math.ceil(filteredEmployees.length / employeesPerPage));
+  const visibleEmployees = useMemo(() => {
+    const start = (employeePage - 1) * employeesPerPage;
+    return filteredEmployees.slice(start, start + employeesPerPage);
+  }, [filteredEmployees, employeePage]);
+
+  useEffect(() => {
+    setEmployeePage(1);
+  }, [searchFilter, selectedStatusFilter, selectedPositionFilter, selectedAccountFilter, currentMonthIndex, currentYear]);
+
+  useEffect(() => {
+    if (employeePage > pageCount) setEmployeePage(pageCount);
+  }, [employeePage, pageCount]);
 
   // Status Styling Helper (Reduced size by 1)
   const getStatusBadge = (status: AttendanceStatus) => {
@@ -748,34 +728,6 @@ export default function AttendanceCalendarTab({
               {/* Month Switcher Controls & View Mode */}
               <div className="flex items-center gap-2.5 flex-wrap justify-end">
                 
-                {/* View Format Toggle (Matrix vs Calendar) */}
-                <div className="flex items-center p-1 rounded-xl bg-slate-100 dark:bg-[#272626] border border-slate-200 dark:border-[#434142] text-xs font-semibold">
-                  <button
-                    type="button"
-                    onClick={() => setViewFormat('matrix')}
-                    className={`px-3 py-1.5 rounded-lg flex items-center gap-1.5 transition-all cursor-pointer ${
-                      viewFormat === 'matrix'
-                        ? 'bg-[#2F6798] dark:bg-[#3678B0] text-white shadow-xs font-semibold'
-                        : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-[#F8F8F6]'
-                    }`}
-                  >
-                    <LayoutGrid className="w-3.5 h-3.5" />
-                    <span>All Employees</span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setViewFormat('google-calendar')}
-                    className={`px-3 py-1.5 rounded-lg flex items-center gap-1.5 transition-all cursor-pointer ${
-                      (viewFormat as string) === 'google-calendar'
-                        ? 'bg-[#2F6798] dark:bg-[#3678B0] text-white shadow-xs font-semibold'
-                        : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-[#F8F8F6]'
-                    }`}
-                  >
-                    <CalendarDays className="w-3.5 h-3.5" />
-                    <span>Calendar View</span>
-                  </button>
-                </div>
-
                 {/* Unified Date & Month Picker */}
                 <DatePickerPopover
                   selectedDate={new Date(currentYear, currentMonthIndex, 1)}
@@ -789,76 +741,6 @@ export default function AttendanceCalendarTab({
                 />
 
               </div>
-
-            </div>
-
-            {/* Range Switcher Row */}
-            <div className="p-2.5 rounded-xl bg-[#F4F7FB] dark:bg-[#272626] border border-slate-200/80 dark:border-[#434142] flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3">
-              
-              {/* Range Toggle Buttons */}
-              <div className="flex items-center gap-1.5 overflow-x-auto">
-                <span className="text-[10px] font-bold uppercase text-slate-400 dark:text-slate-400 mr-1 shrink-0">
-                  Date Range:
-                </span>
-                
-                <button
-                  type="button"
-                  onClick={() => setRangeView('all_30')}
-                  className={`px-3 py-1 rounded-lg text-xs font-semibold transition-all cursor-pointer shrink-0 ${
-                    rangeView === 'all_30'
-                      ? 'bg-[#2F6798] dark:bg-[#3678B0] text-white shadow-xs'
-                      : 'bg-white dark:bg-[#363435] text-slate-700 dark:text-[#F8F8F6] hover:bg-slate-100 dark:hover:bg-[#434142] border border-slate-200 dark:border-[#434142]'
-                  }`}
-                >
-                  Full Month (1–30)
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => setRangeView('period_1')}
-                  className={`px-3 py-1 rounded-lg text-xs font-semibold transition-all cursor-pointer shrink-0 ${
-                    rangeView === 'period_1'
-                      ? 'bg-[#2F6798] dark:bg-[#3678B0] text-white shadow-xs'
-                      : 'bg-white dark:bg-[#363435] text-slate-700 dark:text-[#F8F8F6] hover:bg-slate-100 dark:hover:bg-[#434142] border border-slate-200 dark:border-[#434142]'
-                  }`}
-                >
-                  1st Pay Period (1–15)
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => setRangeView('period_2')}
-                  className={`px-3 py-1 rounded-lg text-xs font-semibold transition-all cursor-pointer shrink-0 ${
-                    rangeView === 'period_2'
-                      ? 'bg-[#2F6798] dark:bg-[#3678B0] text-white shadow-xs'
-                      : 'bg-white dark:bg-[#363435] text-slate-700 dark:text-[#F8F8F6] hover:bg-slate-100 dark:hover:bg-[#434142] border border-slate-200 dark:border-[#434142]'
-                  }`}
-                >
-                  2nd Pay Period (16–30)
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => setRangeView('current_week')}
-                  className={`px-3 py-1 rounded-lg text-xs font-semibold transition-all cursor-pointer shrink-0 ${
-                    rangeView === 'current_week'
-                      ? 'bg-[#2F6798] dark:bg-[#3678B0] text-white shadow-xs'
-                      : 'bg-white dark:bg-[#363435] text-slate-700 dark:text-[#F8F8F6] hover:bg-slate-100 dark:hover:bg-[#434142] border border-slate-200 dark:border-[#434142]'
-                  }`}
-                >
-                  Current Week (14–20)
-                </button>
-              </div>
-
-              {/* Jump to Today Quick Button */}
-              <button
-                type="button"
-                onClick={handleJumpToToday}
-                className="inline-flex items-center justify-center gap-1.5 px-3 py-1 rounded-lg bg-white dark:bg-[#363435] border border-[#2F6798]/30 dark:border-[#434142] hover:border-[#2F6798] dark:hover:border-[#C8A54B] text-[#2F6798] dark:text-[#C8A54B] text-xs font-semibold shadow-2xs transition-all cursor-pointer shrink-0"
-              >
-                <Sparkles className="w-3.5 h-3.5 text-[#2F6798] dark:text-[#C8A54B]" />
-                <span>Jump to Today ({monthNames[todayMonth].slice(0, 3)} {todayDate})</span>
-              </button>
 
             </div>
 
@@ -936,10 +818,10 @@ export default function AttendanceCalendarTab({
                   <th className="sticky left-0 z-30 bg-[#2F6798] dark:bg-[#1D2433] py-2.5 px-3 border-r border-white/15 dark:border-[#434142] uppercase tracking-wider min-w-[90px]">
                     START DATE
                   </th>
-                  <th className="sticky left-[90px] z-30 bg-[#2F6798] dark:bg-[#1D2433] py-2.5 px-3 border-r border-white/15 dark:border-[#434142] uppercase tracking-wider min-w-[125px]">
+                  <th className="sticky left-[90px] z-30 bg-[#2F6798] dark:bg-[#1D2433] py-2.5 px-3 border-r border-white/15 dark:border-[#434142] uppercase tracking-wider min-w-[210px]">
                     POSITION
                   </th>
-                  <th className="sticky left-[215px] z-30 bg-[#2F6798] dark:bg-[#1D2433] py-2.5 px-4 border-r border-white/25 dark:border-[#434142] uppercase tracking-wider min-w-[210px] shadow-[4px_0_8px_rgba(0,0,0,0.18)] dark:shadow-[4px_0_8px_rgba(0,0,0,0.5)]">
+                  <th className="sticky left-[300px] z-30 bg-[#2F6798] dark:bg-[#1D2433] py-2.5 px-4 border-r border-white/25 dark:border-[#434142] uppercase tracking-wider min-w-[210px] shadow-[4px_0_8px_rgba(0,0,0,0.18)] dark:shadow-[4px_0_8px_rgba(0,0,0,0.5)]">
                     EMPLOYEE NAME
                   </th>
 
@@ -974,7 +856,7 @@ export default function AttendanceCalendarTab({
                 <tr className="bg-[#24537C] dark:bg-[#161D2B] text-white/95 dark:text-slate-300 select-none border-b border-white/20 dark:border-[#434142]">
                   <th className="sticky left-0 z-30 bg-[#24537C] dark:bg-[#161D2B] py-1.5 px-3 border-r border-white/15 dark:border-[#434142]"></th>
                   <th className="sticky left-[90px] z-30 bg-[#24537C] dark:bg-[#161D2B] py-1.5 px-3 border-r border-white/15 dark:border-[#434142]"></th>
-                  <th className="sticky left-[215px] z-30 bg-[#24537C] dark:bg-[#161D2B] py-1.5 px-4 border-r border-white/25 dark:border-[#434142] shadow-[4px_0_8px_rgba(0,0,0,0.18)] dark:shadow-[4px_0_8px_rgba(0,0,0,0.5)]"></th>
+                  <th className="sticky left-[300px] z-30 bg-[#24537C] dark:bg-[#161D2B] py-1.5 px-4 border-r border-white/25 dark:border-[#434142] shadow-[4px_0_8px_rgba(0,0,0,0.18)] dark:shadow-[4px_0_8px_rgba(0,0,0,0.5)]"></th>
 
                   {displayedDays.map((dayNum) => {
                     const isToday = isCurrentViewMonth && dayNum === activeDayNumber;
@@ -1006,7 +888,7 @@ export default function AttendanceCalendarTab({
 
               {/* Table Body with Fixed Left Columns & Clean Matrix Cells */}
               <tbody className="divide-y divide-slate-100 dark:divide-[#434142] text-slate-700 dark:text-slate-300 font-medium">
-                {filteredEmployees.map((emp, empIdx) => {
+                {visibleEmployees.map((emp, empIdx) => {
                   // Calculate monthly summary counts
                   const allStatuses = Object.values(emp.attendanceByDay);
                   const countP = allStatuses.filter((s) => s === 'P').length;
@@ -1034,7 +916,7 @@ export default function AttendanceCalendarTab({
                       </td>
 
                       {/* Fixed Column 2: Position */}
-                      <td className="sticky left-[90px] z-20 bg-white dark:bg-[#363435] group-hover:bg-[#f8fafc] dark:group-hover:bg-[#272626] py-2.5 px-3 text-slate-500 dark:text-slate-400 font-medium text-xs border-r border-slate-100 dark:border-[#434142] truncate max-w-[125px]">
+                      <td className="sticky left-[90px] z-20 bg-white dark:bg-[#363435] group-hover:bg-[#f8fafc] dark:group-hover:bg-[#272626] py-2.5 px-3 text-slate-500 dark:text-slate-400 font-medium text-xs border-r border-slate-100 dark:border-[#434142] truncate max-w-[210px]">
                         {emp.position}
                       </td>
 
@@ -1042,9 +924,9 @@ export default function AttendanceCalendarTab({
                       <td 
                         onClick={() => {
                           setSelectedIndividualEmployee(emp.name);
-                          setViewFormat('google-calendar');
+                          onViewFormatChange('google-calendar');
                         }}
-                        className="sticky left-[215px] z-20 bg-white dark:bg-[#363435] group-hover:bg-[#f8fafc] dark:group-hover:bg-[#272626] py-2.5 px-4 font-bold text-slate-900 dark:text-[#F8F8F6] text-xs border-r border-slate-200 dark:border-[#434142] shadow-[4px_0_8px_rgba(0,0,0,0.08)] dark:shadow-[4px_0_8px_rgba(0,0,0,0.4)] cursor-pointer hover:text-[#2F6798] dark:hover:text-[#3678B0]"
+                        className="sticky left-[300px] z-20 bg-white dark:bg-[#363435] group-hover:bg-[#f8fafc] dark:group-hover:bg-[#272626] py-2.5 px-4 font-bold text-slate-900 dark:text-[#F8F8F6] text-xs border-r border-slate-200 dark:border-[#434142] shadow-[4px_0_8px_rgba(0,0,0,0.08)] dark:shadow-[4px_0_8px_rgba(0,0,0,0.4)] cursor-pointer hover:text-[#2F6798] dark:hover:text-[#3678B0]"
                         title="Click to view detailed individual calendar"
                       >
                         <div className="flex items-center gap-2">
@@ -1147,8 +1029,34 @@ export default function AttendanceCalendarTab({
 
           {/* Footer Summary Bar with Light Gray Tip */}
           <div className="p-3.5 border-t border-slate-100 dark:border-[#434142] bg-slate-50/60 dark:bg-[#272626] flex items-center justify-between text-xs text-slate-500 dark:text-slate-400 flex-wrap gap-2">
-            <span>Showing attendance for {filteredEmployees.length} workforce members ({displayedDays.length} days in view)</span>
-            <span className="text-slate-400 dark:text-slate-500 font-normal">Tip: Click any cell or date header to view full team or individual breakdown</span>
+            <span>
+              Showing {filteredEmployees.length === 0 ? 0 : (employeePage - 1) * employeesPerPage + 1}
+              {'–'}{Math.min(employeePage * employeesPerPage, filteredEmployees.length)} of {filteredEmployees.length} workforce members
+              {' '}({displayedDays.length} days in view)
+            </span>
+            <div className="flex items-center gap-1.5" aria-label="Attendance list pages">
+              <button
+                type="button"
+                onClick={() => setEmployeePage((page) => Math.max(1, page - 1))}
+                disabled={employeePage <= 1}
+                className="rounded-md border border-slate-200 dark:border-[#434142] px-2.5 py-1.5 font-semibold text-slate-600 dark:text-slate-300 hover:bg-white dark:hover:bg-[#363435] disabled:opacity-40 disabled:cursor-not-allowed"
+                aria-label="Previous page"
+              >
+                Previous
+              </button>
+              <span className="px-2 font-semibold text-slate-600 dark:text-slate-300" aria-live="polite">
+                Page {employeePage} of {pageCount}
+              </span>
+              <button
+                type="button"
+                onClick={() => setEmployeePage((page) => Math.min(pageCount, page + 1))}
+                disabled={employeePage >= pageCount}
+                className="rounded-md border border-slate-200 dark:border-[#434142] px-2.5 py-1.5 font-semibold text-slate-600 dark:text-slate-300 hover:bg-white dark:hover:bg-[#363435] disabled:opacity-40 disabled:cursor-not-allowed"
+                aria-label="Next page"
+              >
+                Next
+              </button>
+            </div>
           </div>
 
         </div>
@@ -1158,7 +1066,6 @@ export default function AttendanceCalendarTab({
           <AttendanceCalendarView
             employeeName={selectedIndividualEmployee}
             supervisorName={supervisorName}
-            onBackToRoster={() => setViewFormat('matrix')}
             records={records}
           />
         </div>
