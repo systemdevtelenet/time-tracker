@@ -28,16 +28,18 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const requestedEmpId = searchParams.get('empId');
     const date = searchParams.get('date');
-    if (!employee.canManageAttendance && requestedEmpId && requestedEmpId !== employee.employeeCode && requestedEmpId !== 'ALL') {
+    const calendarScope = searchParams.get('scope') === 'calendar';
+    const canViewAll = calendarScope ? employee.isAdmin : employee.canManageAttendance;
+    if (!canViewAll && requestedEmpId && requestedEmpId !== employee.employeeCode && requestedEmpId !== 'ALL') {
       return NextResponse.json({ error: 'You can only view your own punch history.' }, { status: 403 });
     }
 
-    const canViewAll = employee.canManageAttendance && requestedEmpId === 'ALL';
-    const targetEmpId = employee.canManageAttendance && requestedEmpId && requestedEmpId !== 'ALL'
+    const viewAllEmployees = canViewAll && requestedEmpId === 'ALL';
+    const targetEmpId = canViewAll && requestedEmpId && requestedEmpId !== 'ALL'
       ? requestedEmpId
       : employee.employeeCode;
     const dbLogs: NormalizedTimeTrackerLog[] = await getTimeTrackerLogsFromDb({
-      empId: canViewAll ? undefined : targetEmpId,
+      empId: viewAllEmployees ? undefined : targetEmpId,
       date: date || undefined,
       limit: 5000,
     });
@@ -87,6 +89,9 @@ export async function POST(request: NextRequest) {
     if (!employee) return unauthorized();
 
     const body = await request.json();
+    if (body.source === 'calendar' && !employee.isAdmin) {
+      return NextResponse.json({ error: 'Only admins can edit calendar punches.' }, { status: 403 });
+    }
     const requestedEmpId = String(body.empId || '');
     const type = String(body.type || '') as PunchActionType;
     if (!requestedEmpId || !PUNCH_ACTIONS.includes(type)) {
@@ -119,11 +124,12 @@ export async function DELETE(request: NextRequest) {
   try {
     const employee = await getActiveEmployeeAccess(request);
     if (!employee) return unauthorized();
-    if (!employee.canManageAttendance) {
+    const { searchParams } = new URL(request.url);
+    const calendarScope = searchParams.get('scope') === 'calendar';
+    if (calendarScope ? !employee.isAdmin : !employee.canManageAttendance) {
       return NextResponse.json({ error: 'Only attendance managers can clear punch records.' }, { status: 403 });
     }
 
-    const { searchParams } = new URL(request.url);
     const empId = searchParams.get('empId');
     const month = searchParams.get('month');
     const day = searchParams.get('day');

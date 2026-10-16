@@ -299,7 +299,7 @@ export default function DatePickerPopover({
   const isFullWidth = className.includes('w-full');
 
   return (
-    <div className={`relative ${isFullWidth ? 'flex w-full' : 'inline-flex'} items-center ${className}`} ref={popoverRef}>
+    <div className={`relative ${isOpen ? 'z-[60]' : ''} ${isFullWidth ? 'flex w-full' : 'inline-flex'} items-center ${className}`} ref={popoverRef}>
       {/* Outer wrapper with optional quick-step arrow buttons */}
       <div className={`flex items-center gap-1.5 ${isFullWidth ? 'w-full' : ''}`}>
         {showArrows && (

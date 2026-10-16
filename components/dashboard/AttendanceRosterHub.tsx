@@ -20,6 +20,7 @@ import {
 import RosterTable, { RosterEmployee } from './RosterTable';
 import AttendanceCalendarTab from './AttendanceCalendarTab';
 import AttendanceCalendarView from './AttendanceCalendarView';
+import PersonalDashboardSummary from './PersonalDashboardSummary';
 import HoursReportTab from './HoursReportTab';
 import EmployeeDetailsTab from './EmployeeDetailsTab';
 import EndShiftModal from './EndShiftModal';
@@ -115,6 +116,7 @@ interface AttendanceRosterHubProps {
   supervisorId?: string;
   supervisorRole?: string;
   supervisorPosition?: string;
+  supervisorShift?: string;
   supervisor?: {
     name: string;
     id: string;
@@ -149,18 +151,24 @@ export default function AttendanceRosterHub({
   supervisorId,
   supervisorRole,
   supervisorPosition,
+  supervisorShift,
   supervisor,
   initialEmployee,
 }: AttendanceRosterHubProps) {
   const isHeadOrAdmin = isHeadOrAdminUser(
     supervisor || { name: supervisorName, id: supervisorId, role: supervisorRole, position: supervisorPosition }
   );
+  const isAdmin = ['admin', 'superadmin', 'administrator'].includes(String(supervisorRole || supervisor?.role || '').toLowerCase());
 
   const [activeSubTab, setActiveSubTabState] = useState<'roster' | 'calendar' | 'hours' | 'details'>(
     initialEmployee ? 'calendar' : 'calendar'
   );
 
   useEffect(() => {
+    if (!isAdmin) {
+      setActiveSubTabState('calendar');
+      return;
+    }
     if (initialEmployee) {
       setActiveSubTabState('calendar');
       return;
@@ -173,9 +181,10 @@ export default function AttendanceRosterHub({
         }
       } catch (e) {}
     }
-  }, [initialEmployee]);
+  }, [initialEmployee, isAdmin]);
 
   const setActiveSubTab = (tab: 'roster' | 'calendar' | 'hours' | 'details') => {
+    if (!isAdmin && tab !== 'calendar') return;
     setActiveSubTabState(tab);
     if (typeof window !== 'undefined') {
       try {
@@ -194,7 +203,7 @@ export default function AttendanceRosterHub({
   const [filterAccount, setFilterAccount] = useState('all');
   const [attendanceRange, setAttendanceRange] = useState<RangeViewOption>('all_30');
   const [attendancePosition, setAttendancePosition] = useState('all');
-  const [attendanceView, setAttendanceView] = useState<'matrix' | 'google-calendar'>('matrix');
+  const [attendanceView, setAttendanceView] = useState<'matrix' | 'google-calendar'>(isAdmin ? 'matrix' : 'google-calendar');
 
   // Raw team roster data and punch logs from DB
   const [dbRoster, setDbRoster] = useState<any[]>([]);
@@ -233,10 +242,26 @@ export default function AttendanceRosterHub({
         fetch('/api/meta'),
       ]);
 
+      // A session may expire between page load and this refresh. Handle that
+      // response before parsing so an auth response can never surface as a JSON
+      // SyntaxError (or as an HTML login page).
+      if ([rosterRes, punchRes, metaRes].some((response) => response.status === 401)) {
+        console.warn('Roster data could not be refreshed because the session has expired.');
+        return;
+      }
+
+      const readJson = async (response: Response, endpoint: string) => {
+        const contentType = response.headers.get('content-type') || '';
+        if (!contentType.includes('application/json')) {
+          throw new Error(`${endpoint} returned a non-JSON response (${response.status}).`);
+        }
+        return response.json();
+      };
+
       const [rosterJson, punchJson, metaJson] = await Promise.all([
-        rosterRes.json(),
-        punchRes.json(),
-        metaRes.json(),
+        readJson(rosterRes, '/api/team-roster'),
+        readJson(punchRes, '/api/punch-logs'),
+        readJson(metaRes, '/api/meta'),
       ]);
 
       if (rosterJson.success && Array.isArray(rosterJson.data)) {
@@ -563,8 +588,8 @@ export default function AttendanceRosterHub({
   const handleRefresh = () => {
     setIsRefreshing(true);
     showToast({
-      title: 'Roster Synchronized',
-      message: 'Roster data refreshed and synchronized from database!',
+      title: isAdmin ? 'Roster Synchronized' : 'Attendance Refreshed',
+      message: isAdmin ? 'Roster data refreshed and synchronized.' : 'Your attendance and punch records were refreshed.',
       type: 'success',
       duration: 3500,
     });
@@ -624,12 +649,14 @@ export default function AttendanceRosterHub({
   return (
     <div className="space-y-4 animate-in fade-in relative">
 
-      {/* 1. Header with Badge Only (Title removed) & Functional Refresh Button */}
+      {/* Page title and personal attendance overview */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 pb-1">
         <div className="flex items-center gap-3">
-          <span className="px-3 py-1 rounded-full text-[10.5px] font-bold uppercase tracking-wider bg-purple-100 text-purple-700 dark:bg-purple-950/60 dark:text-purple-300 border border-purple-200 dark:border-purple-800 shadow-2xs">
-            TEAM ROSTER
-          </span>
+          {isAdmin ? (
+            <span className="px-3 py-1 rounded-full text-[10.5px] font-bold uppercase tracking-wider bg-purple-100 text-purple-700 dark:bg-purple-950/60 dark:text-purple-300 border border-purple-200 dark:border-purple-800 shadow-2xs">TEAM ROSTER</span>
+          ) : (
+            <h1 className="text-xl sm:text-2xl font-extrabold tracking-tight text-slate-900 dark:text-slate-100">My Attendance</h1>
+          )}
         </div>
 
         {/* Functional Top Refresh Button */}
@@ -642,8 +669,16 @@ export default function AttendanceRosterHub({
         </button>
       </div>
 
+      {!isAdmin && (
+        <PersonalDashboardSummary
+          employeeId={supervisorId || supervisor?.id || ''}
+          shift={supervisorShift}
+          variant="attendance"
+        />
+      )}
+
       {/* 2. 6 Status KPI Boxes (More circle corners rounded-2xl, background image consuming whole box) */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2.5 sm:gap-3 mt-1 mb-5">
+      {isAdmin && <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2.5 sm:gap-3 mt-1 mb-5">
 
         {/* 1. Total Employees */}
         <div className="relative overflow-hidden p-3.5 rounded-2xl bg-white dark:bg-[#363435] border border-slate-200/90 dark:border-[#434142] shadow-xs hover:shadow-md transition-all duration-200 flex items-center justify-between min-h-[82px] sm:min-h-[86px] group">
@@ -777,12 +812,12 @@ export default function AttendanceRosterHub({
           </div>
         </div>
 
-      </div>
+      </div>}
 
       {/* 3. ONE Unified External White Container for Filters, Tabs & Content */}
       <div className="rounded-2xl bg-white dark:bg-[#363435] border border-slate-200/90 dark:border-[#434142] shadow-xs overflow-visible">
 
-        {/* Row A: Shared workforce filters, with calendar-specific controls when viewing attendance */}
+        {/* Row A: One shared filter bar across the workforce tabs */}
         <div className="p-4 sm:p-5 border-b border-slate-100 dark:border-[#434142]">
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-12 gap-3 sm:gap-4 items-end">
 
@@ -804,7 +839,7 @@ export default function AttendanceRosterHub({
             </div>
 
             {/* Client Account Filter (Span 3) */}
-            <div className={activeSubTab === 'calendar' ? 'md:col-span-2' : 'md:col-span-3'}>
+            {isAdmin && <div className="md:col-span-2">
               <FilterDropdown
                 label="CLIENT ACCOUNT"
                 icon={<Building2 className="w-3.5 h-3.5 text-[#3678B0]" />}
@@ -818,56 +853,51 @@ export default function AttendanceRosterHub({
                   })),
                 ]}
               />
+            </div>}
+
+            <div className="md:col-span-2">
+              <FilterDropdown
+                label="DATE RANGE"
+                icon={<CalendarDays className="w-3.5 h-3.5 text-[#3678B0]" />}
+                value={attendanceRange}
+                onChange={(value) => setAttendanceRange(value as RangeViewOption)}
+                options={[
+                  { label: 'Full Month', value: 'all_30' },
+                  { label: '1st Pay Period (1–15)', value: 'period_1' },
+                  { label: '2nd Pay Period (16–end)', value: 'period_2' },
+                  { label: 'Current Week', value: 'current_week' },
+                ]}
+              />
             </div>
 
-            {/* Search Employee / Trainee (Span 5) */}
-            {activeSubTab === 'calendar' && (
-              <div className="md:col-span-2">
-                <FilterDropdown
-                  label="DATE RANGE"
-                  icon={<CalendarDays className="w-3.5 h-3.5 text-[#3678B0]" />}
-                  value={attendanceRange}
-                  onChange={(value) => setAttendanceRange(value as RangeViewOption)}
-                  options={[
-                    { label: 'Full Month', value: 'all_30' },
-                    { label: '1st Pay Period (1–15)', value: 'period_1' },
-                    { label: '2nd Pay Period (16–end)', value: 'period_2' },
-                    { label: 'Current Week', value: 'current_week' },
-                  ]}
-                />
-              </div>
-            )}
+            {isAdmin && <div className="md:col-span-2">
+              <FilterDropdown
+                label="POSITION"
+                icon={<Users className="w-3.5 h-3.5 text-[#3678B0]" />}
+                value={attendancePosition}
+                onChange={setAttendancePosition}
+                options={[
+                  { label: 'All Positions', value: 'all' },
+                  ...positionCatalog
+                    .map((position) => position.position_name)
+                    .filter(Boolean)
+                    .sort((a, b) => a.localeCompare(b))
+                    .map((position) => ({ label: position, value: position })),
+                ]}
+              />
+            </div>}
 
-            {activeSubTab === 'calendar' && (
-              <div className="md:col-span-2">
-                <FilterDropdown
-                  label="POSITION"
-                  icon={<Users className="w-3.5 h-3.5 text-[#3678B0]" />}
-                  value={attendancePosition}
-                  onChange={setAttendancePosition}
-                  options={[
-                    { label: 'All Positions', value: 'all' },
-                    ...positionCatalog
-                      .map((position) => position.position_name)
-                      .filter(Boolean)
-                      .sort((a, b) => a.localeCompare(b))
-                      .map((position) => ({ label: position, value: position })),
-                  ]}
-                />
-              </div>
-            )}
-
-            <div className={activeSubTab === 'calendar' ? 'md:col-span-4' : 'md:col-span-7'}>
+            <div className={isAdmin ? 'md:col-span-4' : 'md:col-span-6'}>
               <label className="block text-[10px] font-extrabold text-slate-500 dark:text-[#94A3B8] uppercase tracking-wider mb-1.5 flex items-center gap-1.5 select-none">
                 <Search className="w-3.5 h-3.5 text-[#3678B0]" />
-                <span>SEARCH EMPLOYEE / TRAINEE</span>
+                <span>{isAdmin ? 'SEARCH EMPLOYEE / TRAINEE' : 'SEARCH YOUR ATTENDANCE'}</span>
               </label>
               <div className="relative">
                 <input
                   type="text"
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  placeholder="Type name, role, or ID..."
+                  placeholder={isAdmin ? 'Type name, role, or ID...' : 'Type your name, role, or ID...'}
                   className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-[#272626] border border-slate-200 dark:border-[#434142] text-xs font-medium text-slate-800 dark:text-[#F8F8F6] placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-[#3678B0]/20 focus:border-[#3678B0]"
                 />
                 {searchTerm && (
@@ -886,10 +916,10 @@ export default function AttendanceRosterHub({
         </div>
 
         {/* Row B: Workforce sections and attendance calendar view mode */}
-        <div className="px-4 sm:px-5 py-2.5 bg-slate-50/60 dark:bg-[#272626]/60 border-b border-slate-100 dark:border-[#434142] flex flex-wrap items-center justify-between gap-3">
+        <div className={`${isAdmin ? '' : 'hidden'} px-4 sm:px-5 py-2.5 bg-slate-50/60 dark:bg-[#272626]/60 border-b border-slate-100 dark:border-[#434142] flex flex-wrap items-center justify-between gap-3`}>
 
           {/* Left: Tab Buttons */}
-          <div className="flex items-center gap-2 overflow-x-auto">
+          {isAdmin && <div className="flex items-center gap-2 overflow-x-auto">
             {/* Tab 1: Roster */}
             <button
               type="button"
@@ -941,9 +971,9 @@ export default function AttendanceRosterHub({
             >
               Employee Details
             </button>
-          </div>
+          </div>}
 
-          {activeSubTab === 'calendar' && (
+          {activeSubTab === 'calendar' && isAdmin && (
             <div className="flex items-center rounded-xl border border-slate-200 bg-white p-1 text-xs font-semibold shadow-2xs dark:border-[#434142] dark:bg-[#272626]">
               <button
                 type="button"
@@ -991,6 +1021,7 @@ export default function AttendanceRosterHub({
             onSearchTermChange={setSearchTerm}
             filterQuarter={filterQuarter}
             filterAccount={filterAccount}
+            filterPosition={attendancePosition}
             onToast={(msg) => {
               setToastMsg(msg);
               setTimeout(() => setToastMsg(null), 2500);
@@ -1007,7 +1038,7 @@ export default function AttendanceRosterHub({
               records={records}
               searchFilter={searchTerm}
               selectedAccountFilter={filterAccount}
-              isHeadOrAdmin={isHeadOrAdmin}
+              isAdmin={isAdmin}
               supervisorName={supervisorName}
               supervisorId={supervisorId}
               rangeView={attendanceRange}
@@ -1025,6 +1056,7 @@ export default function AttendanceRosterHub({
               employees={employeesList}
               searchTerm={searchTerm}
               filterAccount={filterAccount}
+              filterPosition={attendancePosition}
               onBackToRoster={() => setActiveSubTab('roster')}
               isHeadOrAdmin={isHeadOrAdmin}
               supervisorName={supervisorName}
@@ -1039,6 +1071,7 @@ export default function AttendanceRosterHub({
               onViewCalendar={handleViewCalendar}
               searchTerm={searchTerm}
               filterAccount={filterAccount}
+              filterPosition={attendancePosition}
               isHeadOrAdmin={isHeadOrAdmin}
               supervisorName={supervisorName}
             />

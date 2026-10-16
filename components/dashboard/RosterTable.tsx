@@ -51,6 +51,7 @@ interface RosterTableProps {
   filterQuarter?: string;
   filterMonth?: string;
   filterAccount?: string;
+  filterPosition?: string;
   onToast?: (msg: string) => void;
   onRefresh?: () => void;
   currentUserName?: string;
@@ -70,6 +71,7 @@ export default function RosterTable({
   filterQuarter = 'all',
   filterMonth = 'all',
   filterAccount = 'all',
+  filterPosition = 'all',
   onToast,
   onRefresh,
   currentUserName,
@@ -112,6 +114,9 @@ export default function RosterTable({
         matchesAccount = emp.account?.toLowerCase() === filterAccount.toLowerCase();
       }
 
+      const matchesPosition = filterPosition === 'all' ||
+        (emp.position || '').toLowerCase() === filterPosition.toLowerCase();
+
       // Status filter
       let matchesStatus = true;
       if (activeStatusFilter === 'active') {
@@ -126,7 +131,7 @@ export default function RosterTable({
         matchesStatus = emp.totalHoursWorked < 4;
       }
 
-      return matchesSearch && matchesAccount && matchesStatus;
+      return matchesSearch && matchesAccount && matchesPosition && matchesStatus;
     });
 
     if (sortField) {
@@ -161,7 +166,7 @@ export default function RosterTable({
     });
 
     return [...currentUserList, ...otherList];
-  }, [employees, searchTerm, filterAccount, activeStatusFilter, sortField, sortAsc, currentUserName, currentUserId]);
+  }, [employees, searchTerm, filterAccount, filterPosition, activeStatusFilter, sortField, sortAsc, currentUserName, currentUserId]);
 
   const totalPages = Math.max(1, Math.ceil(filteredEmployees.length / rowsPerPage));
 

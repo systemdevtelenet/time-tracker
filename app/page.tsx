@@ -12,6 +12,7 @@ import KpiSummary from '@/components/KpiSummary';
 import TimerTracker from '@/components/TimerTracker';
 import ManualEntryModal from '@/components/ManualEntryModal';
 import MemberAttendanceRosterTable from '@/components/dashboard/MemberAttendanceRosterTable';
+import PersonalDashboardSummary from '@/components/dashboard/PersonalDashboardSummary';
 import AnalyticsCharts from '@/components/AnalyticsCharts';
 import AnalyticsView from '@/components/dashboard/AnalyticsView';
 import HoursReportTab from '@/components/dashboard/HoursReportTab';
@@ -341,26 +342,30 @@ function HomePageContent() {
     return () => window.removeEventListener('work-schedule-updated', handleScheduleUpdate);
   }, [supervisor.id]);
 
-  // RBAC Permission Check: Heads & Admins have full access to all; Trainees, Trainers, QA, and Agents see only their own
+  // Leadership can access the workforce analytics page; the dashboard summary
+  // itself is shown at workforce scope to admins and at personal scope to others.
   const isHeadOrAdmin = useMemo(() => isHeadOrAdminUser(supervisor), [supervisor]);
+  const isAdmin = useMemo(
+    () => ['admin', 'superadmin', 'administrator'].includes(String(supervisor.role || '').toLowerCase()),
+    [supervisor.role]
+  );
 
   // Regular users (trainee, trainer, qa, agent) only see their own attendance / time records
   const accessibleRecords = useMemo(() => {
-    if (isHeadOrAdmin) return records;
+    if (isAdmin) return records;
     const sName = (supervisor.name || '').toLowerCase().trim();
-    if (!sName) return records;
+    if (!sName) return [];
     return records.filter((r) => {
       const rName = (r.name || '').toLowerCase().trim();
       return rName === sName || rName.includes(sName) || sName.includes(rName);
     });
-  }, [records, supervisor.name, isHeadOrAdmin]);
+  }, [records, supervisor.name, isAdmin]);
 
-  // Wait for the authenticated employee profile before enforcing restricted tabs.
-  // The initial placeholder profile has role USER and would otherwise redirect
-  // heads/admins away from Attendance during page refresh before their role loads.
+  // Wait for the authenticated employee profile before enforcing analytics access.
+  // Attendance is available to everyone and its calendar data is scoped by the API.
   useEffect(() => {
     if (isLoading) return;
-    if (!isHeadOrAdmin && (activeTab === 'analytics' || activeTab === 'attendance')) {
+    if (!isHeadOrAdmin && activeTab === 'analytics') {
       setActiveTab('tracker');
       router.replace('/?tab=tracker', { scroll: false });
       try {
@@ -410,11 +415,11 @@ function HomePageContent() {
       totalDurationFormatted: formatTotalDurationHuman(totalSecs),
       totalSeconds: totalSecs,
       averageDurationFormatted: formatTotalDurationHuman(avgSecs),
-      uniqueAgentsCount: isHeadOrAdmin ? employees.length : 1,
+      uniqueAgentsCount: isAdmin ? employees.length : 1,
       uniqueAccountsCount: accountSet.size,
       topTag: topTag !== 'None' ? `${topTag} (${maxTagCount}x)` : 'None',
     };
-  }, [accessibleRecords, employees, isHeadOrAdmin]);
+  }, [accessibleRecords, employees, isAdmin]);
 
   // Handlers
   const handleRecordAdded = (newRecord: PhoneTimeRecord) => {
@@ -583,7 +588,9 @@ function HomePageContent() {
                     Welcome back, <span className="text-[#2F6798] dark:text-blue-400">{supervisor.name}</span>
                   </h2>
                   <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 font-normal max-w-2xl leading-relaxed">
-                    Real-time shift tracking, workforce attendance adherence, and team performance overview.
+                    {isAdmin
+                      ? 'Real-time shift tracking, workforce attendance adherence, and team performance overview.'
+                      : 'Your shift schedule, attendance, and punch activity at a glance.'}
                   </p>
                 </div>
 
@@ -597,15 +604,16 @@ function HomePageContent() {
               <HeroKpiCards 
                 records={filteredDashboardRecords} 
                 kpiStats={kpiStats} 
-                isHeadOrAdmin={isHeadOrAdmin}
+                isHeadOrAdmin={isAdmin}
                 userShift={supervisor.shift}
                 stats={{ 
-                  activeCount: isHeadOrAdmin ? employees.length : 1,
-                  totalEmployees: isHeadOrAdmin ? employees.length : 1
+                  activeCount: isAdmin ? employees.length : 1,
+                  totalEmployees: isAdmin ? employees.length : 1
                 }} 
               />
 
               {/* Filter Controls Bar and Analytics/Table in One Single External Container */}
+              {isAdmin ? (
               <div className="w-full bg-white dark:bg-[#0E1B38] border border-slate-200/90 dark:border-slate-800 rounded-2xl p-3.5 sm:p-4.5 shadow-2xs space-y-4">
                 
                 {/* Dynamic Filter Controls Bar */}
@@ -653,6 +661,13 @@ function HomePageContent() {
                 </div>
 
               </div>
+              ) : (
+                <PersonalDashboardSummary
+                  employeeId={supervisor.id}
+                  shift={supervisor.shift}
+                  onOpenAttendance={() => handleSelectTab('attendance')}
+                />
+              )}
 
             </div>
           )}
@@ -718,8 +733,9 @@ function HomePageContent() {
                 supervisorId={supervisor.id}
                 supervisorRole={supervisor.role}
                 supervisorPosition={supervisor.position}
+                supervisorShift={supervisor.shift}
                 supervisor={supervisor}
-                initialEmployee={activeCalendarRecord?.name || (isHeadOrAdmin ? undefined : supervisor.name)}
+                initialEmployee={activeCalendarRecord?.name || (isAdmin ? undefined : supervisor.name)}
               />
             </div>
           )}

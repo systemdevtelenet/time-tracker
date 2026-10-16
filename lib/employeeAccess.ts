@@ -9,6 +9,7 @@ export interface ActiveEmployeeAccess {
   name: string;
   role: string;
   position: string;
+  isAdmin: boolean;
   canManageAttendance: boolean;
 }
 
@@ -34,6 +35,7 @@ export async function getActiveEmployeeAccess(request: NextRequest): Promise<Act
     name: data.employee_name || '',
     role,
     position,
+    isAdmin: ['admin', 'superadmin', 'administrator'].includes(roleLower),
     canManageAttendance: ['admin', 'superadmin'].includes(roleLower) ||
       ['head', 'supervisor', 'manager', 'administrator'].some((term) => positionLower.includes(term)),
   };

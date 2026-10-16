@@ -89,12 +89,13 @@ export default function CompanySidebar({
 
   const isHeadOrAdmin = isHeadOrAdminUser(supervisor);
 
-  // Filter navigation items based on role:
-  // Trainers, Trainees, QA, and Agents only see Dashboard, Time Tracking, Flow Hub, Activity Logs
-  // Heads of Training, Heads of Quality/QA Supervisors, and Admins have full access including Attendance & Roster and Analytics
-  const visibleNavItems = isHeadOrAdmin 
-    ? NAV_ITEMS 
-    : NAV_ITEMS.filter((item) => item.id !== 'analytics' && item.id !== 'attendance');
+  // Attendance is available to everyone; its calendar is scoped to the signed-in
+  // employee for non-admins. Analytics remains limited to leads and admins.
+  const visibleNavItems = isHeadOrAdmin
+    ? NAV_ITEMS
+    : NAV_ITEMS
+        .filter((item) => item.id !== 'analytics')
+        .map((item) => item.id === 'attendance' ? { ...item, label: 'Attendance' } : item);
 
   // Fetch live punch status from API
   const fetchPunchStatus = useCallback(async () => {

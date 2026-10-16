@@ -9,7 +9,9 @@ export async function GET(request: NextRequest) {
     const access = await getActiveEmployeeAccess(request);
     if (!access) return NextResponse.json({ success: false, error: 'Please sign in to continue.' }, { status: 401 });
     const employees = await getTimeTrackerEmployeesFromDb();
-    const visibleEmployees = access.canManageAttendance
+    const calendarScope = new URL(request.url).searchParams.get('scope') === 'calendar';
+    const canViewAll = calendarScope ? access.isAdmin : access.canManageAttendance;
+    const visibleEmployees = canViewAll
       ? employees
       : employees.filter((employee) => employee.employee_id === access.employeeCode);
 

@@ -27,6 +27,7 @@ export async function GET(request: NextRequest) {
   try {
     const access = await getActiveEmployeeAccess(request);
     if (!access) return jsonError('Please sign in to continue.', 401);
+    const calendarScope = new URL(request.url).searchParams.get('scope') === 'calendar';
 
     const supabase = getSupabaseAdmin();
     const { data: employees, error: employeesError } = await supabase
@@ -48,7 +49,9 @@ export async function GET(request: NextRequest) {
         .select('workforce_employee_id, attendance_date, status, note')
         .order('attendance_date', { ascending: true })
         .range(offset, offset + pageSize - 1);
-      if (!access.canManageAttendance) query = query.eq('workforce_employee_id', access.id);
+      if (calendarScope ? !access.isAdmin : !access.canManageAttendance) {
+        query = query.eq('workforce_employee_id', access.id);
+      }
       const { data, error } = await query;
       if (error) throw error;
       attendanceRows.push(...(data || []));
@@ -94,9 +97,55 @@ export async function POST(request: NextRequest) {
   try {
     const access = await getActiveEmployeeAccess(request);
     if (!access) return jsonError('Please sign in to continue.', 401);
-    if (!access.canManageAttendance) return jsonError('Only attendance managers can update attendance.', 403);
+    if (!access.isAdmin) return jsonError('Only admins can edit attendance.', 403);
 
     const body = await request.json();
+
+    if (body.action === 'seed-weekends') {
+      const year = Number(body.year);
+      const month = Number(body.month);
+      if (!Number.isInteger(year) || year < 2000 || year > 2200 ||
+          !Number.isInteger(month) || month < 0 || month > 11) {
+        return jsonError('A valid year and month are required.', 400);
+      }
+
+      const supabase = getSupabaseAdmin();
+      const { data: employees, error: employeesError } = await supabase
+        .from('employees')
+        .select('id');
+      if (employeesError) throw employeesError;
+
+      const weekendDates: string[] = [];
+      const daysInMonth = new Date(Date.UTC(year, month + 1, 0)).getUTCDate();
+      for (let day = 1; day <= daysInMonth; day++) {
+        const weekday = new Date(Date.UTC(year, month, day)).getUTCDay();
+        if (weekday === 0 || weekday === 6) {
+          weekendDates.push(`${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`);
+        }
+      }
+
+      const rows = (employees || []).flatMap((employee) =>
+        weekendDates.map((attendanceDate) => ({
+          workforce_employee_id: employee.id,
+          attendance_date: attendanceDate,
+          status: 'RD',
+          note: null,
+        }))
+      );
+
+      if (rows.length > 0) {
+        const { error } = await supabase
+          .from('attendance_logs')
+          .upsert(rows, {
+            onConflict: 'workforce_employee_id,attendance_date',
+            ignoreDuplicates: true,
+          });
+        if (error) throw error;
+      }
+
+      return NextResponse.json({ success: true, dates: weekendDates.length, employees: employees?.length || 0 });
+    }
+
     const employeeId = Number(body.employeeDbId);
     const year = Number(body.year);
     const month = Number(body.month);

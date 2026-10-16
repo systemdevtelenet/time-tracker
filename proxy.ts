@@ -21,6 +21,15 @@ export function proxy(request: NextRequest) {
   const sessionCookie = request.cookies.get('ctnp_session')?.value;
   const isAuthenticated = Boolean(verifyAuthSession(sessionCookie));
 
+  // API clients need a JSON response. Redirecting fetch() to /login returns
+  // HTML, which makes callers fail when they try to parse the response as JSON.
+  if (!isAuthenticated && pathname.startsWith('/api/')) {
+    return NextResponse.json(
+      { success: false, error: 'Please sign in to continue.' },
+      { status: 401 }
+    );
+  }
+
   // 3. Unauthenticated access to protected dashboard pages -> Redirect to /login
   if (!isAuthenticated && pathname !== '/login') {
     const loginUrl = new URL('/login', request.url);

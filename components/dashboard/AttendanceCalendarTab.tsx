@@ -24,7 +24,7 @@ import { showToast } from '@/lib/toast';
 interface AttendanceCalendarTabProps {
   records?: PhoneTimeRecord[];
   searchFilter?: string;
-  isHeadOrAdmin?: boolean;
+  isAdmin?: boolean;
   supervisorName?: string;
   supervisorId?: string;
   selectedAccountFilter: string;
@@ -126,10 +126,23 @@ function getNoteForEmployee(
 
 export type RangeViewOption = 'all_30' | 'period_1' | 'period_2' | 'current_week';
 
+function getSingaporeDateParts() {
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'Asia/Singapore',
+    year: 'numeric',
+    month: 'numeric',
+    day: 'numeric',
+  }).formatToParts(new Date());
+  const value = (type: 'year' | 'month' | 'day') =>
+    Number(parts.find((part) => part.type === type)?.value);
+
+  return { year: value('year'), monthIndex: value('month') - 1, day: value('day') };
+}
+
 export default function AttendanceCalendarTab({
   records = [],
   searchFilter = '',
-  isHeadOrAdmin = true,
+  isAdmin = false,
   supervisorName,
   supervisorId,
   selectedAccountFilter,
@@ -139,8 +152,9 @@ export default function AttendanceCalendarTab({
   viewFormat,
   onViewFormatChange,
 }: AttendanceCalendarTabProps) {
-  const [currentMonthIndex, setCurrentMonthIndex] = useState(new Date().getMonth());
-  const [currentYear, setCurrentYear] = useState(new Date().getFullYear());
+  const [today, setToday] = useState(getSingaporeDateParts);
+  const [currentMonthIndex, setCurrentMonthIndex] = useState(() => getSingaporeDateParts().monthIndex);
+  const [currentYear, setCurrentYear] = useState(() => getSingaporeDateParts().year);
   const [selectedStatusFilter, setSelectedStatusFilter] = useState<string>('all');
   const [employeePage, setEmployeePage] = useState(1);
   const [selectedIndividualEmployee, setSelectedIndividualEmployee] = useState<string>(
@@ -181,7 +195,7 @@ export default function AttendanceCalendarTab({
   useEffect(() => {
     const syncOverrides = async () => {
       try {
-        const response = await fetch('/api/attendance-overrides');
+        const response = await fetch('/api/attendance-overrides?scope=calendar');
         const data = await response.json();
         if (response.ok && data.success) {
           setAttendanceOverrides(data.overrides || {});
@@ -207,6 +221,10 @@ export default function AttendanceCalendarTab({
   }, []);
 
   const handleOpenCellPopover = (emp: EmployeeAttendanceRow, dayNum: number) => {
+    if (!isAdmin) {
+      handleOpenDayModal(dayNum, emp.name);
+      return;
+    }
     const empCode = emp.id.replace(/^emp-/, '');
     const currentNote = getNoteForEmployee(empCode, emp.name, currentYear, currentMonthIndex, dayNum, attendanceNotes);
     
@@ -349,11 +367,20 @@ export default function AttendanceCalendarTab({
 
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   
-  // Dynamic Today detection
-  const today = useMemo(() => new Date(), []);
-  const todayDate = today.getDate();
-  const todayMonth = today.getMonth();
-  const todayYear = today.getFullYear();
+  // Keep "today" live while the page stays open. Freezing this value on mount
+  // leaves the green header stuck on the date the user first opened the page.
+  useEffect(() => {
+    const refreshToday = () => setToday(getSingaporeDateParts());
+    const intervalId = window.setInterval(refreshToday, 60_000);
+    window.addEventListener('focus', refreshToday);
+    return () => {
+      window.clearInterval(intervalId);
+      window.removeEventListener('focus', refreshToday);
+    };
+  }, []);
+  const todayDate = today.day;
+  const todayMonth = today.monthIndex;
+  const todayYear = today.year;
   const isCurrentViewMonth = currentMonthIndex === todayMonth && currentYear === todayYear;
   const activeDayNumber = isCurrentViewMonth ? todayDate : null;
 
@@ -401,11 +428,10 @@ export default function AttendanceCalendarTab({
   }, [currentYear, currentMonthIndex]);
 
   const currentWeekRange = useMemo(() => {
-    const now = new Date();
-    const currentDay = isCurrentViewMonth ? now.getDate() : 16;
+      const currentDay = isCurrentViewMonth && todayDate ? todayDate : 16;
     const start = Math.max(1, currentDay - 3);
     return { start, end: Math.min(totalDaysInMonth, start + 6) };
-  }, [isCurrentViewMonth, totalDaysInMonth]);
+  }, [isCurrentViewMonth, todayDate, totalDaysInMonth]);
 
   const displayedDays = useMemo(() => {
     const days: number[] = [];
@@ -433,16 +459,34 @@ export default function AttendanceCalendarTab({
   useEffect(() => {
     async function loadDbTeam() {
       try {
-        const [rosterRes, punchRes, overridesRes] = await Promise.all([
-          fetch('/api/team-roster'),
-          fetch('/api/punch-logs?empId=ALL'),
-          fetch('/api/attendance-overrides').catch(() => null),
+        const [rosterRes, punchRes] = await Promise.all([
+          fetch('/api/team-roster?scope=calendar'),
+          fetch('/api/punch-logs?empId=ALL&scope=calendar'),
         ]);
 
         const [rosterJson, punchJson] = await Promise.all([
           rosterRes.json(),
           punchRes.json(),
         ]);
+
+        if (isAdmin) {
+          try {
+            const seedResponse = await fetch('/api/attendance-overrides', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                action: 'seed-weekends',
+                year: currentYear,
+                month: currentMonthIndex,
+              }),
+            });
+            if (!seedResponse.ok) console.warn('Could not save weekend rest days for this month.');
+          } catch (error) {
+            console.warn('Could not save weekend rest days for this month:', error);
+          }
+        }
+
+        const overridesRes = await fetch('/api/attendance-overrides?scope=calendar').catch(() => null);
 
         let serverOverrides: any = null;
         if (overridesRes && overridesRes.ok) {
@@ -465,10 +509,7 @@ export default function AttendanceCalendarTab({
         setAttendanceOverrides(combinedOverrides);
         setAttendanceNotes(combinedNotes);
 
-        const now = new Date();
-        const liveTodayDate = now.getDate();
-        const liveTodayMonth = now.getMonth();
-        const liveTodayYear = now.getFullYear();
+        const { day: liveTodayDate, monthIndex: liveTodayMonth, year: liveTodayYear } = today || getSingaporeDateParts();
 
         const mapped: EmployeeAttendanceRow[] = rosterData.map((r: any) => {
           const empCode = String(r.employee_id || r.id).trim();
@@ -543,22 +584,14 @@ export default function AttendanceCalendarTab({
           };
         });
 
-        if (!isHeadOrAdmin) {
-          const sName = (supervisorName || '').toLowerCase().trim();
-          const filtered = mapped.filter((r) => {
-            const rName = (r.name || '').toLowerCase().trim();
-            return (sName && (rName === sName || rName.includes(sName) || sName.includes(rName))) || (supervisorId && r.id === `emp-${supervisorId}`);
-          });
-          setAttendanceDataList(filtered);
-        } else {
-          setAttendanceDataList(mapped);
-        }
+        // The calendar-scoped APIs enforce the same employee boundary server-side.
+        setAttendanceDataList(mapped);
       } catch (err) {
         console.error('Failed to load database roster in calendar tab:', err);
       }
     }
     loadDbTeam();
-  }, [currentMonthIndex, currentYear, totalDaysInMonth, isHeadOrAdmin, supervisorName, supervisorId]);
+  }, [currentMonthIndex, currentYear, totalDaysInMonth, isAdmin]);
 
   const isCurrentUser = (emp: EmployeeAttendanceRow) => {
     if (!supervisorName && !supervisorId) return false;
@@ -708,7 +741,7 @@ export default function AttendanceCalendarTab({
       
       {/* Unified White Container for Controls & Matrix Table */}
       {viewFormat === 'matrix' ? (
-        <div className="bg-white dark:bg-[#363435] rounded-xl border border-slate-200/90 dark:border-[#434142] shadow-xs overflow-hidden">
+        <div className="bg-white dark:bg-[#363435] rounded-xl border border-slate-200/90 dark:border-[#434142] shadow-xs overflow-visible">
           
           {/* Controls Area */}
           <div className="p-4 sm:p-5 space-y-4">
@@ -718,10 +751,12 @@ export default function AttendanceCalendarTab({
               
               <div>
                 <h3 className="text-sm sm:text-base font-bold text-slate-900 dark:text-[#F8F8F6] tracking-tight whitespace-nowrap font-sans">
-                  Attendance Calendar (All Employees)
+                  {isAdmin ? 'Attendance Calendar (All Employees)' : 'My Attendance Calendar'}
                 </h3>
                 <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-                  Monthly presence, tardiness, and rest day distribution across the workforce
+                  {isAdmin
+                    ? 'Monthly presence, tardiness, and rest day distribution across the workforce'
+                    : 'Your monthly attendance and recorded punch history'}
                 </p>
               </div>
 
@@ -806,7 +841,7 @@ export default function AttendanceCalendarTab({
           </div>
 
           {/* Matrix Table inside the same container */}
-          <div className="overflow-x-auto relative border-t border-slate-100 dark:border-[#434142]" ref={scrollContainerRef}>
+          <div className="overflow-x-auto relative border-t border-slate-100 dark:border-[#434142] rounded-b-xl" ref={scrollContainerRef}>
             <table className="w-full text-left text-xs border-collapse">
               
               {/* Vibrant Solid Blue Table Headers */}
@@ -946,8 +981,8 @@ export default function AttendanceCalendarTab({
                           <td
                             key={dayNum}
                             onClick={() => handleOpenCellPopover(emp, dayNum)}
-                            title={`Click to set attendance tag for ${emp.name} on ${monthNames[currentMonthIndex]} ${dayNum}`}
-                            className={`py-2 px-1 text-center border-r border-slate-100 dark:border-[#434142]/60 cursor-pointer hover:bg-[#2F6798]/15 dark:hover:bg-[#1D2433] transition-all ${
+                            title={isAdmin ? `Click to set attendance tag for ${emp.name} on ${monthNames[currentMonthIndex]} ${dayNum}` : `View ${emp.name}'s attendance for ${monthNames[currentMonthIndex]} ${dayNum}`}
+                            className={`py-2 px-1 text-center border-r border-slate-100 dark:border-[#434142]/60 ${isAdmin ? 'cursor-pointer hover:bg-[#2F6798]/15 dark:hover:bg-[#1D2433]' : 'cursor-pointer hover:bg-slate-50 dark:hover:bg-[#1D2433]'} transition-all ${
                               isToday ? 'bg-emerald-50/40 dark:bg-emerald-950/20 ring-1 ring-emerald-500/20' : ''
                             }`}
                           >
@@ -1067,6 +1102,7 @@ export default function AttendanceCalendarTab({
             employeeName={selectedIndividualEmployee}
             supervisorName={supervisorName}
             records={records}
+            canEdit={isAdmin}
           />
         </div>
       )}
@@ -1084,7 +1120,7 @@ export default function AttendanceCalendarTab({
       />
 
       {/* Quick Attendance Cell Tagging Popover (Matching Screenshot) */}
-      <AttendanceCellPopover
+      {isAdmin && <AttendanceCellPopover
         isOpen={cellPopover.isOpen}
         onClose={() => setCellPopover((prev) => ({ ...prev, isOpen: false }))}
         employeeName={cellPopover.employeeName}
@@ -1098,7 +1134,7 @@ export default function AttendanceCalendarTab({
         currentNote={cellPopover.currentNote}
         onSelectStatus={handleSelectCellStatus}
         onOpenFullBreakdown={handleOpenDayModal}
-      />
+      />}
 
     </div>
   );

@@ -18,6 +18,7 @@ interface HoursReportTabProps {
   employees?: RosterEmployee[];
   searchTerm?: string;
   filterAccount?: string;
+  filterPosition?: string;
   onBackToRoster?: () => void;
   isHeadOrAdmin?: boolean;
   supervisorName?: string;
@@ -170,6 +171,7 @@ export default function HoursReportTab({
   employees: propEmployees,
   searchTerm = '',
   filterAccount = 'all',
+  filterPosition = 'all',
   onBackToRoster,
   isHeadOrAdmin = true,
   supervisorName,
@@ -430,7 +432,10 @@ export default function HoursReportTab({
         member.account.toLowerCase() === filterAccount.toLowerCase() ||
         member.department.toLowerCase() === filterAccount.toLowerCase();
 
-      return matchesSearch && matchesAccount;
+      const matchesPosition = filterPosition === 'all' ||
+        member.position.toLowerCase() === filterPosition.toLowerCase();
+
+      return matchesSearch && matchesAccount && matchesPosition;
     });
 
     const currentUserList: TeamMemberHours[] = [];
@@ -444,12 +449,12 @@ export default function HoursReportTab({
     });
 
     return [...currentUserList, ...otherList];
-  }, [calculatedReportData, searchTerm, filterAccount, supervisorName]);
+  }, [calculatedReportData, searchTerm, filterAccount, filterPosition, supervisorName]);
 
   // Reset page when filters change
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchTerm, filterAccount, selectedDate, viewMode]);
+  }, [searchTerm, filterAccount, filterPosition, selectedDate, viewMode]);
 
   const totalPages = Math.max(1, Math.ceil(filteredData.length / pageSize));
 

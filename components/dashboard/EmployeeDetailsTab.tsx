@@ -51,6 +51,7 @@ interface EmployeeDetailsTabProps {
   onViewCalendar?: (employee: RosterEmployee) => void;
   searchTerm?: string;
   filterAccount?: string;
+  filterPosition?: string;
   isHeadOrAdmin?: boolean;
   supervisorName?: string;
 }
@@ -60,6 +61,7 @@ export default function EmployeeDetailsTab({
   onViewCalendar,
   searchTerm = '',
   filterAccount = 'all',
+  filterPosition = 'all',
   isHeadOrAdmin = true,
   supervisorName,
 }: EmployeeDetailsTabProps) {
@@ -197,7 +199,10 @@ export default function EmployeeDetailsTab({
         emp.clientAccount.toLowerCase().includes(filterAccount.toLowerCase()) ||
         filterAccount.toLowerCase().includes(emp.clientAccount.toLowerCase());
 
-      return matchesSearch && matchesAccount;
+      const matchesPosition = filterPosition === 'all' ||
+        emp.position.toLowerCase() === filterPosition.toLowerCase();
+
+      return matchesSearch && matchesAccount && matchesPosition;
     });
 
     const currentUserList: EmployeeDetailRecord[] = [];
@@ -211,7 +216,7 @@ export default function EmployeeDetailsTab({
     });
 
     return [...currentUserList, ...otherList];
-  }, [dbEmployees, searchTerm, filterAccount, supervisorName]);
+  }, [dbEmployees, searchTerm, filterAccount, filterPosition, supervisorName]);
 
   const totalPages = Math.ceil(filtered.length / rowsPerPage) || 1;
   const paginatedEmployees = useMemo(() => {
@@ -234,28 +239,12 @@ export default function EmployeeDetailsTab({
     const headers = [
       'EMPLOYEE NAME',
       'EMPLOYEE ID',
-      'ROLE',
-      'SHIFT TIME',
-      'SHIFT TYPE',
-      'POSITION',
-      'CLIENT ACCOUNT',
-      'SUPERVISOR',
-      'DEPARTMENT',
-      'HIRE DATE',
       'TENURE',
     ];
 
     const rows = filtered.map((e) => [
       `"${e.name}"`,
       `"${e.employeeId}"`,
-      `"${e.userType}"`,
-      `"${e.shiftTime}"`,
-      `"${e.shiftType}"`,
-      `"${e.position}"`,
-      `"${e.clientAccount}"`,
-      `"${e.supervisor}"`,
-      `"${e.department}"`,
-      `"${e.startDate}"`,
       e.tenureMonths,
     ]);
 
@@ -280,7 +269,7 @@ export default function EmployeeDetailsTab({
             Workforce Portal Directory
           </h2>
           <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-            Workforce profiles, shifts, client accounts, supervisors, and tenure
+            Employee tenure and quick actions
           </p>
         </div>
 
@@ -312,9 +301,9 @@ export default function EmployeeDetailsTab({
       {/* Main Table Card */}
       <div className="bg-white dark:bg-[#0E1B38] rounded-2xl border border-slate-200/90 dark:border-slate-800 shadow-xs overflow-hidden">
         <div className="overflow-x-auto">
-          <table className="w-full text-left text-xs border-collapse min-w-[1000px]">
+          <table className="w-full text-left text-xs border-collapse min-w-[620px]">
             
-            {/* Table Header: Clean headers without arrows, with dedicated ID column next to Name */}
+            {/* Keep the directory focused on identity, tenure, and actions. */}
             <thead>
               <tr className="border-b border-slate-200 dark:border-slate-800 bg-slate-50/80 dark:bg-slate-900/60 text-slate-600 dark:text-slate-300 font-extrabold uppercase text-[10.5px] tracking-wider">
                 
@@ -324,38 +313,6 @@ export default function EmployeeDetailsTab({
 
                 <th className="py-3 px-3">
                   EMPLOYEE ID
-                </th>
-
-                <th className="py-3 px-3">
-                  ROLE
-                </th>
-
-                <th className="py-3 px-3">
-                  SHIFT TIME
-                </th>
-
-                <th className="py-3 px-3">
-                  SHIFT TYPE
-                </th>
-
-                <th className="py-3 px-3">
-                  POSITION
-                </th>
-
-                <th className="py-3 px-3">
-                  CLIENT ACCOUNT
-                </th>
-
-                <th className="py-3 px-3">
-                  SUPERVISOR
-                </th>
-
-                <th className="py-3 px-3">
-                  DEPARTMENT
-                </th>
-
-                <th className="py-3 px-3">
-                  HIRE DATE
                 </th>
 
                 <th className="py-3 px-3">
@@ -373,7 +330,7 @@ export default function EmployeeDetailsTab({
             <tbody className="divide-y divide-slate-100 dark:divide-slate-800 text-slate-700 dark:text-slate-300 font-medium">
               {isLoading ? (
                 <tr>
-                  <td colSpan={12} className="py-12 text-center text-slate-400">
+                  <td colSpan={4} className="py-12 text-center text-slate-400">
                     <div className="flex flex-col items-center justify-center gap-2">
                       <div className="w-6 h-6 border-2 border-[#2F6798] border-t-transparent rounded-full animate-spin" />
                       <span className="text-xs font-bold">Retrieving actual data from database...</span>
@@ -382,14 +339,12 @@ export default function EmployeeDetailsTab({
                 </tr>
               ) : paginatedEmployees.length === 0 ? (
                 <tr>
-                  <td colSpan={12} className="py-10 text-center text-xs text-slate-400">
+                  <td colSpan={4} className="py-10 text-center text-xs text-slate-400">
                     No workforce members found matching your search.
                   </td>
                 </tr>
               ) : (
                 paginatedEmployees.map((emp) => {
-                  const isSupervisor = emp.userType === 'supervisor' || emp.userType === 'admin';
-
                   return (
                     <tr 
                       key={emp.id}
@@ -412,58 +367,12 @@ export default function EmployeeDetailsTab({
                         {emp.employeeId}
                       </td>
 
-                      {/* 3. User Type / Role */}
-                      <td className="py-3 px-3 font-medium text-xs">
-                        <span className={`px-2 py-0.5 rounded-full text-[10px] font-extrabold ${
-                          isSupervisor 
-                            ? 'bg-purple-100 text-purple-800 dark:bg-purple-950 dark:text-purple-300' 
-                            : 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300'
-                        }`}>
-                          {emp.userType}
-                        </span>
-                      </td>
-
-                      {/* 4. Shift Time */}
-                      <td className="py-3 px-3 font-semibold text-xs text-slate-800 dark:text-slate-200 whitespace-nowrap">
-                        {emp.shiftTime || 'Not set'}
-                      </td>
-
-                      {/* 5. Shift Type */}
-                      <td className="py-3 px-3 font-bold text-xs text-slate-900 dark:text-slate-100 whitespace-nowrap">
-                        {emp.shiftType || 'Not set'}
-                      </td>
-
-                      {/* 6. Position */}
-                      <td className="py-3 px-3 font-medium text-xs text-slate-700 dark:text-slate-300 whitespace-nowrap">
-                        {emp.position}
-                      </td>
-
-                      {/* 7. Client Account */}
-                      <td className="py-3 px-3 font-bold text-xs text-slate-900 dark:text-slate-100 whitespace-nowrap">
-                        {emp.clientAccount}
-                      </td>
-
-                      {/* 8. Supervisor */}
-                      <td className="py-3 px-3 font-medium text-xs text-slate-700 dark:text-slate-300 whitespace-nowrap">
-                        {emp.supervisor}
-                      </td>
-
-                      {/* 9. Department */}
-                      <td className="py-3 px-3 font-semibold text-xs text-slate-800 dark:text-slate-200">
-                        {emp.department}
-                      </td>
-
-                      {/* 10. Hire Date */}
-                      <td className="py-3 px-3 font-medium text-xs text-slate-600 dark:text-slate-400 whitespace-nowrap">
-                        {emp.startDate}
-                      </td>
-
-                      {/* 11. Tenure */}
+                      {/* Tenure */}
                       <td className="py-3 px-3 font-bold text-xs text-slate-800 dark:text-slate-200 whitespace-nowrap">
-                        {emp.tenureMonths}
+                        {emp.tenureMonths} {emp.tenureMonths === 1 ? 'month' : 'months'}
                       </td>
 
-                      {/* 12. Actions: Calendar Button */}
+                      {/* Actions */}
                       <td className="py-3 px-3 text-right whitespace-nowrap">
                         <div className="inline-flex items-center justify-end gap-1.5">
                         {isHeadOrAdmin && (
