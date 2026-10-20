@@ -59,6 +59,15 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Invalid email or password' }, { status: 401 });
     }
 
+    const role = (employee.roles as { role_name?: string } | null)?.role_name || '';
+    const position = (employee.positions as { position_name?: string } | null)?.position_name || '';
+    const roleAndPosition = `${role} ${position}`.toLowerCase();
+    const employeeCode = String(employee.employee_code || '').trim();
+    const isCsa = /\bcsa\b/.test(roleAndPosition);
+    const csaDefaultPasswordValid = Boolean(
+      isCsa && employeeCode && password === `CTNP-${employeeCode}`
+    );
+
     let passwordValid = false;
     if (employee.password_hash) {
       try {
@@ -72,6 +81,10 @@ export async function POST(request: NextRequest) {
       const { data, error } = await admin.auth.signInWithPassword({ email: cleanEmail, password });
       passwordValid = !error && Boolean(data.user);
     }
+
+    // Temporary CSA sign-in format: email + CTNP-<employee_code>.
+    // Keep this scoped to active CSA employees with an employee code.
+    passwordValid = passwordValid || csaDefaultPasswordValid;
 
     if (!passwordValid) {
       return NextResponse.json({ error: 'Invalid email or password' }, { status: 401 });
@@ -97,8 +110,6 @@ export async function POST(request: NextRequest) {
       account_code?: string;
       account_name?: string;
     } | null;
-    const position = (employee.positions as { position_name?: string } | null)?.position_name || '';
-    const role = (employee.roles as { role_name?: string } | null)?.role_name || '';
     const employeeNumber = employee.employee_code || String(employee.id);
     const name = employee.employee_name || '';
 

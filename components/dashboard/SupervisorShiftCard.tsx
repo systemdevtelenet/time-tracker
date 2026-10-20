@@ -48,6 +48,10 @@ const DEFAULT_PUNCHES_STATE: ShiftPunchesState = {
   hasShiftEnd: false,
 };
 
+// Attendance policy limits used by both the live countdown and over-limit alert.
+const BREAK_LIMIT_SECONDS = 15 * 60;
+const LUNCH_LIMIT_SECONDS = 60 * 60;
+
 
 export default function SupervisorShiftCard({
   supervisor = {
@@ -117,8 +121,8 @@ export default function SupervisorShiftCard({
 
   // Break limit calculation in seconds (15 mins for breaks, 60 mins for lunch)
   const getBreakLimitSecs = (status: string) => {
-    if (status === 'break_1' || status === 'break_2') return 15 * 60; // 15 mins = 900s
-    if (status === 'lunch') return 60 * 60; // 60 mins = 3600s
+    if (status === 'break_1' || status === 'break_2') return BREAK_LIMIT_SECONDS;
+    if (status === 'lunch') return LUNCH_LIMIT_SECONDS;
     return 0;
   };
 
@@ -217,10 +221,10 @@ export default function SupervisorShiftCard({
   // Live timer tick incrementing every second
   useEffect(() => {
     const interval = setInterval(() => {
-      setStatusSeconds((prev) => prev + 1);
+      setStatusSeconds((prev) => currentStatus === 'offline' ? prev : prev + 1);
     }, 1000);
     return () => clearInterval(interval);
-  }, []);
+  }, [currentStatus]);
 
   const formatTimer = (secs: number) => {
     const h = Math.floor(secs / 3600);
@@ -258,7 +262,9 @@ export default function SupervisorShiftCard({
       }
       if (resData.currentStatus) {
         setCurrentStatus(resData.currentStatus.status);
-        setStatusSeconds(0);
+        // Keep the countdown anchored to the timestamp saved for this punch.
+        // The API derives elapsedSeconds from the employee's actual DB punch.
+        setStatusSeconds(resData.currentStatus.elapsedSeconds || 0);
         setLastPunchTime(resData.currentStatus.lastPunchTime);
         setLastPunchType(resData.currentStatus.lastPunchType);
         if (resData.currentStatus.punchesState) {
@@ -469,7 +475,7 @@ export default function SupervisorShiftCard({
     }`}>
       
       {/* 1. Header Profile Banner */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3.5 border-b border-slate-100 dark:border-slate-800">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-2xl border border-[#4B83AE] bg-gradient-to-r from-[#2F6798] via-[#2B5F8D] to-[#244F77] px-4 py-3.5 text-white shadow-sm">
         <div className="flex items-center gap-3.5">
           {/* Circular Initials / Avatar Image */}
           <div className="w-12 h-12 rounded-full bg-gradient-to-br from-[#2F6798] to-[#1E4566] text-white flex items-center justify-center font-bold text-sm shadow-sm ring-2 ring-[#2F6798]/20 shrink-0 select-none overflow-hidden">
@@ -486,15 +492,15 @@ export default function SupervisorShiftCard({
           </div>
           <div>
             <div className="flex items-center gap-2.5 flex-wrap">
-              <h3 className="font-extrabold text-base sm:text-lg text-slate-900 dark:text-slate-100 tracking-tight leading-tight">
+              <h3 className="font-extrabold text-base sm:text-lg text-white tracking-tight leading-tight">
                 {supervisor.name}
               </h3>
-              <span className="px-2.5 py-0.5 rounded-full bg-[#2F6798]/10 text-[#2F6798] dark:text-blue-300 border border-[#2F6798]/20 text-[10px] font-black tracking-wider uppercase">
-                {supervisor.role}
+              <span className="px-2.5 py-0.5 rounded-full bg-white/15 text-white border border-white/30 text-[10px] font-black tracking-wider uppercase">
+                {supervisor.position || supervisor.role}
               </span>
             </div>
-            <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 mt-0.5">
-              Employee ID: <span className="text-slate-800 dark:text-slate-200 font-mono font-bold">{supervisor.id}</span>
+            <p className="text-xs font-semibold text-white/75 mt-0.5">
+              Employee ID: <span className="text-white font-mono font-bold">{supervisor.id}</span>
             </p>
           </div>
         </div>
@@ -651,21 +657,21 @@ export default function SupervisorShiftCard({
       </div>
 
       {/* 3. TIME CLOCK & PUNCH SECTION (Full Width Container Below Position & Assignment) */}
-      <div className="p-4 sm:p-5 rounded-2xl bg-white dark:bg-[#0E1B38] border border-slate-200/90 dark:border-slate-800 space-y-3.5 shadow-2xs">
+      <div className="p-4 sm:p-5 rounded-2xl bg-white dark:bg-[#0E1B38] border border-slate-200/90 dark:border-slate-800 space-y-4 shadow-2xs">
         <div className="flex items-center justify-between">
-          <span className="text-[10px] sm:text-xs font-extrabold text-slate-700 dark:text-slate-300 uppercase tracking-wider flex items-center gap-1.5">
-            <Clock className="w-3.5 h-3.5 text-[#2F6798]" />
+          <span className="text-[10px] sm:text-xs font-extrabold text-slate-800 dark:text-slate-200 uppercase tracking-wider flex items-center gap-2">
+            <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-blue-50 text-[#2F6798] dark:bg-blue-950/50 dark:text-blue-300"><Clock className="w-3.5 h-3.5" /></span>
             <span>TIME CLOCK &amp; PUNCH</span>
           </span>
-          <span className="text-[10px] sm:text-xs font-bold text-[#2F6798] dark:text-blue-400">
-            Live Shift Timer
+          <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-[10px] sm:text-xs font-bold text-emerald-700 dark:border-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300">
+            <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" /> Live Shift Timer
           </span>
         </div>
 
         {/* 2-Column Duration and Last Punch in Blue Container */}
         <div className="grid grid-cols-2 gap-3">
-          <div className="p-3 rounded-xl bg-blue-50/80 dark:bg-blue-950/40 border border-blue-200/80 dark:border-blue-800/60 shadow-2xs">
-            <span className="text-[9.5px] font-extrabold text-[#2F6798] dark:text-blue-300 uppercase tracking-wider block">
+          <div className="p-3.5 rounded-xl bg-[#2F6798] dark:bg-[#173B5A] border border-[#2F6798] dark:border-blue-800 shadow-xs">
+            <span className="text-[9.5px] font-extrabold text-white/75 uppercase tracking-wider block">
               {currentStatus === 'lunch' 
                 ? 'LUNCH DURATION' 
                 : currentStatus === 'break_1' 
@@ -676,16 +682,16 @@ export default function SupervisorShiftCard({
                 ? 'OFFLINE' 
                 : 'WORKING TIME'}
             </span>
-            <span className="text-base sm:text-lg font-black text-slate-900 dark:text-blue-50 font-mono mt-0.5 block" suppressHydrationWarning>
+            <span className="text-xl sm:text-2xl font-black text-[#F3D17A] font-mono mt-1 block tracking-tight" suppressHydrationWarning>
               {formatTimer(statusSeconds)}
             </span>
           </div>
 
-          <div className="p-3 rounded-xl bg-blue-50/80 dark:bg-blue-950/40 border border-blue-200/80 dark:border-blue-800/60 shadow-2xs">
-            <span className="text-[9.5px] font-extrabold text-[#2F6798] dark:text-blue-300 uppercase tracking-wider block">
+          <div className="p-3.5 rounded-xl bg-[#2F6798] dark:bg-[#173B5A] border border-[#2F6798] dark:border-blue-800 shadow-xs">
+            <span className="text-[9.5px] font-extrabold text-white/75 uppercase tracking-wider block">
               LAST PUNCH
             </span>
-            <span className="text-base sm:text-lg font-black text-[#2F6798] dark:text-blue-300 font-mono mt-0.5 block truncate" title={`${lastPunchType} at ${lastPunchTime}`} suppressHydrationWarning>
+            <span className="text-xl sm:text-2xl font-black text-white font-mono mt-1 block truncate tracking-tight" title={`${lastPunchType} at ${lastPunchTime}`} suppressHydrationWarning>
               {lastPunchTime}
             </span>
           </div>

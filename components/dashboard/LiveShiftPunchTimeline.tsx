@@ -19,6 +19,7 @@ import {
 import { ShiftMilestoneItem, PunchLogItem } from '@/lib/punchLogs';
 import DatePickerPopover from './DatePickerPopover';
 import { getShiftDate, parseShiftStartHour } from '@/lib/shiftSchedule';
+import { WORKFORCE_TIME_ZONE } from '@/lib/timeZone';
 
 interface LiveShiftPunchTimelineProps {
   embedded?: boolean;
@@ -131,7 +132,11 @@ export default function LiveShiftPunchTimeline({
       const isShiftMatch = (shiftDate.getFullYear() === targetYear && shiftDate.getMonth() === targetMonth && shiftDate.getDate() === targetDay);
       const isDirectMatch = (d.getFullYear() === targetYear && d.getMonth() === targetMonth && d.getDate() === targetDay);
 
-      if (isShiftMatch || isDirectMatch) {
+      // For overnight schedules, a punch's wall-clock date can differ from its
+      // shift date. Prefer the employee's scheduled shift date to avoid showing
+      // the same overnight punch on two calendar days.
+      const matchesSelectedDate = shiftStartHour !== null ? isShiftMatch : isDirectMatch;
+      if (matchesSelectedDate) {
         const idKey = String(log.id || `${log.type}-${rawTs}`);
         if (!seenIds.has(idKey)) {
           seenIds.add(idKey);
@@ -170,7 +175,7 @@ export default function LiveShiftPunchTimeline({
     const formatPTime = (raw?: string) => {
       if (!raw) return '';
       const d = new Date(raw);
-      return !isNaN(d.getTime()) ? d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }) : raw;
+      return !isNaN(d.getTime()) ? d.toLocaleTimeString('en-US', { timeZone: WORKFORCE_TIME_ZONE, hour: 'numeric', minute: '2-digit' }) : raw;
     };
 
     // 1. Shift Start
@@ -296,7 +301,7 @@ export default function LiveShiftPunchTimeline({
     return shiftPunches.map((p, idx) => {
       const pDate = new Date(p.parsedDate || p.timestamp || p.TIMESTAMP);
       const timeFormatted = !isNaN(pDate.getTime())
-        ? pDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true })
+        ? pDate.toLocaleTimeString('en-US', { timeZone: WORKFORCE_TIME_ZONE, hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true })
         : p.timestamp || '—';
 
       const pType = (p.type || p.punch_type || 'Shift Action').trim();
@@ -319,21 +324,18 @@ export default function LiveShiftPunchTimeline({
           const sMs = new Date(startP.parsedDate || startP.timestamp || startP.TIMESTAMP).getTime();
           const eMs = pDate.getTime();
           const diffMins = Math.round((eMs - sMs) / 60000);
-          const mins = (diffMins > 0 && diffMins <= 120) ? diffMins : 15;
-          durationStr = formatDurationFriendly(mins);
-        } else {
-          durationStr = '15 mins';
+          durationStr = diffMins >= 0 ? formatDurationFriendly(diffMins) : '—';
         }
       } else if (pTypeLower.includes('end lunch') || pTypeLower.includes('lunch end')) {
-        const startP = priorPunches.find((prevP) => (prevP.type || '').toLowerCase().includes('lunch'));
+        const startP = priorPunches.find((prevP) => {
+          const t = (prevP.type || '').toLowerCase();
+          return t.includes('start lunch') || t === 'lunch';
+        });
         if (startP) {
           const sMs = new Date(startP.parsedDate || startP.timestamp || startP.TIMESTAMP).getTime();
           const eMs = pDate.getTime();
           const diffMins = Math.round((eMs - sMs) / 60000);
-          const mins = (diffMins > 0 && diffMins <= 180) ? diffMins : 60;
-          durationStr = formatDurationFriendly(mins);
-        } else {
-          durationStr = '1 hr';
+          durationStr = diffMins >= 0 ? formatDurationFriendly(diffMins) : '—';
         }
       } else if (pTypeLower.includes('break 2 end') || pTypeLower.includes('end break 2')) {
         const startP = priorPunches.find((prevP) => (prevP.type || '').toLowerCase().includes('break 2 start'));
@@ -341,10 +343,7 @@ export default function LiveShiftPunchTimeline({
           const sMs = new Date(startP.parsedDate || startP.timestamp || startP.TIMESTAMP).getTime();
           const eMs = pDate.getTime();
           const diffMins = Math.round((eMs - sMs) / 60000);
-          const mins = (diffMins > 0 && diffMins <= 120) ? diffMins : 15;
-          durationStr = formatDurationFriendly(mins);
-        } else {
-          durationStr = '15 mins';
+          durationStr = diffMins >= 0 ? formatDurationFriendly(diffMins) : '—';
         }
       } else if (pTypeLower.includes('shift end')) {
         const startP = priorPunches.find((prevP) => (prevP.type || '').toLowerCase().includes('shift start'));
@@ -352,10 +351,7 @@ export default function LiveShiftPunchTimeline({
           const sMs = new Date(startP.parsedDate || startP.timestamp || startP.TIMESTAMP).getTime();
           const eMs = pDate.getTime();
           const grossHrs = (eMs - sMs) / 3600000;
-          const netHrs = (grossHrs > 0 && grossHrs <= 16) ? Math.max(0, grossHrs - 1.25) : 8.0;
-          durationStr = `${netHrs.toFixed(1)} hrs shift`;
-        } else {
-          durationStr = '8.0 hrs shift';
+          durationStr = grossHrs >= 0 ? `${grossHrs.toFixed(1)} hrs elapsed` : '—';
         }
       }
 
@@ -386,9 +382,10 @@ export default function LiveShiftPunchTimeline({
       <div className="space-y-4">
         
         {/* Title Row with Functional Date Picker */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-100 dark:border-[#434142]">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-xl border border-slate-200 bg-gradient-to-r from-white to-slate-50 px-3.5 py-3 dark:border-slate-800 dark:from-[#0E1B38] dark:to-slate-900">
           <div>
             <div className="flex items-center gap-2.5">
+              <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-blue-50 text-[#2F6798] dark:bg-blue-950/50 dark:text-blue-300"><Clock className="h-4 w-4" /></span>
               <h3 className="text-base sm:text-lg font-black text-slate-900 dark:text-[#F8F8F6] tracking-tight">
                 Today&apos;s Shift Activity &amp; Punch Audit Trail
               </h3>
@@ -427,17 +424,17 @@ export default function LiveShiftPunchTimeline({
               return (
                 <div 
                   key={m.id}
-                  className={`p-4 rounded-2xl border transition-all flex flex-col justify-between ${
+                  className={`relative overflow-hidden p-4 rounded-2xl border transition-all duration-200 flex flex-col justify-between hover:-translate-y-0.5 hover:shadow-sm ${
                     isActive 
-                      ? 'bg-amber-50/60 dark:bg-amber-950/30 border-amber-300/80 dark:border-amber-700/60 shadow-xs ring-2 ring-amber-400/20 text-slate-900 dark:text-slate-100'
+                      ? 'bg-gradient-to-br from-amber-50 to-white dark:from-amber-950/40 dark:to-slate-900 border-amber-300 dark:border-amber-700/60 shadow-sm ring-1 ring-amber-400/20 text-slate-900 dark:text-slate-100'
                       : isCompleted
-                      ? 'bg-slate-50/70 dark:bg-[#272626] border-slate-200/80 dark:border-[#434142] text-slate-800 dark:text-slate-200'
-                      : 'bg-slate-50/40 dark:bg-[#272626]/50 border-slate-200/50 dark:border-[#434142]/50 opacity-70 text-slate-500'
+                      ? 'bg-gradient-to-br from-emerald-50/80 to-white dark:from-emerald-950/25 dark:to-slate-900 border-emerald-200 dark:border-emerald-900/60 text-slate-800 dark:text-slate-200'
+                      : 'bg-white dark:bg-slate-900/50 border-slate-200/80 dark:border-slate-800 text-slate-500 dark:text-slate-400'
                   }`}
                 >
                   {/* Milestone Top Row: Icon + Badge */}
                   <div className="flex items-center justify-between gap-2 mb-2">
-                    <div className={`w-8 h-8 rounded-xl flex items-center justify-center font-bold shadow-xs ${m.color}`}>
+                    <div className={`w-9 h-9 rounded-xl flex items-center justify-center font-bold shadow-sm ${m.color}`}>
                       <Icon className="w-4 h-4" />
                     </div>
                     <span className={`text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full ${
@@ -478,7 +475,7 @@ export default function LiveShiftPunchTimeline({
 
         {/* 3. Full-Width Punch Audit Log Table with Duration & Status Columns */}
         <div className="pt-2">
-          <div className="w-full p-4 sm:p-5 rounded-2xl bg-slate-50/60 dark:bg-[#272626] border border-slate-200/80 dark:border-[#434142] space-y-3">
+          <div className="w-full p-4 sm:p-5 rounded-2xl bg-gradient-to-br from-slate-50 to-white dark:from-slate-900 dark:to-[#272626] border border-slate-200/80 dark:border-[#434142] space-y-3 shadow-xs">
             <div className="flex items-center justify-between">
               <h4 className="text-xs font-black uppercase tracking-wider text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
                 <Clock className="w-3.5 h-3.5 text-[#2F6798] dark:text-[#3678B0]" />

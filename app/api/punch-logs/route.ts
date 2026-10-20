@@ -5,6 +5,7 @@ import {
   deleteTimeTrackerPunchesForDay,
   computeLiveStatusFromLogs,
   NormalizedTimeTrackerLog,
+  TIME_TRACKER_TIME_ZONE,
 } from '@/lib/timeTrackerDb';
 import { PunchActionType, PunchLogItem, computeShiftMilestonesAndAudit } from '@/lib/punchLogs';
 import { getActiveEmployeeAccess } from '@/lib/employeeAccess';
@@ -49,7 +50,9 @@ export async function GET(request: NextRequest) {
       id: log.id,
       empId: log.employee_id,
       type: log.punch_type,
-      timestamp: log.timestamp,
+      // Return a timezone-qualified instant so browsers do not reinterpret
+      // legacy database strings using the viewer's machine timezone.
+      timestamp: log.parsedDate.toISOString(),
       duration: log.duration,
       status: log.status || 'On Time',
       overDuration: null,
@@ -64,8 +67,8 @@ export async function GET(request: NextRequest) {
       .map((log) => ({
         id: log.id,
         action: log.punch_type,
-        time: log.parsedDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
-        date: log.parsedDate.toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' }),
+        time: log.parsedDate.toLocaleTimeString('en-US', { timeZone: TIME_TRACKER_TIME_ZONE, hour: '2-digit', minute: '2-digit', second: '2-digit' }),
+        date: log.parsedDate.toLocaleDateString('en-US', { timeZone: TIME_TRACKER_TIME_ZONE, month: 'short', day: 'numeric', year: 'numeric' }),
         status: log.status,
       }));
 

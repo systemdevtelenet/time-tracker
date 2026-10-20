@@ -1,3 +1,5 @@
+import { WORKFORCE_TIME_ZONE } from '@/lib/timeZone';
+
 export interface PunchLogItem {
   id: string;
   empId: string;
@@ -17,6 +19,10 @@ export type PunchActionType =
   | 'Break 2 Start'
   | 'Break 2 End'
   | 'Shift End';
+
+function formatWorkforceTime(date: Date, options: Intl.DateTimeFormatOptions): string {
+  return date.toLocaleTimeString('en-US', { ...options, timeZone: WORKFORCE_TIME_ZONE });
+}
 
 export interface ShiftMilestoneItem {
   id: string;
@@ -121,7 +127,7 @@ export function computeEmployeePunchStatus(
   
   let formattedTime = latest.timestamp;
   if (isValidDate) {
-    formattedTime = punchDate.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit', second: '2-digit', hour12: true });
+    formattedTime = formatWorkforceTime(punchDate, { hour: 'numeric', minute: '2-digit', second: '2-digit', hour12: true });
   }
 
   const typeLower = latest.type.toLowerCase();
@@ -204,7 +210,7 @@ export function computeShiftMilestonesAndAudit(
   // 1. Shift Start
   const hasShiftStart = !!shiftStartPunch;
   const shiftStartFormatted = shiftStartPunch 
-    ? new Date(shiftStartPunch.timestamp).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit', second: '2-digit', hour12: true })
+    ? formatWorkforceTime(new Date(shiftStartPunch.timestamp), { hour: 'numeric', minute: '2-digit', second: '2-digit', hour12: true })
     : '';
   
   const m1: ShiftMilestoneItem = {
@@ -229,14 +235,14 @@ export function computeShiftMilestonesAndAudit(
 
   if (break1Start && break1End) {
     m2Status = 'completed';
-    const sTime = new Date(break1Start.timestamp).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit', hour12: true });
-    const eTime = new Date(break1End.timestamp).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit', hour12: true });
+    const sTime = formatWorkforceTime(new Date(break1Start.timestamp), { hour: 'numeric', minute: '2-digit', hour12: true });
+    const eTime = formatWorkforceTime(new Date(break1End.timestamp), { hour: 'numeric', minute: '2-digit', hour12: true });
     m2TimeRange = `${sTime} – ${eTime}`;
     m2Duration = break1End.duration !== 'N/A' ? `${Math.round(parseFloat(break1End.duration) || 15)} mins` : '15 mins';
     m2Color = 'bg-emerald-500 text-white';
   } else if (break1Start && !break1End) {
     m2Status = 'active';
-    const sTime = new Date(break1Start.timestamp).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit', second: '2-digit', hour12: true });
+    const sTime = formatWorkforceTime(new Date(break1Start.timestamp), { hour: 'numeric', minute: '2-digit', second: '2-digit', hour12: true });
     m2TimeRange = `${sTime} – In Progress`;
     m2Duration = 'Break in progress';
     m2Color = 'bg-amber-500 text-white ring-4 ring-amber-500/20 animate-pulse';
@@ -264,14 +270,14 @@ export function computeShiftMilestonesAndAudit(
 
   if (lunchStart && lunchEnd) {
     m3Status = 'completed';
-    const sTime = new Date(lunchStart.timestamp).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit', hour12: true });
-    const eTime = new Date(lunchEnd.timestamp).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit', hour12: true });
+    const sTime = formatWorkforceTime(new Date(lunchStart.timestamp), { hour: 'numeric', minute: '2-digit', hour12: true });
+    const eTime = formatWorkforceTime(new Date(lunchEnd.timestamp), { hour: 'numeric', minute: '2-digit', hour12: true });
     m3TimeRange = `${sTime} – ${eTime}`;
     m3Duration = lunchEnd.duration !== 'N/A' ? `${Math.round(parseFloat(lunchEnd.duration) || 55)} mins` : '55 mins';
     m3Color = 'bg-emerald-500 text-white';
   } else if (lunchStart && !lunchEnd) {
     m3Status = 'active';
-    const sTime = new Date(lunchStart.timestamp).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit', second: '2-digit', hour12: true });
+    const sTime = formatWorkforceTime(new Date(lunchStart.timestamp), { hour: 'numeric', minute: '2-digit', second: '2-digit', hour12: true });
     m3TimeRange = `${sTime} – In Progress`;
     m3Duration = 'Elapsed in real-time';
     m3Color = 'bg-amber-500 text-white ring-4 ring-amber-500/20 animate-pulse';
@@ -299,14 +305,14 @@ export function computeShiftMilestonesAndAudit(
 
   if (break2Start && break2End) {
     m4Status = 'completed';
-    const sTime = new Date(break2Start.timestamp).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit', hour12: true });
-    const eTime = new Date(break2End.timestamp).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit', hour12: true });
+    const sTime = formatWorkforceTime(new Date(break2Start.timestamp), { hour: 'numeric', minute: '2-digit', hour12: true });
+    const eTime = formatWorkforceTime(new Date(break2End.timestamp), { hour: 'numeric', minute: '2-digit', hour12: true });
     m4TimeRange = `${sTime} – ${eTime}`;
     m4Duration = break2End.duration !== 'N/A' ? `${Math.round(parseFloat(break2End.duration) || 15)} mins` : '15 mins';
     m4Color = 'bg-emerald-500 text-white';
   } else if (break2Start && !break2End) {
     m4Status = 'active';
-    const sTime = new Date(break2Start.timestamp).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit', second: '2-digit', hour12: true });
+    const sTime = formatWorkforceTime(new Date(break2Start.timestamp), { hour: 'numeric', minute: '2-digit', second: '2-digit', hour12: true });
     m4TimeRange = `${sTime} – In Progress`;
     m4Duration = 'Break in progress';
     m4Color = 'bg-amber-500 text-white ring-4 ring-amber-500/20 animate-pulse';
@@ -327,7 +333,7 @@ export function computeShiftMilestonesAndAudit(
   const shiftEndPunch = shiftPunches.find(p => p.type.toLowerCase().includes('shift end'));
   const hasShiftEnd = !!shiftEndPunch;
   const shiftEndFormatted = shiftEndPunch 
-    ? new Date(shiftEndPunch.timestamp).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit', second: '2-digit', hour12: true })
+    ? formatWorkforceTime(new Date(shiftEndPunch.timestamp), { hour: 'numeric', minute: '2-digit', second: '2-digit', hour12: true })
     : 'No punch recorded';
 
   // Calculate shift duration capped at 8.0 regular work hours (9.0 hrs total shift span)
@@ -400,7 +406,7 @@ export function computeShiftMilestonesAndAudit(
 
     const pDate = new Date(p.timestamp);
     const timeFormatted = !isNaN(pDate.getTime()) 
-      ? pDate.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit', second: '2-digit', hour12: true })
+      ? formatWorkforceTime(pDate, { hour: 'numeric', minute: '2-digit', second: '2-digit', hour12: true })
       : p.timestamp;
 
     return {

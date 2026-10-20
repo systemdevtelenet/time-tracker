@@ -349,6 +349,7 @@ function HomePageContent() {
     () => ['admin', 'superadmin', 'administrator'].includes(String(supervisor.role || '').toLowerCase()),
     [supervisor.role]
   );
+  const dashboardRole = String(supervisor.position || supervisor.role || 'Employee').trim();
 
   // Regular users (trainee, trainer, qa, agent) only see their own attendance / time records
   const accessibleRecords = useMemo(() => {
@@ -581,24 +582,32 @@ function HomePageContent() {
           {/* TAB 1: EXECUTIVE TRAINING DASHBOARD */}
           {activeTab === 'dashboard' && (
             <div className="space-y-4 animate-in fade-in">
-              {/* Dashboard Top Header: Operations Shift Summary (Left) & Weather Widget (Right) */}
-              <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 items-center">
-                <div className="lg:col-span-8 flex flex-col justify-center space-y-2 py-1">
-                  <h2 className="text-2xl sm:text-3xl font-extrabold text-slate-900 dark:text-slate-100 tracking-tight">
-                    Welcome back, <span className="text-[#2F6798] dark:text-blue-400">{supervisor.name}</span>
+              {/* Welcome banner with the agent's daily overview and weather */}
+              <section
+                className="relative z-30 grid min-h-[168px] grid-cols-1 items-center gap-5 overflow-visible rounded-2xl border border-[#4B83AE] bg-[#2F6798] bg-cover bg-center px-5 py-5 text-white shadow-sm sm:min-h-[176px] sm:grid-cols-[minmax(0,1fr)_auto] sm:px-7 sm:py-6"
+                style={{
+                  backgroundImage: "linear-gradient(90deg, rgba(38, 91, 137, 0.97) 0%, rgba(47, 103, 152, 0.91) 48%, rgba(47, 103, 152, 0.56) 100%), url('https://zhdmsmwrskxowvytedgh.supabase.co/storage/v1/object/public/Images/dark_mode_hero.png')",
+                  backgroundSize: '100% 100%, 69% auto',
+                  backgroundPosition: 'center, right center',
+                  backgroundRepeat: 'no-repeat',
+                }}
+              >
+                <div className="relative z-10 min-w-0 space-y-2">
+                  <span className="inline-flex rounded-full border border-white/30 bg-white/10 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.12em] text-white/90">
+                    {dashboardRole} Dashboard
+                  </span>
+                  <h2 className="text-2xl font-extrabold tracking-tight text-white sm:text-3xl">
+                    Welcome back, <span className="text-[#F3D17A]">{supervisor.name}</span>
                   </h2>
-                  <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 font-normal max-w-2xl leading-relaxed">
-                    {isAdmin
-                      ? 'Real-time shift tracking, workforce attendance adherence, and team performance overview.'
-                      : 'Your shift schedule, attendance, and punch activity at a glance.'}
+                  <p className="max-w-2xl text-sm leading-relaxed text-white/85 sm:text-base">
+                    Your shift schedule, attendance, and punch activity at a glance.
                   </p>
                 </div>
 
-                {/* Right: Weather Widget Card */}
-                <div className="lg:col-span-4 flex justify-end">
+                <div className="relative z-10 flex justify-start sm:justify-end">
                   <WeatherWidgetCard />
                 </div>
-              </div>
+              </section>
 
               {/* 4 System-Related Hero KPI Cards */}
               <HeroKpiCards 

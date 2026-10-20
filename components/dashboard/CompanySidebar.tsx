@@ -63,7 +63,7 @@ export default function CompanySidebar({
   onPunchAction,
 }: CompanySidebarProps) {
   const router = useRouter();
-  const [isCollapsed, setIsCollapsed] = useState(false);
+  const [isCollapsed, setIsCollapsed] = useState(true);
   const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false);
 
   // Live Punch State (consistent SSR initial values to prevent hydration mismatch)

@@ -102,7 +102,7 @@ export default function HeroKpiCards({
   ];
 
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-4 mt-1 mb-3.5">
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-3 mt-1 mb-3.5">
       {cards.map((card) => {
         const Icon = card.icon;
         const isSelected = activeFilter === card.id;
@@ -111,35 +111,35 @@ export default function HeroKpiCards({
           <div
             key={card.id}
             onClick={() => onSelectFilter && onSelectFilter(card.id)}
-            className={`relative overflow-hidden p-4 sm:p-5 rounded-xl bg-white dark:bg-[#0E1B38] border border-slate-200/90 dark:border-slate-800 shadow-xs hover:shadow-md transition-all duration-200 cursor-pointer group flex items-center justify-between min-h-[106px] ${
+            className={`relative overflow-hidden p-3 sm:p-3.5 rounded-xl bg-white dark:bg-[#0E1B38] border border-slate-200/90 dark:border-slate-800 shadow-xs hover:shadow-md transition-all duration-200 cursor-pointer group flex items-center justify-start gap-3 min-h-[104px] ${
               isSelected ? 'ring-2 ring-[#2F6798]' : ''
             }`}
           >
             {/* Box Background Watermark from Supabase - Same as Attendance and Roster */}
             <div 
-              className="absolute inset-0 w-full h-full bg-no-repeat bg-cover bg-center opacity-28 dark:opacity-18 pointer-events-none transform transition-transform group-hover:scale-105 duration-500"
+              className="absolute inset-0 w-full h-full bg-no-repeat bg-right opacity-20 dark:opacity-12 pointer-events-none transform transition-transform group-hover:scale-105 duration-500"
               style={{
                 backgroundImage: `url("${heroImageUrl}")`,
+                backgroundSize: '71% auto',
                 filter: 'invert(33%) sepia(85%) saturate(550%) hue-rotate(170deg) brightness(92%) contrast(110%)'
               }}
             />
 
             {/* Left Stat Information */}
-            <div className="relative z-10 flex flex-col justify-center">
-              <span className="text-[10px] sm:text-[11px] font-bold text-slate-400 dark:text-slate-500 tracking-wider uppercase font-poppins">
-                {card.title}
-              </span>
-              <span className={`text-2xl sm:text-3xl font-extrabold tracking-tight mt-1 font-poppins ${card.valueColor}`}>
-                {card.value}
-              </span>
-              <span className="text-[10.5px] font-medium text-slate-400 dark:text-slate-500 mt-0.5">
-                {card.subtext}
-              </span>
+            <div className={`relative z-10 w-10 h-10 sm:w-11 sm:h-11 rounded-xl flex items-center justify-center shrink-0 shadow-xs ${card.iconBg}`}>
+              <Icon className="w-5 h-5 stroke-[2]" />
             </div>
 
-            {/* Right Pastel Rounded Icon Badge */}
-            <div className={`relative z-10 w-11 h-11 rounded-xl flex items-center justify-center shrink-0 shadow-xs ${card.iconBg}`}>
-              <Icon className="w-[22px] h-[22px] stroke-[2]" />
+            <div className="relative z-10 flex min-w-0 flex-col justify-center">
+              <span className="text-[9px] sm:text-[10px] font-bold text-slate-400 dark:text-slate-500 tracking-wider uppercase font-poppins">
+                {card.title}
+              </span>
+              <span className={`text-xl sm:text-2xl leading-tight font-extrabold tracking-tight mt-0.5 font-poppins ${card.valueColor}`}>
+                {card.value}
+              </span>
+              <span className="text-[9.5px] sm:text-[10px] font-medium text-slate-400 dark:text-slate-500 mt-0.5 truncate">
+                {card.subtext}
+              </span>
             </div>
 
           </div>

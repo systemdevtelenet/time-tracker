@@ -1,6 +1,41 @@
 import { getSupabaseAdmin } from '@/lib/supabase/server';
 import { PunchActionType, ShiftPunchesState } from '@/lib/punchLogs';
 import { formatShiftRange, parseShiftStartHour } from '@/lib/shiftSchedule';
+import { WORKFORCE_TIME_ZONE } from '@/lib/timeZone';
+
+export const TIME_TRACKER_TIME_ZONE = WORKFORCE_TIME_ZONE;
+
+function parseStoredPunchTimestamp(value: string): Date {
+  const raw = value.trim();
+  if (/[zZ]$|[+-]\d{2}:?\d{2}$/.test(raw)) return new Date(raw);
+
+  // Older punch rows were written as timezone-free server wall time. The app
+  // server runs in UTC, so interpret these legacy values as UTC before showing
+  // them in the workforce timezone.
+  const slashDate = /^(\d{1,2})\/(\d{1,2})\/(\d{4})[ T](\d{1,2}):(\d{2})(?::(\d{2}))?\s*(AM|PM)?$/i.exec(raw);
+  const isoDate = /^(\d{4})-(\d{2})-(\d{2})[ T](\d{1,2}):(\d{2})(?::(\d{2})(?:\.\d+)?)?$/.exec(raw);
+  if (slashDate || isoDate) {
+    const parts = slashDate
+      ? [slashDate[3], slashDate[1], slashDate[2], slashDate[4], slashDate[5], slashDate[6] || '0', slashDate[7]]
+      : [isoDate![1], isoDate![2], isoDate![3], isoDate![4], isoDate![5], isoDate![6] || '0', undefined];
+    let hour = Number(parts[3]);
+    const meridiem = parts[6]?.toUpperCase();
+    if (meridiem) hour = (hour % 12) + (meridiem === 'PM' ? 12 : 0);
+    const normalized = `${parts[0]}-${String(parts[1]).padStart(2, '0')}-${String(parts[2]).padStart(2, '0')}T${String(hour).padStart(2, '0')}:${parts[4]}:${String(parts[5]).padStart(2, '0')}Z`;
+    return new Date(normalized);
+  }
+
+  return new Date(raw);
+}
+
+function getManilaDateKey(date: Date): string {
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone: TIME_TRACKER_TIME_ZONE,
+    year: 'numeric', month: '2-digit', day: '2-digit',
+  }).formatToParts(date);
+  const part = (type: string) => parts.find((item) => item.type === type)?.value || '';
+  return `${part('year')}-${part('month')}-${part('day')}`;
+}
 
 export interface RawTimeTrackerRow {
   'LOG ID'?: string;
@@ -193,26 +228,16 @@ export function normalizeTimeTrackerRow(row: RawTimeTrackerRow): NormalizedTimeT
 
   let parsedDate: Date;
   try {
-    parsedDate = new Date(rawTimestamp);
+    parsedDate = parseStoredPunchTimestamp(rawTimestamp);
     if (isNaN(parsedDate.getTime())) {
-      // Try parsing formats like "8/25/2026 22:50:28"
-      const parts = rawTimestamp.split(' ');
-      if (parts.length >= 2) {
-        const [m, d, y] = parts[0].split('/');
-        parsedDate = new Date(`${y}-${m.padStart(2, '0')}-${d.padStart(2, '0')}T${parts[1]}`);
-      } else {
-        parsedDate = new Date();
-      }
+      parsedDate = new Date();
     }
   } catch (e) {
     parsedDate = new Date();
   }
 
   // Format dateStr as YYYY-MM-DD
-  const y = parsedDate.getFullYear();
-  const m = String(parsedDate.getMonth() + 1).padStart(2, '0');
-  const d = String(parsedDate.getDate()).padStart(2, '0');
-  const dateStr = `${y}-${m}-${d}`;
+  const dateStr = getManilaDateKey(parsedDate);
 
   // Parse duration string into seconds (e.g. "00:15:00" -> 900, "58.78" mins -> 3527s)
   let duration_seconds = 0;
@@ -326,8 +351,7 @@ export async function insertTimeTrackerPunch(payload: {
   timestamp?: string;
 }) {
   const supabase = getSupabaseAdmin();
-  const now = new Date();
-  const timestampStr = payload.timestamp || `${now.getMonth() + 1}/${now.getDate()}/${now.getFullYear()} ${now.getHours()}:${now.getMinutes().toString().padStart(2, '0')}:${now.getSeconds().toString().padStart(2, '0')}`;
+  const timestampStr = payload.timestamp || new Date().toISOString();
 
   const row = {
     'LOG ID': `punch-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
@@ -383,20 +407,22 @@ export async function deleteTimeTrackerPunchesForDay(
       const idsToDelete = logs.filter((row: any) => {
         const rawTs = row.TIMESTAMP || row.timestamp;
         if (!rawTs) return false;
-        const d = new Date(rawTs);
+        const d = normalizeTimeTrackerRow({ timestamp: String(rawTs) }).parsedDate;
         if (isNaN(d.getTime())) return false;
-        if (d.getFullYear() !== year) return false;
-        
-        const h = d.getHours();
-        let sDay = d.getDate();
-        let sMonth = d.getMonth();
+        const localParts = new Intl.DateTimeFormat('en-US', {
+          timeZone: TIME_TRACKER_TIME_ZONE, year: 'numeric', month: 'numeric', day: 'numeric', hour: 'numeric', hourCycle: 'h23',
+        }).formatToParts(d);
+        const localPart = (type: string) => Number(localParts.find((part) => part.type === type)?.value);
+        if (localPart('year') !== year) return false;
+        const h = localPart('hour');
+        let sDay = localPart('day');
+        let sMonth = localPart('month') - 1;
         if (shiftStartHour !== null && h < shiftStartHour) {
-          const prev = new Date(d);
-          prev.setDate(prev.getDate() - 1);
-          sDay = prev.getDate();
-          sMonth = prev.getMonth();
+          const prev = new Date(Date.UTC(localPart('year'), localPart('month') - 1, localPart('day') - 1));
+          sDay = prev.getUTCDate();
+          sMonth = prev.getUTCMonth();
         }
-        return sMonth === monthIndex && sDay === dayNumber;
+        return localPart('year') === year && sMonth === monthIndex && sDay === dayNumber;
       }).map((r: any) => r['LOG ID'] || r.id).filter(Boolean);
 
       if (idsToDelete.length > 0) {
@@ -474,8 +500,11 @@ export function computeLiveStatusFromLogs(
   const elapsedSeconds = Math.max(0, Math.floor((Date.now() - latest.parsedDate.getTime()) / 1000));
 
   // Determine punches state for the active day/shift
-  const activeDateStr = latest.dateStr;
-  const shiftLogs = empLogs.filter((l) => l.dateStr === activeDateStr);
+  const mostRecentShiftStart = empLogs.find((log) => log.punch_type.toLowerCase().includes('shift start'));
+  const shiftStartMs = mostRecentShiftStart?.parsedDate.getTime();
+  const shiftLogs = shiftStartMs
+    ? empLogs.filter((log) => log.parsedDate.getTime() >= shiftStartMs)
+    : empLogs.filter((log) => log.dateStr === latest.dateStr);
 
   const hasShiftStart = shiftLogs.some((l) => l.punch_type.toLowerCase().includes('shift start'));
   const hasBreak1Start = shiftLogs.some((l) => l.punch_type.toLowerCase().includes('break 1 start') || l.punch_type.toLowerCase() === 'start break');
@@ -490,6 +519,7 @@ export function computeLiveStatusFromLogs(
     hour: '2-digit',
     minute: '2-digit',
     second: '2-digit',
+    timeZone: TIME_TRACKER_TIME_ZONE,
   });
 
   return {

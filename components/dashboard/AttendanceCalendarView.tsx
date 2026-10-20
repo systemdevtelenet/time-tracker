@@ -469,9 +469,19 @@ export default function AttendanceCalendarView({
       });
     });
 
-    // Sort chronologically within each date
+    // Keep the shift boundaries at the edges of the day's punch list, while
+    // preserving the recorded time order for breaks and meal punches.
     Object.keys(map).forEach((k) => {
-      map[k].sort((a, b) => a.parsedDate.getTime() - b.parsedDate.getTime());
+      map[k].sort((a, b) => {
+        const getBoundaryRank = (punch: DayPunchItem) => {
+          const type = punch.type.toLowerCase();
+          if (type.includes('shift start') || type.includes('punch in')) return 0;
+          if (type.includes('shift end') || type.includes('punch out')) return 2;
+          return 1;
+        };
+        const rankDifference = getBoundaryRank(a) - getBoundaryRank(b);
+        return rankDifference || a.parsedDate.getTime() - b.parsedDate.getTime();
+      });
     });
 
     return map;
@@ -518,8 +528,12 @@ export default function AttendanceCalendarView({
     const isWeekend = d.getDay() === 0 || d.getDay() === 6;
 
     if (dayPunches.length > 0) {
-      const hasLate = dayPunches.some((p) => (p.status || '').toLowerCase() === 'late' || p.type.toLowerCase().includes('late'));
-      const hasUndertime = dayPunches.some((p) => (p.status || '').toLowerCase() === 'undertime');
+      const normalizedStatuses = dayPunches.map((p) => (p.status || '').trim().toLowerCase().replace(/\s+/g, ' '));
+      const hasLate = normalizedStatuses.some((status) => status === 'late' || status.includes('late')) ||
+        dayPunches.some((p) => p.type.toLowerCase().includes('late'));
+      const hasUndertime = normalizedStatuses.some((status) =>
+        status === 'u' || status === 'ut' || status.includes('undertime') || status.includes('late / ut') || status.includes('late/ut')
+      );
 
       if (hasLate && hasUndertime) {
         return { status: 'Late / UT', punches: dayPunches };

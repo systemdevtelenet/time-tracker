@@ -534,11 +534,14 @@ export default function AttendanceCalendarTab({
 
             if (dayLogs.length > 0) {
               const hasLate = dayLogs.some((l) => {
-                const s = (l.status || '').toLowerCase();
+                const s = (l.status || '').trim().toLowerCase().replace(/\s+/g, ' ');
                 const t = (l.type || l.punch_type || '').toLowerCase();
-                return s === 'late' || t.includes('late');
+                return s.includes('late') || t.includes('late');
               });
-              const hasUndertime = dayLogs.some((l) => (l.status || '').toLowerCase() === 'undertime');
+              const hasUndertime = dayLogs.some((l) => {
+                const s = (l.status || '').trim().toLowerCase().replace(/\s+/g, ' ');
+                return s === 'u' || s === 'ut' || s.includes('undertime') || s.includes('late / ut') || s.includes('late/ut');
+              });
               if (hasLate) attendanceMap[d] = 'L';
               else if (hasUndertime) attendanceMap[d] = 'U';
               else attendanceMap[d] = 'P';
