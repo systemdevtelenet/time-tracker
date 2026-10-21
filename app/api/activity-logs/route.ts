@@ -1,170 +1,234 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { getActiveEmployeeAccess } from '@/lib/employeeAccess';
 import { getSupabaseAdmin } from '@/lib/supabase/server';
+import { isLogRelevantToUser, SystemActivityLog, SystemActivityCategory } from '@/lib/activityLogs';
+import { WORKFORCE_TIME_ZONE } from '@/lib/timeZone';
 
 export const dynamic = 'force-dynamic';
 
-export const MAX_ACTIVITY_LOGS = 10;
+const NOTIFICATION_ACTION_URL = '/?source=time-tracker-notification';
+const READ_NOTIFICATION_RETENTION_DAYS = 30;
+const FETCH_PAGE_SIZE = 1000;
 
-export interface ActivityLogItem {
-  id: string;
-  title: string;
-  description: string;
-  timestamp: string;
-  performedBy: string;
-  category: 'AUTH' | 'PUNCH' | 'TIME LOG' | 'ATTENDANCE' | 'TRAINEES' | 'TRAINERS' | 'REMARKS' | 'SYSTEM' | 'ALERT';
-  type?: string;
-  isRead?: boolean;
+function startOfTodayInTimeZone(timeZone: string, now = new Date()): Date {
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone,
+    year: 'numeric', month: '2-digit', day: '2-digit',
+  }).formatToParts(now);
+  const part = (type: string) => parts.find((item) => item.type === type)?.value || '';
+  const [year, month, day] = [Number(part('year')), Number(part('month')), Number(part('day'))];
+  const targetMidnightAsUtc = Date.UTC(year, month - 1, day);
+  const localAtTarget = new Intl.DateTimeFormat('en-US', {
+    timeZone,
+    year: 'numeric', month: '2-digit', day: '2-digit',
+    hour: '2-digit', minute: '2-digit', second: '2-digit', hourCycle: 'h23',
+  }).formatToParts(new Date(targetMidnightAsUtc));
+  const value = (type: string) => Number(localAtTarget.find((item) => item.type === type)?.value || '0');
+  const representedAsUtc = Date.UTC(value('year'), value('month') - 1, value('day'), value('hour'), value('minute'), value('second'));
+  return new Date(targetMidnightAsUtc - (representedAsUtc - targetMidnightAsUtc));
 }
 
-// In-memory runtime cache ensuring real-time continuity for recent activities (strictly max 10)
-let runtimeLogs: ActivityLogItem[] = [];
+function categoryFor(title: string, description: string): SystemActivityCategory {
+  const text = `${title} ${description}`.toLowerCase();
+  if (text.includes('punch') || text.includes('shift start') || text.includes('shift end') || text.includes('break')) return 'PUNCH';
+  if (text.includes('login') || text.includes('sign in')) return 'AUTH';
+  if (text.includes('time log') || text.includes('task activity')) return 'TIME LOG';
+  if (text.includes('attendance')) return 'ATTENDANCE';
+  if (text.includes('trainee')) return 'TRAINEES';
+  if (text.includes('trainer')) return 'TRAINERS';
+  if (text.includes('remark')) return 'REMARKS';
+  if (text.includes('alert')) return 'ALERT';
+  return 'SYSTEM';
+}
 
-/**
- * Automatically prunes the activity_logs table in Supabase so only the latest 10 records exist in the database.
- * This saves database storage on free tier without deleting any employee timesheets.
- */
-async function autoPruneActivityLogsInDb(supabase: any) {
-  try {
-    const { data: logs } = await supabase
-      .from('activity_logs')
-      .select('id, timestamp, created_at')
-      .order('created_at', { ascending: false });
-
-    if (logs && logs.length > MAX_ACTIVITY_LOGS) {
-      const logsToDelete = logs.slice(MAX_ACTIVITY_LOGS);
-      const idsToDelete = logsToDelete.map((l: any) => l.id).filter(Boolean);
-      if (idsToDelete.length > 0) {
-        await supabase
-          .from('activity_logs')
-          .delete()
-          .in('id', idsToDelete);
-      }
-    }
-  } catch (err) {
-    // Graceful fallback if table is not created yet
+function activityTypeFor(category: SystemActivityCategory): SystemActivityLog['type'] {
+  switch (category) {
+    case 'AUTH': return 'login';
+    case 'PUNCH': return 'punch';
+    case 'TIME LOG': return 'timelog';
+    case 'ATTENDANCE': return 'attendance' as SystemActivityLog['type'];
+    case 'TRAINEES': return 'trainee';
+    case 'TRAINERS': return 'trainer';
+    case 'REMARKS': return 'remark';
+    case 'ALERT': return 'alert';
+    default: return 'system';
   }
+}
+
+function performedByFromDescription(description: string): string {
+  const performed = /^(.+?)\s+performed\b/i.exec(description);
+  if (performed) return performed[1].trim();
+  const by = /\(by\s+([^)]+)\)/i.exec(description);
+  return by?.[1]?.trim() || 'System';
+}
+
+function toActivityLog(row: any, recipientName: string): SystemActivityLog {
+  const title = String(row.title || 'Notification');
+  const description = String(row.description || '');
+  const category = categoryFor(title, description);
+  return {
+    id: String(row.notification_id),
+    title,
+    description,
+    timestamp: String(row.created_at),
+    performedBy: performedByFromDescription(description),
+    category,
+    type: activityTypeFor(category),
+    isRead: Boolean(row.read_at),
+    metadata: { recipientName },
+  };
+}
+
+async function pruneExpiredReadNotifications(supabase: ReturnType<typeof getSupabaseAdmin>) {
+  const cutoff = new Date(Date.now() - READ_NOTIFICATION_RETENTION_DAYS * 24 * 60 * 60 * 1000).toISOString();
+  const { error } = await supabase
+    .from('notifications')
+    .delete()
+    .eq('action_url', NOTIFICATION_ACTION_URL)
+    .lt('read_at', cutoff);
+  if (error) throw error;
+}
+
+async function readAllPages(queryFactory: (from: number, to: number) => any) {
+  const rows: any[] = [];
+  for (let offset = 0; ; offset += FETCH_PAGE_SIZE) {
+    const { data, error } = await queryFactory(offset, offset + FETCH_PAGE_SIZE - 1);
+    if (error) throw error;
+    rows.push(...(data || []));
+    if (!data || data.length < FETCH_PAGE_SIZE) break;
+  }
+  return rows;
+}
+
+function unauthorized() {
+  return NextResponse.json({ error: 'Please sign in with an active employee account.' }, { status: 401 });
 }
 
 export async function GET(request: NextRequest) {
   try {
+    const employee = await getActiveEmployeeAccess(request);
+    if (!employee) return unauthorized();
+
     const supabase = getSupabaseAdmin();
-    const { searchParams } = new URL(request.url);
-    const category = searchParams.get('category');
-    const limit = Math.min(parseInt(searchParams.get('limit') || '10', 10), MAX_ACTIVITY_LOGS);
+    await pruneExpiredReadNotifications(supabase);
+    const todayStart = startOfTodayInTimeZone(WORKFORCE_TIME_ZONE).toISOString();
+    const selectFields = 'notification_id, title, description, read_at, created_at, action_url';
 
-    // Prune activity_logs in database to 10 rows max
-    await autoPruneActivityLogsInDb(supabase);
-
-    const aggregated: ActivityLogItem[] = [...runtimeLogs];
-
-    // 1. Fetch real recent activity logs from Supabase activity_logs table
-    try {
-      const { data: dbActivityLogs } = await supabase
-        .from('activity_logs')
-        .select('*')
+    const [todayRows, unreadRows] = await Promise.all([
+      readAllPages((from, to) => supabase.from('notifications').select(selectFields)
+        .eq('recipient_employee_id', employee.id)
+        .eq('action_url', NOTIFICATION_ACTION_URL)
+        .gte('created_at', todayStart)
         .order('created_at', { ascending: false })
-        .limit(MAX_ACTIVITY_LOGS);
+        .range(from, to)),
+      readAllPages((from, to) => supabase.from('notifications').select(selectFields)
+        .eq('recipient_employee_id', employee.id)
+        .eq('action_url', NOTIFICATION_ACTION_URL)
+        .is('read_at', null)
+        .order('created_at', { ascending: false })
+        .range(from, to)),
+    ]);
 
-      if (dbActivityLogs && dbActivityLogs.length > 0) {
-        dbActivityLogs.forEach((item: any) => {
-          if (!aggregated.some((l) => l.id === item.id)) {
-            aggregated.push({
-              id: item.id,
-              title: item.title,
-              description: item.description,
-              timestamp: item.timestamp || item.created_at || new Date().toISOString(),
-              performedBy: item.performed_by || item.performedBy || 'System',
-              category: item.category || 'SYSTEM',
-              type: item.type || 'system',
-              isRead: item.is_read ?? true,
-            });
-          }
-        });
-      }
-    } catch (e) {}
+    const uniqueRows = new Map<string, any>();
+    [...todayRows, ...unreadRows].forEach((row) => uniqueRows.set(String(row.notification_id), row));
+    const data = [...uniqueRows.values()]
+      .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+      .map((row) => toActivityLog(row, employee.name));
 
-    // Sort by timestamp descending (newest first)
-    const sorted = aggregated.sort((a, b) => {
-      return new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime();
-    });
-
-    let filtered = sorted;
-    if (category && category !== 'ALL') {
-      filtered = filtered.filter((l) => l.category === category);
-    }
-
-    // Strictly enforce max 10 logs
-    const finalLogs = filtered.slice(0, limit);
-
-    return NextResponse.json({
-      success: true,
-      data: finalLogs,
-      total: finalLogs.length,
-      unreadCount: finalLogs.filter((l) => !l.isRead).length,
-    });
-  } catch (err: any) {
-    console.error('Error in GET /api/activity-logs:', err);
-    return NextResponse.json({ success: false, data: runtimeLogs.slice(0, MAX_ACTIVITY_LOGS) }, { status: 500 });
+    return NextResponse.json({ success: true, data, total: data.length, unreadCount: data.filter((item) => !item.isRead).length });
+  } catch (error) {
+    console.error('Error in GET /api/activity-logs:', error);
+    return NextResponse.json({ error: 'Unable to load notifications.', data: [] }, { status: 500 });
   }
 }
 
 export async function POST(request: NextRequest) {
   try {
-    const supabase = getSupabaseAdmin();
-    const body = await request.json();
-    const { title, description, performedBy, category, type } = body;
+    const employee = await getActiveEmployeeAccess(request);
+    if (!employee) return unauthorized();
 
+    const body = await request.json();
+    const title = typeof body.title === 'string' ? body.title.trim() : '';
+    const description = typeof body.description === 'string' ? body.description.trim() : '';
     if (!title || !description) {
-      return NextResponse.json({ error: 'Title and description are required' }, { status: 400 });
+      return NextResponse.json({ error: 'Title and description are required.' }, { status: 400 });
     }
 
-    const newLog: ActivityLogItem = {
-      id: body.id || `act-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
+    const supabase = getSupabaseAdmin();
+    await pruneExpiredReadNotifications(supabase);
+
+    // Keep activity notifications for the actor and any employee explicitly
+    // named as the target, plus managers who already receive organization logs.
+    const log: SystemActivityLog = {
+      id: String(body.id || ''),
       title,
       description,
-      timestamp: body.timestamp || new Date().toISOString(),
-      performedBy: performedBy || 'System Auth',
-      category: category || 'SYSTEM',
-      type: type || 'system',
+      timestamp: new Date().toISOString(),
+      performedBy: typeof body.performedBy === 'string' ? body.performedBy : employee.name,
+      category: (typeof body.category === 'string' ? body.category : categoryFor(title, description)) as SystemActivityCategory,
+      type: body.type || 'system',
       isRead: false,
+      metadata: body.metadata && typeof body.metadata === 'object' ? body.metadata : {},
     };
+    const { data: roster, error: rosterError } = await supabase.from('employees')
+      .select('id, employee_code, employee_name, employee_email, roles(role_name), positions(position_name)');
+    if (rosterError) throw rosterError;
 
-    // Strictly keep only the top 10 logs in runtime memory
-    runtimeLogs = [newLog, ...runtimeLogs.filter((l) => l.id !== newLog.id)].slice(0, MAX_ACTIVITY_LOGS);
+    const recipients = new Set<number>([employee.id]);
+    for (const candidate of roster || []) {
+      const user = {
+        id: String(candidate.employee_code || candidate.id),
+        name: candidate.employee_name || '',
+        email: candidate.employee_email || '',
+        role: (candidate.roles as { role_name?: string } | null)?.role_name || '',
+        position: (candidate.positions as { position_name?: string } | null)?.position_name || '',
+      };
+      if (isLogRelevantToUser(log, user)) recipients.add(Number(candidate.id));
+    }
 
-    // Persist to Supabase activity_logs table and prune to 10 rows
-    try {
-      await supabase.from('activity_logs').insert({
-        id: newLog.id,
-        title: newLog.title,
-        description: newLog.description,
-        timestamp: newLog.timestamp,
-        performed_by: newLog.performedBy,
-        category: newLog.category,
-        type: newLog.type,
-        is_read: newLog.isRead,
-      });
-      await autoPruneActivityLogsInDb(supabase);
-    } catch (e) {}
+    const rows = [...recipients].map((recipientId) => ({
+      recipient_employee_id: recipientId,
+      title,
+      description,
+      action_url: NOTIFICATION_ACTION_URL,
+      created_at: log.timestamp,
+    }));
+    const { data: inserted, error } = await supabase.from('notifications')
+      .insert(rows)
+      .select('notification_id, recipient_employee_id, title, description, read_at, created_at, action_url');
+    if (error) throw error;
 
-    return NextResponse.json({ success: true, data: newLog }, { status: 201 });
-  } catch (err: any) {
-    console.error('Error in POST /api/activity-logs:', err);
-    return NextResponse.json({ error: err.message }, { status: 500 });
+    const ownNotification = (inserted || []).find((row) => Number(row.recipient_employee_id) === employee.id) || inserted?.[0];
+    return NextResponse.json({ success: true, data: ownNotification ? toActivityLog(ownNotification, employee.name) : log }, { status: 201 });
+  } catch (error) {
+    console.error('Error in POST /api/activity-logs:', error);
+    return NextResponse.json({ error: 'Unable to save this notification.' }, { status: 500 });
   }
 }
 
-export async function DELETE() {
+export async function PATCH(request: NextRequest) {
   try {
+    const employee = await getActiveEmployeeAccess(request);
+    if (!employee) return unauthorized();
+    const body = await request.json();
     const supabase = getSupabaseAdmin();
-    runtimeLogs = [];
-    try {
-      await supabase.from('activity_logs').delete().neq('id', 'keep_none');
-    } catch (e) {}
-    return NextResponse.json({ success: true, message: 'Activity feed cleared from database and memory' });
-  } catch (err: any) {
-    return NextResponse.json({ error: err.message }, { status: 500 });
+    const update = supabase.from('notifications').update({ read_at: new Date().toISOString() })
+      .eq('recipient_employee_id', employee.id)
+      .eq('action_url', NOTIFICATION_ACTION_URL)
+      .is('read_at', null);
+
+    if (body.action === 'mark_read' && /^\d+$/.test(String(body.id || ''))) {
+      const { error } = await update.eq('notification_id', Number(body.id));
+      if (error) throw error;
+    } else if (body.action === 'mark_all_read') {
+      const { error } = await update;
+      if (error) throw error;
+    } else {
+      return NextResponse.json({ error: 'A valid notification read action is required.' }, { status: 400 });
+    }
+    return NextResponse.json({ success: true });
+  } catch (error) {
+    console.error('Error in PATCH /api/activity-logs:', error);
+    return NextResponse.json({ error: 'Unable to update notification status.' }, { status: 500 });
   }
 }
-
-

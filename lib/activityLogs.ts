@@ -1,3 +1,5 @@
+import { WORKFORCE_TIME_ZONE } from '@/lib/timeZone';
+
 export type SystemActivityCategory = 
   | 'AUTH' 
   | 'PUNCH' 
@@ -21,82 +23,12 @@ export interface SystemActivityLog {
   metadata?: Record<string, any>;
 }
 
-export const MAX_ACTIVITY_LOGS = 10;
+export const MAX_ACTIVITY_LOGS = 1000;
+const READ_NOTIFICATION_RETENTION_DAYS = 30;
 
 const STORAGE_KEY = 'ctnp_system_activity_logs';
 
-export const INITIAL_ACTIVITY_LOGS: SystemActivityLog[] = [
-  {
-    id: 'act-punch-1',
-    title: 'Break 2 End Recorded',
-    description: 'Nissi-Jeh Reguero performed shift punch action: Break 2 End.',
-    timestamp: new Date(Date.now() - 2 * 60 * 1000).toISOString(),
-    performedBy: 'Nissi-Jeh Reguero',
-    category: 'PUNCH',
-    type: 'punch',
-    isRead: true,
-  },
-  {
-    id: 'act-punch-2',
-    title: 'Break 2 Start Recorded',
-    description: 'Nissi-Jeh Reguero performed shift punch action: Break 2 Start.',
-    timestamp: new Date(Date.now() - 3 * 60 * 1000).toISOString(),
-    performedBy: 'Nissi-Jeh Reguero',
-    category: 'PUNCH',
-    type: 'punch',
-    isRead: true,
-  },
-  {
-    id: 'act-login-1',
-    title: 'User Login',
-    description: 'nreguero.telenet@gmail.com successfully logged into the hub.',
-    timestamp: new Date(Date.now() - 22 * 60 * 60 * 1000).toISOString(),
-    performedBy: 'System Auth',
-    category: 'AUTH',
-    type: 'login',
-    isRead: true,
-  },
-  {
-    id: 'act-timelog-1',
-    title: 'Task Activity Recorded',
-    description: 'Logged 37 minutes, 36 seconds for DFT (Ticket #068bf153).',
-    timestamp: new Date(Date.now() - 23 * 60 * 60 * 1000).toISOString(),
-    performedBy: 'Matt Riner Balaba',
-    category: 'TIME LOG',
-    type: 'timelog',
-    isRead: true,
-  },
-  {
-    id: 'act-timelog-2',
-    title: 'Task Activity Recorded',
-    description: 'Logged 8 hours for Corporate (Ticket #CORP-TR-01).',
-    timestamp: new Date(Date.now() - 23 * 60 * 60 * 1000 - 5 * 60 * 1000).toISOString(),
-    performedBy: 'Nissi-Jeh Reguero',
-    category: 'TIME LOG',
-    type: 'timelog',
-    isRead: true,
-  },
-  {
-    id: 'act-timelog-3',
-    title: 'Task Activity Recorded',
-    description: 'Logged 43 minutes, 6 seconds for DFT (Ticket #36e7ebf4).',
-    timestamp: new Date(Date.now() - 23 * 60 * 60 * 1000 - 15 * 60 * 1000).toISOString(),
-    performedBy: 'Matt Riner Balaba',
-    category: 'TIME LOG',
-    type: 'timelog',
-    isRead: true,
-  },
-  {
-    id: 'act-timelog-4',
-    title: 'Task Activity Recorded',
-    description: 'Logged 27 minutes, 11 seconds for DFT (Ticket #9cfd9194).',
-    timestamp: new Date(Date.now() - 23 * 60 * 60 * 1000 - 30 * 60 * 1000).toISOString(),
-    performedBy: 'Matt Riner Balaba',
-    category: 'TIME LOG',
-    type: 'timelog',
-    isRead: true,
-  },
-];
+export const INITIAL_ACTIVITY_LOGS: SystemActivityLog[] = [];
 
 export function isHeadOrAdminUser(supervisor?: {
   role?: string;
@@ -145,8 +77,11 @@ export function isLogRelevantToUser(
   const logDescription = (log.description || '').toLowerCase();
   const logMeta = log.metadata || {};
   const metaEmployeeName = String(logMeta.employeeName || logMeta.employee_name || logMeta.name || '').trim().toLowerCase();
+  const metaRecipientName = String(logMeta.recipientName || '').trim().toLowerCase();
   const metaEmail = String(logMeta.email || '').trim().toLowerCase();
   const metaUserId = String(logMeta.id || logMeta.employeeId || logMeta.employee_id || '').trim().toLowerCase();
+
+  if (userName && metaRecipientName && metaRecipientName === userName) return true;
 
   // 1. Direct performedBy match (the user themselves performed this action)
   if (userName && (logPerformedBy === userName || logPerformedBy.includes(userName) || userName.includes(logPerformedBy))) {
@@ -241,39 +176,56 @@ export function getActivityLogs(): SystemActivityLog[] {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(INITIAL_ACTIVITY_LOGS));
       return INITIAL_ACTIVITY_LOGS;
     }
     const parsed = JSON.parse(raw);
-    if (Array.isArray(parsed) && parsed.length > 0) {
-      return parsed.slice(0, MAX_ACTIVITY_LOGS);
+    if (Array.isArray(parsed)) {
+      const cutoff = Date.now() - READ_NOTIFICATION_RETENTION_DAYS * 24 * 60 * 60 * 1000;
+      const retained = parsed.filter((log: SystemActivityLog) =>
+        !/^act-(?:punch|login|timelog)-\d+$/.test(log.id) &&
+        (!log.isRead || new Date(log.timestamp).getTime() >= cutoff)
+      );
+      if (retained.length !== parsed.length) localStorage.setItem(STORAGE_KEY, JSON.stringify(retained));
+      return retained;
     }
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(INITIAL_ACTIVITY_LOGS));
     return INITIAL_ACTIVITY_LOGS;
   } catch (e) {
     return INITIAL_ACTIVITY_LOGS;
   }
 }
 
+export function filterNotificationsForToday(logs: SystemActivityLog[]): SystemActivityLog[] {
+  const today = new Intl.DateTimeFormat('en-CA', {
+    timeZone: WORKFORCE_TIME_ZONE,
+    year: 'numeric', month: '2-digit', day: '2-digit',
+  }).format(new Date());
+  return logs.filter((log) => {
+    if (!log.isRead) return true;
+    const logDay = new Intl.DateTimeFormat('en-CA', {
+      timeZone: WORKFORCE_TIME_ZONE,
+      year: 'numeric', month: '2-digit', day: '2-digit',
+    }).format(new Date(log.timestamp));
+    return logDay === today;
+  });
+}
+
 export async function syncActivityLogsWithApi(): Promise<SystemActivityLog[]> {
   try {
-    const res = await fetch(`/api/activity-logs?limit=${MAX_ACTIVITY_LOGS}`);
+    const res = await fetch('/api/activity-logs');
     if (res.ok) {
       const json = await res.json();
       if (json.success && Array.isArray(json.data)) {
         const localLogs = getActivityLogs();
         const mergedMap = new Map<string, SystemActivityLog>();
         
-        // Add default/seed logs first
-        INITIAL_ACTIVITY_LOGS.forEach((l) => mergedMap.set(l.id, l));
-        // Add backend logs
-        json.data.forEach((l: SystemActivityLog) => mergedMap.set(l.id, l));
         // Add local logs
         localLogs.forEach((l) => mergedMap.set(l.id, l));
+        // Server read state is authoritative for persisted notifications.
+        json.data.forEach((l: SystemActivityLog) => mergedMap.set(l.id, l));
         
         const combined = Array.from(mergedMap.values()).sort(
           (a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
-        ).slice(0, MAX_ACTIVITY_LOGS);
+        );
 
         if (typeof window !== 'undefined') {
           localStorage.setItem(STORAGE_KEY, JSON.stringify(combined));
@@ -285,7 +237,7 @@ export async function syncActivityLogsWithApi(): Promise<SystemActivityLog[]> {
   } catch (err) {
     console.warn('API sync warning for activity logs:', err);
   }
-  return getActivityLogs().slice(0, MAX_ACTIVITY_LOGS);
+  return getActivityLogs();
 }
 
 export function addActivityLog(
@@ -308,7 +260,7 @@ export function addActivityLog(
     metadata: log.metadata,
   };
 
-  const updated = [newLog, ...currentLogs.filter((l) => l.id !== newLog.id)].slice(0, MAX_ACTIVITY_LOGS);
+  const updated = [newLog, ...currentLogs.filter((l) => l.id !== newLog.id)];
   if (typeof window !== 'undefined') {
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
@@ -319,6 +271,14 @@ export function addActivityLog(
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(newLog),
+      }).then(async (response) => {
+        if (!response.ok) return;
+        const result = await response.json();
+        const saved = result?.data as SystemActivityLog | undefined;
+        if (!saved?.id) return;
+        const latest = getActivityLogs().map((item) => item.id === newLog.id ? { ...item, ...saved } : item);
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(latest));
+        window.dispatchEvent(new CustomEvent('system-activity-logged', { detail: { action: 'sync' } }));
       }).catch((e) => console.warn('Activity log backend POST skipped:', e));
     } catch (e) {}
   }
@@ -385,6 +345,11 @@ export function markAllNotificationsAsRead(user?: {
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
     window.dispatchEvent(new CustomEvent('system-activity-logged', { detail: { action: 'mark_all_read' } }));
+    fetch('/api/activity-logs', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'mark_all_read' }),
+    }).catch(() => {});
   } catch (e) {}
 }
 
@@ -395,6 +360,11 @@ export function markNotificationAsRead(id: string): void {
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
     window.dispatchEvent(new CustomEvent('system-activity-logged', { detail: { action: 'mark_read', id } }));
+    fetch('/api/activity-logs', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'mark_read', id }),
+    }).catch(() => {});
   } catch (e) {}
 }
 
@@ -403,7 +373,6 @@ export function clearActivityLogs(): void {
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify([]));
     window.dispatchEvent(new CustomEvent('system-activity-logged', { detail: { action: 'clear' } }));
-    fetch('/api/activity-logs', { method: 'DELETE' }).catch(() => {});
   } catch (e) {}
 }
 

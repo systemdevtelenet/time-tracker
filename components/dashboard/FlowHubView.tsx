@@ -1344,7 +1344,7 @@ export default function FlowHubView({ onBackToPortal }: FlowHubViewProps) {
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
           
           {/* Left: Focus Timer Widget (Tightened padding & gaps) */}
-          <div className="lg:col-span-4 p-4 rounded-xl bg-slate-50/60 dark:bg-slate-900/40 border border-slate-200/80 dark:border-slate-800 flex flex-col justify-between space-y-3">
+          <div id="flowhub-timer" className="scroll-mt-4 lg:col-span-4 p-4 rounded-xl bg-slate-50/60 dark:bg-slate-900/40 border border-slate-200/80 dark:border-slate-800 flex flex-col justify-between space-y-3">
           
           {/* Header Bar */}
           <div className="flex items-center justify-between pb-2 border-b border-slate-100 dark:border-slate-800">
@@ -1682,7 +1682,7 @@ export default function FlowHubView({ onBackToPortal }: FlowHubViewProps) {
         </div>
 
         {/* Right: Task Board (Visual Teamhood Kanban Board matching screenshot) */}
-        <div className="lg:col-span-8 p-4 sm:p-5 rounded-xl bg-slate-50/60 dark:bg-slate-900/40 border border-slate-200/80 dark:border-slate-800 flex flex-col justify-between space-y-4">
+        <div id="flowhub-tasks" className="scroll-mt-4 lg:col-span-8 p-4 sm:p-5 rounded-xl bg-slate-50/60 dark:bg-slate-900/40 border border-slate-200/80 dark:border-slate-800 flex flex-col justify-between space-y-4">
           {renderVisualTaskBoard(false)}
         </div>
 
@@ -1694,7 +1694,7 @@ export default function FlowHubView({ onBackToPortal }: FlowHubViewProps) {
       </div>
 
       {/* Wellness & Daily Routine Tracker */}
-      <div className="border-t border-slate-100 dark:border-slate-800/80 pt-6">
+      <div id="flowhub-routine" className="scroll-mt-4 border-t border-slate-100 dark:border-slate-800/80 pt-6">
         <div className="rounded-xl bg-slate-50/60 dark:bg-slate-900/40 border border-slate-200/80 dark:border-slate-800 p-5 sm:p-6 space-y-5">
           
           {/* Top Header: Greeting, Title & Add Routine Button */}

@@ -70,6 +70,17 @@ export default function ActivityLogsView({
   const isHeadOrAdmin = isHeadOrAdminUser(activeUser);
   const filterTabs = isHeadOrAdmin ? ADMIN_FILTER_TABS : USER_FILTER_TABS;
 
+  useEffect(() => {
+    const handleSidebarSection = (event: Event) => {
+      const detail = (event as CustomEvent<{ tab?: string; section?: string }>).detail;
+      if (detail?.tab === 'activity' && filterTabs.some((tab) => tab.id === detail.section)) {
+        setActiveFilter(detail.section || 'all');
+      }
+    };
+    window.addEventListener('sidebar-section-selected', handleSidebarSection);
+    return () => window.removeEventListener('sidebar-section-selected', handleSidebarSection);
+  }, [filterTabs]);
+
   const fetchLogs = async () => {
     const current = getActivityLogs();
     setLogs(current);

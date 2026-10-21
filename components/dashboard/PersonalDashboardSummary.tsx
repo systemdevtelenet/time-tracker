@@ -151,12 +151,12 @@ export default function PersonalDashboardSummary({ employeeId, shift, onOpenAtte
   }, [refresh]);
 
   const summaryCards = [
-    { label: 'Present', value: counts.present, icon: CheckCircle2, color: 'text-emerald-600 bg-emerald-50 border-emerald-100 dark:text-emerald-400' },
-    { label: 'Late', value: counts.late, icon: Clock, color: 'text-amber-600 bg-amber-50 border-amber-100 dark:text-amber-400' },
-    { label: 'Undertime', value: counts.undertime, icon: AlertTriangle, color: 'text-orange-600 bg-orange-50 border-orange-100 dark:text-orange-400' },
-    { label: 'Absent', value: counts.absent, icon: AlertTriangle, color: 'text-rose-600 bg-rose-50 border-rose-100 dark:text-rose-400' },
-    { label: 'Rest Days', value: counts.restDays, icon: CalendarDays, color: 'text-slate-600 bg-slate-100 border-slate-200 dark:text-slate-400' },
-    { label: 'Leave Days', value: counts.leave, icon: CalendarDays, color: 'text-blue-600 bg-blue-50 border-blue-100 dark:text-blue-400' },
+    { label: 'Present', value: counts.present, icon: CheckCircle2, color: 'text-emerald-600 bg-emerald-50 border-emerald-100 dark:text-emerald-300 dark:bg-emerald-950/55 dark:border-emerald-800/70' },
+    { label: 'Late', value: counts.late, icon: Clock, color: 'text-amber-600 bg-amber-50 border-amber-100 dark:text-amber-300 dark:bg-amber-950/55 dark:border-amber-800/70' },
+    { label: 'Undertime', value: counts.undertime, icon: AlertTriangle, color: 'text-orange-600 bg-orange-50 border-orange-100 dark:text-orange-300 dark:bg-orange-950/55 dark:border-orange-800/70' },
+    { label: 'Absent', value: counts.absent, icon: AlertTriangle, color: 'text-rose-600 bg-rose-50 border-rose-100 dark:text-rose-300 dark:bg-rose-950/55 dark:border-rose-800/70' },
+    { label: 'Rest Days', value: counts.restDays, icon: CalendarDays, color: 'text-slate-600 bg-slate-100 border-slate-200 dark:text-slate-300 dark:bg-slate-800/80 dark:border-slate-700' },
+    { label: 'Leave Days', value: counts.leave, icon: CalendarDays, color: 'text-blue-600 bg-blue-50 border-blue-100 dark:text-blue-300 dark:bg-blue-950/55 dark:border-blue-800/70' },
   ];
 
   if (variant === 'attendance') {

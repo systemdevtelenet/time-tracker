@@ -474,7 +474,7 @@ export default function LiveShiftPunchTimeline({
         </div>
 
         {/* 3. Full-Width Punch Audit Log Table with Duration & Status Columns */}
-        <div className="pt-2">
+        <div id="time-tracker-history" className="scroll-mt-4 pt-2">
           <div className="w-full p-4 sm:p-5 rounded-2xl bg-gradient-to-br from-slate-50 to-white dark:from-slate-900 dark:to-[#272626] border border-slate-200/80 dark:border-[#434142] space-y-3 shadow-xs">
             <div className="flex items-center justify-between">
               <h4 className="text-xs font-black uppercase tracking-wider text-slate-700 dark:text-slate-300 flex items-center gap-1.5">

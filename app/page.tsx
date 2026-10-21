@@ -584,6 +584,7 @@ function HomePageContent() {
             <div className="space-y-4 animate-in fade-in">
               {/* Welcome banner with the agent's daily overview and weather */}
               <section
+                id="dashboard-welcome"
                 className="relative z-30 grid min-h-[168px] grid-cols-1 items-center gap-5 overflow-visible rounded-2xl border border-[#4B83AE] bg-[#2F6798] bg-cover bg-center px-5 py-5 text-white shadow-sm sm:min-h-[176px] sm:grid-cols-[minmax(0,1fr)_auto] sm:px-7 sm:py-6"
                 style={{
                   backgroundImage: "linear-gradient(90deg, rgba(38, 91, 137, 0.97) 0%, rgba(47, 103, 152, 0.91) 48%, rgba(47, 103, 152, 0.56) 100%), url('https://zhdmsmwrskxowvytedgh.supabase.co/storage/v1/object/public/Images/dark_mode_hero.png')",
@@ -610,18 +611,21 @@ function HomePageContent() {
               </section>
 
               {/* 4 System-Related Hero KPI Cards */}
-              <HeroKpiCards 
-                records={filteredDashboardRecords} 
-                kpiStats={kpiStats} 
-                isHeadOrAdmin={isAdmin}
-                userShift={supervisor.shift}
-                stats={{ 
-                  activeCount: isAdmin ? employees.length : 1,
-                  totalEmployees: isAdmin ? employees.length : 1
-                }} 
-              />
+              <div id="dashboard-stats" className="scroll-mt-4">
+                <HeroKpiCards
+                  records={filteredDashboardRecords}
+                  kpiStats={kpiStats}
+                  isHeadOrAdmin={isAdmin}
+                  userShift={supervisor.shift}
+                  stats={{
+                    activeCount: isAdmin ? employees.length : 1,
+                    totalEmployees: isAdmin ? employees.length : 1
+                  }}
+                />
+              </div>
 
               {/* Filter Controls Bar and Analytics/Table in One Single External Container */}
+              <div id="dashboard-summary" className="scroll-mt-4">
               {isAdmin ? (
               <div className="w-full bg-white dark:bg-[#0E1B38] border border-slate-200/90 dark:border-slate-800 rounded-2xl p-3.5 sm:p-4.5 shadow-2xs space-y-4">
                 
@@ -677,6 +681,7 @@ function HomePageContent() {
                   onOpenAttendance={() => handleSelectTab('attendance')}
                 />
               )}
+              </div>
 
             </div>
           )}
@@ -686,36 +691,40 @@ function HomePageContent() {
             <div className="space-y-4 animate-in fade-in">
               {/* Single External White Container for Nissi-Jeh Reguero container & Today's Shift Activity & Punch Audit Trail */}
               <div className="w-full bg-white dark:bg-[#0E1B38] border border-slate-200/90 dark:border-slate-800 rounded-3xl p-5 sm:p-6 shadow-2xs space-y-6">
-                <SupervisorShiftCard 
-                  supervisor={supervisor}
-                  embedded={true}
-                  onPunchAction={(act) => {
-                    setToastMsg(`Action recorded: ${act}`);
-                    setTimeout(() => setToastMsg(null), 2500);
-                    addActivityLog({
-                      title: `${act} Recorded`,
-                      description: `${supervisor.name} performed shift punch action: ${act}.`,
-                      performedBy: supervisor.name,
-                      category: 'PUNCH',
-                      type: 'punch',
-                    });
-                  }}
-                />
+                <div id="time-tracker-clock" className="scroll-mt-4">
+                  <SupervisorShiftCard
+                    supervisor={supervisor}
+                    embedded={true}
+                    onPunchAction={(act) => {
+                      setToastMsg(`Action recorded: ${act}`);
+                      setTimeout(() => setToastMsg(null), 2500);
+                      addActivityLog({
+                        title: `${act} Recorded`,
+                        description: `${supervisor.name} performed shift punch action: ${act}.`,
+                        performedBy: supervisor.name,
+                        category: 'PUNCH',
+                        type: 'punch',
+                      });
+                    }}
+                  />
+                </div>
 
                 <div className="h-px bg-slate-100 dark:bg-slate-800" />
 
-                <LiveShiftPunchTimeline 
-                  embedded={true} 
-                  supervisorId={supervisor.id}
-                  shiftSchedule={supervisor.shift}
-                />
+                <div id="time-tracker-timeline" className="scroll-mt-4">
+                  <LiveShiftPunchTimeline
+                    embedded={true}
+                    supervisorId={supervisor.id}
+                    shiftSchedule={supervisor.shift}
+                  />
+                </div>
               </div>
             </div>
           )}
 
           {/* TAB 3: ACTIVITY LOGS */}
           {activeTab === 'activity' && (
-            <div className="animate-in fade-in">
+            <div id="activity-view" className="animate-in fade-in scroll-mt-4">
               <ActivityLogsView
                 onBackToDashboard={() => handleSelectTab('dashboard')}
                 supervisorName={supervisor.name}
@@ -726,7 +735,7 @@ function HomePageContent() {
 
           {/* TAB 4: FLOW HUB */}
           {activeTab === 'flowhub' && (
-            <div className="animate-in fade-in">
+            <div id="flowhub-view" className="animate-in fade-in scroll-mt-4">
               <FlowHubView 
                 onBackToPortal={() => handleSelectTab('dashboard')} 
               />
@@ -735,7 +744,7 @@ function HomePageContent() {
 
           {/* TAB 4: ATTENDANCE & ROSTER HUB (Roster, Calendar, Hours Report, Employee Details) */}
           {activeTab === 'attendance' && (
-            <div className="animate-in fade-in">
+            <div id="attendance-view" className="animate-in fade-in scroll-mt-4">
               <AttendanceRosterHub
                 records={accessibleRecords}
                 supervisorName={supervisor.name}
@@ -751,17 +760,19 @@ function HomePageContent() {
 
           {/* TAB 5: ANALYTICS & INSIGHTS */}
           {activeTab === 'analytics' && (
-            <AnalyticsView
-              records={records}
-              employees={employees}
-              accounts={accounts}
-              kpiStats={kpiStats}
-            />
+            <div id="analytics-view" className="scroll-mt-4">
+              <AnalyticsView
+                records={records}
+                employees={employees}
+                accounts={accounts}
+                kpiStats={kpiStats}
+              />
+            </div>
           )}
 
           {/* TAB 6: SETTINGS */}
           {activeTab === 'settings' && (
-            <div className="animate-in fade-in">
+            <div id="settings-view" className="animate-in fade-in scroll-mt-4">
               <SettingsView
                 onBackToDashboard={() => handleSelectTab('dashboard')}
                 supervisor={supervisor}

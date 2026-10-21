@@ -1,6 +1,7 @@
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { useRouter } from 'next/navigation';
 import { 
   LayoutDashboard, 
@@ -14,7 +15,12 @@ import {
   Utensils,
   Coffee,
   LogIn,
-  FileText
+  FileText,
+  User,
+  Bell,
+  ListTodo,
+  Timer,
+  ShieldCheck
 } from 'lucide-react';
 import { PunchActionType } from '@/lib/punchLogs';
 import ConfirmActionModal from './ConfirmActionModal';
@@ -24,6 +30,15 @@ interface NavItem {
   id: string;
   label: string;
   icon: any;
+}
+
+interface SidebarShortcut {
+  label: string;
+  description: string;
+  icon: NavItem['icon'];
+  tab: string;
+  target?: string;
+  section?: string;
 }
 
 const NAV_ITEMS: NavItem[] = [
@@ -65,6 +80,64 @@ export default function CompanySidebar({
   const router = useRouter();
   const [isCollapsed, setIsCollapsed] = useState(true);
   const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false);
+  const [flyout, setFlyout] = useState<{ id: string; left: number; top?: number; bottom?: number } | null>(null);
+  const flyoutCloseTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const cancelFlyoutClose = () => {
+    if (flyoutCloseTimer.current) clearTimeout(flyoutCloseTimer.current);
+    flyoutCloseTimer.current = null;
+  };
+
+  const closeFlyout = () => {
+    cancelFlyoutClose();
+    setFlyout(null);
+  };
+
+  const scheduleFlyoutClose = () => {
+    cancelFlyoutClose();
+    flyoutCloseTimer.current = setTimeout(() => setFlyout(null), 140);
+  };
+
+  const openFlyout = (id: string, element: HTMLElement) => {
+    if (!isCollapsed) return;
+    cancelFlyoutClose();
+    const rect = element.getBoundingClientRect();
+    const isFooterFlyout = id === 'punch' || id === 'settings' || id === 'profile';
+    const estimatedHeight = 82 + (shortcutsByItem[id]?.length || 0) * 52 + (id === 'profile' ? 48 : 0);
+    const preferredTop = rect.top + estimatedHeight > window.innerHeight - 12
+      ? rect.bottom - estimatedHeight
+      : rect.top - 12;
+    setFlyout({
+      id,
+      left: rect.right + 10,
+      top: isFooterFlyout ? undefined : Math.max(12, Math.min(preferredTop, window.innerHeight - estimatedHeight - 12)),
+      bottom: isFooterFlyout ? Math.max(12, window.innerHeight - rect.bottom + 8) : undefined,
+    });
+  };
+
+  const goToShortcut = (shortcut: SidebarShortcut) => {
+    closeFlyout();
+    onSelectTab(shortcut.tab);
+    if (!shortcut.target && !shortcut.section) return;
+    // Destination content mounts after the main tab changes.
+    let attempts = 0;
+    const navigateWhenMounted = () => {
+      const section = shortcut.target ? document.getElementById(shortcut.target) : document.getElementById(`${shortcut.tab}-view`);
+      if (section) {
+        if (shortcut.section) {
+          window.requestAnimationFrame(() => window.dispatchEvent(new CustomEvent('sidebar-section-selected', {
+            detail: { tab: shortcut.tab, section: shortcut.section },
+          })));
+        }
+        section.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      } else if (attempts++ < 30) window.requestAnimationFrame(navigateWhenMounted);
+    };
+    window.requestAnimationFrame(navigateWhenMounted);
+  };
+
+  useEffect(() => () => {
+    if (flyoutCloseTimer.current) clearTimeout(flyoutCloseTimer.current);
+  }, []);
 
   // Live Punch State (consistent SSR initial values to prevent hydration mismatch)
   const [currentStatus, setCurrentStatus] = useState<'working' | 'lunch' | 'break_1' | 'break_2' | 'offline'>('offline');
@@ -88,15 +161,60 @@ export default function CompanySidebar({
   }, [supervisor?.id]);
 
   const isHeadOrAdmin = isHeadOrAdminUser(supervisor);
+  const isAttendanceAdmin = ['admin', 'superadmin', 'administrator'].includes(supervisor.role?.toLowerCase() || '');
 
   // Attendance is available to everyone; its calendar is scoped to the signed-in
   // employee for non-admins. Analytics remains limited to leads and admins.
-  const visibleNavItems = isHeadOrAdmin
-    ? NAV_ITEMS
-    : NAV_ITEMS
-        .filter((item) => item.id !== 'analytics')
-        .map((item) => item.id === 'attendance' ? { ...item, label: 'Attendance' } : item);
+  const visibleNavItems = NAV_ITEMS
+    .filter((item) => isHeadOrAdmin || item.id !== 'analytics')
+    .map((item) => item.id === 'attendance' && !isAttendanceAdmin ? { ...item, label: 'Attendance' } : item);
 
+  const shortcutsByItem: Record<string, SidebarShortcut[]> = {
+    dashboard: [
+      { label: 'Welcome & Weather', description: 'Your shift overview', icon: LayoutDashboard, tab: 'dashboard', target: 'dashboard-welcome' },
+      { label: 'Quick Stats', description: 'Work time, tasks, account, and shift', icon: BarChart3, tab: 'dashboard', target: 'dashboard-stats' },
+      { label: isAttendanceAdmin ? 'Workforce Overview' : 'Attendance Summary', description: isAttendanceAdmin ? 'Team analytics and roster' : 'Monthly status at a glance', icon: Calendar, tab: 'dashboard', target: 'dashboard-summary' },
+    ],
+    tracker: [
+      { label: 'Time Clock & Punch', description: 'Shift status and available actions', icon: Clock, tab: 'tracker', target: 'time-tracker-clock' },
+      { label: 'Shift Activity', description: 'Live milestones and audit trail', icon: Calendar, tab: 'tracker', target: 'time-tracker-timeline' },
+      { label: 'Punch History Log', description: 'Recorded punch times and durations', icon: FileText, tab: 'tracker', target: 'time-tracker-history' },
+    ],
+    flowhub: [
+      { label: 'Focus Timer', description: 'Track a work session', icon: Timer, tab: 'flowhub', target: 'flowhub-timer' },
+      { label: 'Task Board', description: 'Review and move your tasks', icon: ListTodo, tab: 'flowhub', target: 'flowhub-tasks' },
+      { label: 'Daily Routine', description: 'Habits and wellness tracker', icon: ShieldCheck, tab: 'flowhub', target: 'flowhub-routine' },
+    ],
+    attendance: isAttendanceAdmin ? [
+      { label: 'Roster', description: 'View the employee roster', icon: User, tab: 'attendance', section: 'roster' },
+      { label: 'Attendance Calendar', description: 'Check daily attendance', icon: Calendar, tab: 'attendance', section: 'calendar' },
+      { label: 'Hours Report', description: 'Review recorded hours', icon: Clock, tab: 'attendance', section: 'hours' },
+      { label: 'Employee Details', description: 'Open employee records', icon: FileText, tab: 'attendance', section: 'details' },
+    ] : [
+      { label: 'My Attendance', description: 'View your calendar and punches', icon: Calendar, tab: 'attendance', section: 'calendar' },
+    ],
+    analytics: [
+      { label: 'Attendance Overview', description: 'Key attendance metrics', icon: BarChart3, tab: 'analytics', target: 'analytics-overview' },
+      { label: 'Status Breakdown', description: 'Present, late, and undertime trends', icon: LayoutDashboard, tab: 'analytics', target: 'analytics-breakdown' },
+      { label: 'Member Leaderboard', description: 'Compare team adherence', icon: User, tab: 'analytics', target: 'analytics-leaderboard' },
+    ],
+    activity: [
+      { label: 'All Activity', description: 'Recent time tracker events', icon: FileText, tab: 'activity', section: 'all' },
+      { label: isHeadOrAdmin ? 'Attendance Updates' : 'Shift Punches', description: isHeadOrAdmin ? 'Attendance activity' : 'Your punch activity', icon: Clock, tab: 'activity', section: isHeadOrAdmin ? 'attendance' : 'punches' },
+      { label: 'Alerts & Updates', description: 'Important activity notices', icon: Bell, tab: 'activity', section: 'alerts' },
+    ],
+    settings: [
+      { label: 'Profile', description: 'Your account details', icon: User, tab: 'settings', section: 'profile' },
+      { label: 'Notifications', description: 'Choose your alert preferences', icon: Bell, tab: 'settings', section: 'notifications' },
+      { label: 'General', description: 'Theme and app preferences', icon: Settings, tab: 'settings', section: 'general' },
+    ],
+    punch: [
+      { label: 'Open Time Tracking', description: 'View punches and available actions', icon: Clock, tab: 'tracker', target: 'time-tracker-clock' },
+    ],
+    profile: [
+      { label: 'Profile & Settings', description: 'Manage your account', icon: Settings, tab: 'settings', section: 'profile' },
+    ],
+  };
   // Fetch live punch status from API
   const fetchPunchStatus = useCallback(async () => {
     try {
@@ -156,6 +274,13 @@ export default function CompanySidebar({
     }
     return `${m}m ${s.toString().padStart(2, '0')}s`;
   };
+
+  const flyoutItem = flyout ? visibleNavItems.find((item) => item.id === flyout.id) : undefined;
+  const FlyoutIcon = flyoutItem?.icon || (flyout?.id === 'profile' ? User : flyout?.id === 'punch' ? Clock : Settings);
+  const flyoutTitle = flyoutItem?.label || (flyout?.id === 'profile' ? supervisor.name : flyout?.id === 'punch' ? 'Punch Status' : 'Settings');
+  const flyoutDescription = flyout?.id === 'profile' ? supervisor.position || 'Employee account'
+    : flyout?.id === 'punch' ? `${currentStatus === 'offline' ? 'Off shift' : currentStatus === 'working' ? 'On shift' : currentStatus === 'lunch' ? 'On lunch' : 'On break'} · ${formatElapsedTime(statusSeconds)}`
+    : 'Quick navigation & contents';
 
   const handleActionClick = async (label: PunchActionType) => {
     if (isPunching) return;
@@ -272,7 +397,7 @@ export default function CompanySidebar({
 
                 {/* Toggle Collapse Button in Expanded Mode */}
                 <button
-                  onClick={() => setIsCollapsed(true)}
+                  onClick={() => { closeFlyout(); setIsCollapsed(true); }}
                   className="p-2 rounded-xl hover:bg-white/10 dark:hover:bg-[#363435] text-white/80 hover:text-white transition-colors cursor-pointer shrink-0"
                   title="Collapse Sidebar"
                 >
@@ -282,7 +407,7 @@ export default function CompanySidebar({
             ) : (
               /* When collapsed: Do NOT show logo, only the Menu icon centered */
               <button
-                onClick={() => setIsCollapsed(false)}
+                onClick={() => { closeFlyout(); setIsCollapsed(false); }}
                 className="p-2 rounded-xl hover:bg-white/10 dark:hover:bg-[#363435] text-white/80 hover:text-white transition-colors cursor-pointer mx-auto"
                 title="Expand Sidebar"
               >
@@ -299,13 +424,19 @@ export default function CompanySidebar({
               return (
                 <button
                   key={item.id}
-                  onClick={() => onSelectTab(item.id)}
+                  onClick={() => { closeFlyout(); onSelectTab(item.id); }}
+                  onPointerEnter={(event) => openFlyout(item.id, event.currentTarget)}
+                  onPointerLeave={scheduleFlyoutClose}
+                  onFocus={(event) => openFlyout(item.id, event.currentTarget)}
+                  onKeyDown={(event) => { if (event.key === 'Escape') closeFlyout(); }}
+                  aria-haspopup={isCollapsed ? 'menu' : undefined}
+                  aria-expanded={isCollapsed ? flyout?.id === item.id : undefined}
                   className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
                     isActive
                       ? 'bg-white/20 dark:bg-[#363435] dark:border dark:border-[#3678B0]/60 font-bold text-white shadow-xs'
                       : 'text-white/75 dark:text-[#94A3B8] hover:bg-white/10 dark:hover:bg-[#2C2A2B] hover:text-white dark:hover:text-[#F8F8F6]'
                   } ${isCollapsed ? 'justify-center px-2' : ''}`}
-                  title={item.label}
+                  title={isCollapsed ? undefined : item.label}
                 >
                   <Icon className={`h-4 w-4 shrink-0 ${isActive ? 'text-white' : 'text-white/75 dark:text-[#94A3B8]'}`} />
                   {!isCollapsed && <span className="truncate">{item.label}</span>}
@@ -414,7 +545,12 @@ export default function CompanySidebar({
               )}
             </div>
           ) : (
-            <div className="flex justify-center">
+            <div
+              className="flex justify-center"
+              onPointerEnter={(event) => openFlyout('punch', event.currentTarget)}
+              onPointerLeave={scheduleFlyoutClose}
+              onFocus={(event) => openFlyout('punch', event.currentTarget)}
+            >
               {currentStatus === 'lunch' ? (
                 <button
                   type="button"
@@ -471,13 +607,19 @@ export default function CompanySidebar({
 
           {/* Settings Link */}
           <button
-            onClick={() => onSelectTab('settings')}
+            onClick={() => { closeFlyout(); onSelectTab('settings'); }}
+            onPointerEnter={(event) => openFlyout('settings', event.currentTarget)}
+            onPointerLeave={scheduleFlyoutClose}
+            onFocus={(event) => openFlyout('settings', event.currentTarget)}
+            onKeyDown={(event) => { if (event.key === 'Escape') closeFlyout(); }}
+            aria-haspopup={isCollapsed ? 'menu' : undefined}
+            aria-expanded={isCollapsed ? flyout?.id === 'settings' : undefined}
             className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
               currentTab === 'settings'
                 ? 'bg-white/20 dark:bg-[#363435] dark:border dark:border-[#3678B0]/60 font-bold text-white shadow-xs'
                 : 'text-white/75 dark:text-[#94A3B8] hover:bg-white/10 dark:hover:bg-[#2C2A2B] hover:text-white dark:hover:text-[#F8F8F6]'
             } ${isCollapsed ? 'justify-center px-2' : ''}`}
-            title="Settings"
+            title={isCollapsed ? undefined : 'Settings'}
           >
             <Settings className={`h-4 w-4 shrink-0 ${currentTab === 'settings' ? 'text-white' : 'text-white/75 dark:text-[#94A3B8]'}`} />
             {!isCollapsed && <span>Settings</span>}
@@ -485,10 +627,19 @@ export default function CompanySidebar({
 
           {/* User Profile Pill */}
           {isCollapsed ? (
-            <div className="p-2 rounded-2xl bg-white/10 dark:bg-[#363435] border border-white/10 dark:border-[#434142] flex items-center justify-center shadow-xs">
+            <button
+              type="button"
+              className="p-2 rounded-2xl bg-white/10 dark:bg-[#363435] border border-white/10 dark:border-[#434142] flex items-center justify-center shadow-xs"
+              onPointerEnter={(event) => openFlyout('profile', event.currentTarget)}
+              onPointerLeave={scheduleFlyoutClose}
+              onFocus={(event) => openFlyout('profile', event.currentTarget)}
+              onClick={() => goToShortcut(shortcutsByItem.profile[0])}
+              onKeyDown={(event) => { if (event.key === 'Escape') closeFlyout(); }}
+              aria-haspopup="menu"
+              aria-expanded={flyout?.id === 'profile'}
+            >
               <div 
                 className="w-8 h-8 rounded-full overflow-hidden shrink-0 border border-white/30 dark:border-[#434142] bg-white/20 dark:bg-[#201F20] flex items-center justify-center font-bold text-xs text-white select-none"
-                title={supervisor.name}
               >
                 {supervisor.avatarUrl && isValidAvatarUrl(supervisor.avatarUrl) ? (
                   <img
@@ -501,9 +652,22 @@ export default function CompanySidebar({
                   <span>{getUserInitials(supervisor.name)}</span>
                 )}
               </div>
-            </div>
+            </button>
           ) : (
-            <div className="p-2.5 rounded-2xl bg-white/10 dark:bg-[#363435] border border-white/10 dark:border-[#434142] flex items-center justify-between gap-2 shadow-xs">
+            <div
+              role="button"
+              tabIndex={0}
+              aria-label="Open profile"
+              onClick={() => goToShortcut(shortcutsByItem.profile[0])}
+              onKeyDown={(event) => {
+                if (event.target !== event.currentTarget) return;
+                if (event.key === 'Enter' || event.key === ' ') {
+                  event.preventDefault();
+                  goToShortcut(shortcutsByItem.profile[0]);
+                }
+              }}
+              className="p-2.5 rounded-2xl bg-white/10 dark:bg-[#363435] border border-white/10 dark:border-[#434142] flex items-center justify-between gap-2 shadow-xs cursor-pointer transition-colors hover:bg-white/20 dark:hover:bg-[#434142] focus-visible:outline-2 focus-visible:outline-white/80"
+            >
               <div className="flex items-center gap-2.5 overflow-hidden">
                 <div className="w-8 h-8 rounded-full overflow-hidden shrink-0 border border-white/30 dark:border-[#434142] bg-white/20 dark:bg-[#201F20] flex items-center justify-center font-bold text-xs text-white select-none">
                   {supervisor.avatarUrl && isValidAvatarUrl(supervisor.avatarUrl) ? (
@@ -529,9 +693,9 @@ export default function CompanySidebar({
 
               {/* Logout Action Button in Expanded Mode */}
               <button
-                onClick={() => setIsLogoutModalOpen(true)}
+                onClick={(event) => { event.stopPropagation(); setIsLogoutModalOpen(true); }}
                 title="Log Out"
-                className="p-1.5 rounded-xl hover:text-white hover:bg-[#ED1C25]/20 active:bg-[#ED1C25]/30 text-white/75 dark:text-[#94A3B8] transition-colors cursor-pointer shrink-0"
+                className="p-1.5 rounded-xl bg-rose-500/10 text-rose-300 hover:bg-rose-500/20 hover:text-rose-100 active:bg-rose-500/30 dark:text-rose-400 transition-colors cursor-pointer shrink-0"
               >
                 <LogOut className="h-4 w-4" />
               </button>
@@ -540,6 +704,61 @@ export default function CompanySidebar({
 
         </div>
       </aside>
+      {isCollapsed && flyout && createPortal(
+        <div
+          role="menu"
+          aria-label={`${flyoutTitle} shortcuts`}
+          className="fixed z-[100] max-h-[calc(100vh-24px)] w-[310px] max-w-[calc(100vw-96px)] overflow-y-auto rounded-2xl border border-white/15 bg-[#2F6798] p-3 text-white shadow-2xl dark:border-[#434142] dark:bg-[#252E3D]"
+          style={{ left: flyout.left, top: flyout.top, bottom: flyout.bottom }}
+          onPointerEnter={cancelFlyoutClose}
+          onPointerLeave={scheduleFlyoutClose}
+          onKeyDown={(event) => { if (event.key === 'Escape') closeFlyout(); }}
+        >
+          <div className="mb-2 flex items-center gap-3 rounded-xl border-b border-white/15 px-2 py-2.5">
+            <span className="flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-white/15">
+              {flyout.id === 'profile'
+                ? supervisor.avatarUrl && isValidAvatarUrl(supervisor.avatarUrl)
+                  ? <img src={supervisor.avatarUrl} alt="" className="h-full w-full object-cover" />
+                  : <span className="text-[10px] font-extrabold">{getUserInitials(supervisor.name)}</span>
+                : <FlyoutIcon className="h-4 w-4" />}
+            </span>
+            <span className="min-w-0">
+              <span className="block truncate text-xs font-extrabold uppercase tracking-wide">{flyoutTitle}</span>
+              <span className="block truncate text-[10px] text-white/70">{flyoutDescription}</span>
+            </span>
+          </div>
+          {shortcutsByItem[flyout.id]?.map((shortcut) => {
+            const ShortcutIcon = shortcut.icon;
+            return (
+              <button
+                key={`${shortcut.tab}-${shortcut.target || shortcut.section}`}
+                type="button"
+                role="menuitem"
+                onClick={() => goToShortcut(shortcut)}
+                className="flex w-full items-center gap-3 rounded-xl px-2.5 py-2.5 text-left transition-colors hover:bg-white/15 focus-visible:bg-white/15 focus-visible:outline-none"
+              >
+                <ShortcutIcon className="h-4 w-4 shrink-0 text-white/80" />
+                <span className="min-w-0">
+                  <span className="block text-xs font-bold">{shortcut.label}</span>
+                  <span className="block text-[10px] text-white/65">{shortcut.description}</span>
+                </span>
+              </button>
+            );
+          })}
+          {flyout.id === 'profile' && (
+            <button
+              type="button"
+              role="menuitem"
+              onClick={() => { closeFlyout(); setIsLogoutModalOpen(true); }}
+              className="flex w-full items-center gap-3 rounded-xl bg-rose-500/10 px-2.5 py-2.5 text-left text-[#FF667B] transition-colors hover:bg-rose-500/25 hover:text-[#FF8B9B] focus-visible:bg-rose-500/25 focus-visible:outline-none dark:text-[#FB7185]"
+            >
+              <LogOut className="h-4 w-4 shrink-0" />
+              <span className="text-xs font-bold">Log Out</span>
+            </button>
+          )}
+        </div>,
+        document.body
+      )}
     </>
   );
 }

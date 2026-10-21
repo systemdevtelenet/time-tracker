@@ -211,7 +211,7 @@ export default function AnalyticsView({
       </div>
 
       {/* 1. TOP 4 ATTENDANCE & ADHERENCE KPI CARDS */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div id="analytics-overview" className="scroll-mt-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         
         {/* Card 1: Punctuality Rate */}
         <div className="p-4 sm:p-5 rounded-2xl bg-white dark:bg-[#0E1B38] border border-slate-200/90 dark:border-slate-800 shadow-2xs flex items-center justify-between min-h-[96px]">
@@ -288,7 +288,7 @@ export default function AnalyticsView({
       </div>
 
       {/* 2. ATTENDANCE STATUS BREAKDOWN & WEEKLY HEATMAP (GRAPH STYLE - SOLID COLORS) */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+      <div id="analytics-breakdown" className="scroll-mt-4 grid grid-cols-1 lg:grid-cols-12 gap-6">
         
         {/* Left Card: Attendance Status Donut Graph */}
         <div className="lg:col-span-6 p-5 sm:p-6 rounded-2xl bg-white dark:bg-[#0E1B38] border border-slate-200/90 dark:border-slate-800 shadow-2xs flex flex-col justify-between">
@@ -592,11 +592,13 @@ export default function AnalyticsView({
       </div>
 
       {/* 3. MEMBER ATTENDANCE & ADHERENCE LEADERBOARD TABLE */}
-      <MemberAttendanceRosterTable
-        records={records}
-        employees={employees}
-        accounts={accounts}
-      />
+      <div id="analytics-leaderboard" className="scroll-mt-4">
+        <MemberAttendanceRosterTable
+          records={records}
+          employees={employees}
+          accounts={accounts}
+        />
+      </div>
 
     </div>
   );

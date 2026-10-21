@@ -37,6 +37,7 @@ import {
   getActivityLogs, 
   syncActivityLogsWithApi,
   filterActivityLogsForUser,
+  filterNotificationsForToday,
   markAllNotificationsAsRead, 
   formatRelativeTime, 
   SystemActivityLog 
@@ -231,7 +232,7 @@ export default function CompanyTopNav({
   }, []);
 
   const visibleNotifications = useMemo(() => {
-    return filterActivityLogsForUser(notifications, supervisor);
+    return filterNotificationsForToday(filterActivityLogsForUser(notifications, supervisor));
   }, [notifications, supervisor]);
 
   const unreadCount = visibleNotifications.filter((n) => !n.isRead).length;

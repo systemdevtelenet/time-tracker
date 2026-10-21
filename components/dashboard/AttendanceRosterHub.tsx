@@ -193,6 +193,19 @@ export default function AttendanceRosterHub({
     }
   };
 
+  useEffect(() => {
+    const handleSidebarSection = (event: Event) => {
+      const detail = (event as CustomEvent<{ tab?: string; section?: string }>).detail;
+      if (detail?.tab !== 'attendance') return;
+      const section = detail.section;
+      if (section === 'calendar' || (isAdmin && (section === 'roster' || section === 'hours' || section === 'details'))) {
+        setActiveSubTab(section);
+      }
+    };
+    window.addEventListener('sidebar-section-selected', handleSidebarSection);
+    return () => window.removeEventListener('sidebar-section-selected', handleSidebarSection);
+  }, [isAdmin]);
+
   const [selectedCalendarEmployee, setSelectedCalendarEmployee] = useState<string>(
     initialEmployee || supervisorName || ''
   );

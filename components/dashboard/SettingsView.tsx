@@ -310,6 +310,18 @@ export default function SettingsView({
     { id: 'general' as TabType, label: 'General', icon: <Sliders className="w-4 h-4" /> },
   ];
 
+  useEffect(() => {
+    const handleSidebarSection = (event: Event) => {
+      const detail = (event as CustomEvent<{ tab?: string; section?: string }>).detail;
+      if (detail?.tab === 'settings' &&
+          (detail.section === 'profile' || detail.section === 'notifications' || detail.section === 'general')) {
+        setActiveTab(detail.section);
+      }
+    };
+    window.addEventListener('sidebar-section-selected', handleSidebarSection);
+    return () => window.removeEventListener('sidebar-section-selected', handleSidebarSection);
+  }, []);
+
   return (
     <div className="max-w-6xl mx-auto space-y-6 pb-12 animate-in fade-in duration-200">
       
