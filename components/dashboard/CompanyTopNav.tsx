@@ -338,7 +338,7 @@ export default function CompanyTopNav({
       <div className="w-full px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-4">
         
         {/* Left: System Title (Bold) */}
-        <div className="min-w-0 flex items-center gap-3">
+        <div className="min-w-0 flex items-center gap-3 pl-11 md:pl-0">
           <h1 className="text-base sm:text-lg font-bold text-slate-900 dark:text-[#F8F8F6] tracking-tight truncate font-sans">
             {title}
           </h1>

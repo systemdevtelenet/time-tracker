@@ -79,6 +79,7 @@ export default function CompanySidebar({
 }: CompanySidebarProps) {
   const router = useRouter();
   const [isCollapsed, setIsCollapsed] = useState(true);
+  const [isMobileOpen, setIsMobileOpen] = useState(false);
   const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false);
   const [flyout, setFlyout] = useState<{ id: string; left: number; top?: number; bottom?: number } | null>(null);
   const flyoutCloseTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -117,6 +118,7 @@ export default function CompanySidebar({
 
   const goToShortcut = (shortcut: SidebarShortcut) => {
     closeFlyout();
+    setIsMobileOpen(false);
     onSelectTab(shortcut.tab);
     if (!shortcut.target && !shortcut.section) return;
     // Destination content mounts after the main tab changes.
@@ -138,6 +140,15 @@ export default function CompanySidebar({
   useEffect(() => () => {
     if (flyoutCloseTimer.current) clearTimeout(flyoutCloseTimer.current);
   }, []);
+
+  useEffect(() => {
+    if (!isMobileOpen) return;
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setIsMobileOpen(false);
+    };
+    window.addEventListener('keydown', closeOnEscape);
+    return () => window.removeEventListener('keydown', closeOnEscape);
+  }, [isMobileOpen]);
 
   // Live Punch State (consistent SSR initial values to prevent hydration mismatch)
   const [currentStatus, setCurrentStatus] = useState<'working' | 'lunch' | 'break_1' | 'break_2' | 'offline'>('offline');
@@ -329,6 +340,27 @@ export default function CompanySidebar({
 
   return (
     <>
+      {!isMobileOpen && (
+        <button
+          type="button"
+          onClick={() => { closeFlyout(); setIsCollapsed(false); setIsMobileOpen(true); }}
+          aria-label="Open navigation"
+          aria-controls="workforce-sidebar"
+          aria-expanded={false}
+          className="fixed left-3 top-3 z-[60] flex h-10 w-10 items-center justify-center rounded-lg border border-slate-200 bg-white text-[#2F6798] shadow-sm dark:border-[#434142] dark:bg-[#201F20] dark:text-white md:hidden"
+        >
+          <Menu className="h-5 w-5" />
+        </button>
+      )}
+      {isMobileOpen && (
+        <button
+          type="button"
+          aria-label="Close navigation"
+          onClick={() => setIsMobileOpen(false)}
+          tabIndex={-1}
+          className="fixed inset-0 z-[55] bg-black/45 md:hidden"
+        />
+      )}
       {/* Modern Confirm Logout Modal */}
       <ConfirmActionModal
         isOpen={isLogoutModalOpen}
@@ -351,10 +383,12 @@ export default function CompanySidebar({
         iconType="logout"
       />
 
-      <aside 
-        className={`shrink-0 bg-[#2F6798] dark:bg-[#201F20] dark:border-r dark:border-[#434142] text-white flex flex-col justify-between transition-[width] duration-200 ease-out select-none z-50 shadow-xl ${
-          isCollapsed ? 'w-20' : 'w-64'
-        } h-screen sticky top-0 overflow-hidden relative`}
+      <aside
+        id="workforce-sidebar"
+        aria-label="Main navigation"
+        className={`fixed inset-y-0 left-0 z-[60] flex h-dvh w-64 shrink-0 flex-col justify-between overflow-hidden bg-[#2F6798] text-white shadow-xl transition-[transform,width] duration-200 ease-out select-none dark:border-r dark:border-[#434142] dark:bg-[#201F20] md:sticky md:top-0 md:h-screen md:translate-x-0 ${
+          isMobileOpen ? 'translate-x-0' : '-translate-x-full'
+        } ${isCollapsed ? 'md:w-20' : 'md:w-64'}`}
       >
         {/* Decorative Bottom Artwork Background */}
         <div 
@@ -397,7 +431,12 @@ export default function CompanySidebar({
 
                 {/* Toggle Collapse Button in Expanded Mode */}
                 <button
-                  onClick={() => { closeFlyout(); setIsCollapsed(true); }}
+                  onClick={() => {
+                    closeFlyout();
+                    if (window.innerWidth < 768) setIsMobileOpen(false);
+                    else setIsCollapsed(true);
+                  }}
+                  aria-label={isMobileOpen ? 'Close navigation' : 'Collapse sidebar'}
                   className="p-2 rounded-xl hover:bg-white/10 dark:hover:bg-[#363435] text-white/80 hover:text-white transition-colors cursor-pointer shrink-0"
                   title="Collapse Sidebar"
                 >
@@ -424,7 +463,7 @@ export default function CompanySidebar({
               return (
                 <button
                   key={item.id}
-                  onClick={() => { closeFlyout(); onSelectTab(item.id); }}
+                  onClick={() => { closeFlyout(); setIsMobileOpen(false); onSelectTab(item.id); }}
                   onPointerEnter={(event) => openFlyout(item.id, event.currentTarget)}
                   onPointerLeave={scheduleFlyoutClose}
                   onFocus={(event) => openFlyout(item.id, event.currentTarget)}
@@ -607,7 +646,7 @@ export default function CompanySidebar({
 
           {/* Settings Link */}
           <button
-            onClick={() => { closeFlyout(); onSelectTab('settings'); }}
+            onClick={() => { closeFlyout(); setIsMobileOpen(false); onSelectTab('settings'); }}
             onPointerEnter={(event) => openFlyout('settings', event.currentTarget)}
             onPointerLeave={scheduleFlyoutClose}
             onFocus={(event) => openFlyout('settings', event.currentTarget)}

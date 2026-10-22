@@ -1,0 +1,569 @@
+.tt-login {
+  display: grid;
+  grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr);
+  width: 100%;
+  height: 100vh;
+  height: 100dvh;
+  overflow: hidden;
+  background: #f8f8f6;
+  color: #17283b;
+}
+
+.tt-login,
+.tt-login * {
+  font-family: var(--font-tt-geist), sans-serif;
+}
+
+.tt-login-hero {
+  position: relative;
+  display: flex;
+  height: 100%;
+  overflow: hidden;
+  background: #132b43;
+  color: #fff;
+}
+
+.tt-login-hero-image {
+  position: absolute;
+  inset: 0 0 0 auto;
+  height: 100%;
+  width: auto;
+  object-fit: contain;
+  object-position: right center;
+  opacity: .7;
+}
+
+.tt-login-hero-shade {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(to bottom, rgba(19, 43, 67, .7), rgba(19, 43, 67, .35), rgba(19, 43, 67, .85));
+}
+
+.tt-login-ring {
+  position: absolute;
+  aspect-ratio: 1;
+  border-radius: 50%;
+  pointer-events: none;
+}
+
+.tt-login-ring-blue {
+  right: -344px;
+  bottom: -160px;
+  width: 520px;
+  border: 80px solid rgba(47, 103, 152, .4);
+}
+
+.tt-login-ring-gold {
+  right: -252px;
+  bottom: -112px;
+  width: 380px;
+  border: 55px solid rgba(200, 165, 75, .3);
+}
+
+.tt-login-hero-content {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.tt-login-hero-copy {
+  position: relative;
+  top: -16px;
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  justify-content: center;
+  min-height: 0;
+  padding: 48px clamp(32px, 5vw, 64px);
+}
+
+.tt-login-hero-copy h1 {
+  font-size: clamp(44px, 5vw, 72px);
+  font-weight: 600;
+  line-height: .98;
+  letter-spacing: 0;
+}
+
+.tt-login-hero-copy h1 span {
+  color: #c8a54b;
+}
+
+.tt-login-cursor {
+  display: inline-block;
+  width: 3px;
+  height: .82em;
+  margin-left: 4px;
+  vertical-align: -.05em;
+  background: #c8a54b;
+  animation: tt-login-blink 1s steps(1) infinite;
+}
+
+@keyframes tt-login-blink {
+  50% { opacity: 0; }
+}
+
+.tt-login-rule {
+  width: 64px;
+  height: 1px;
+  margin: 32px 0;
+  background: #c8a54b;
+}
+
+.tt-login-hero-copy p {
+  max-width: 610px;
+  color: rgba(255, 255, 255, .72);
+  font-size: clamp(16px, 1.4vw, 20px);
+  line-height: 32px;
+}
+
+.tt-login-hero-bottom {
+  padding: 0 clamp(32px, 5vw, 64px) clamp(32px, 4vw, 48px);
+}
+
+.tt-login-features {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: clamp(16px, 2.5vw, 32px);
+  margin-bottom: clamp(32px, 5vh, 48px);
+}
+
+.tt-login-features div {
+  min-width: 0;
+  border-left: 1px solid rgba(255, 255, 255, .2);
+  padding-left: 16px;
+}
+
+.tt-login-features span,
+.tt-login-hero-footer,
+.tt-login-panel-footer {
+  text-transform: uppercase;
+  letter-spacing: .16em;
+}
+
+.tt-login-features span {
+  display: block;
+  margin-bottom: 5px;
+  color: rgba(255, 255, 255, .55);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: .22em;
+}
+
+.tt-login-features div:last-child {
+  border-left-color: #c8a54b;
+}
+
+.tt-login-features div:last-child span {
+  color: #c8a54b;
+}
+
+.tt-login-features strong {
+  display: block;
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 1.35;
+}
+
+.tt-login-hero-footer {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  padding-top: 20px;
+  border-top: 1px solid rgba(255, 255, 255, .1);
+  color: rgba(255, 255, 255, .45);
+  font-size: 10px;
+  letter-spacing: .3em;
+}
+
+.tt-login-panel {
+  display: flex;
+  min-width: 0;
+  height: 100%;
+  overflow-y: auto;
+  overscroll-behavior-y: contain;
+  align-items: center;
+  justify-content: center;
+  background: #f8f8f6;
+  padding: 48px clamp(32px, 5vw, 80px);
+}
+
+.tt-login-column {
+  width: 100%;
+  max-width: 544px;
+  margin: auto;
+}
+
+.tt-login-logo {
+  display: block;
+  position: relative;
+  top: -8px;
+  width: clamp(152px, 18vw, 220px);
+  height: auto;
+  margin: 0 auto 8px;
+  object-fit: contain;
+}
+
+.tt-login-mobile-tagline {
+  display: none;
+}
+
+.tt-login-intro {
+  margin-bottom: 32px;
+  text-align: center;
+}
+
+.tt-login-intro h2 {
+  font-size: clamp(32px, 4vw, 36px);
+  font-weight: 600;
+  line-height: 1.2;
+}
+
+.tt-login-intro p {
+  margin-top: 12px;
+  color: #6a7583;
+  font-size: 16px;
+  line-height: 1.5;
+}
+
+.tt-login-field + .tt-login-field {
+  margin-top: 20px;
+}
+
+.tt-login-field > label {
+  display: block;
+  margin-bottom: 8px;
+  color: #536172;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+}
+
+.tt-login-input-wrap {
+  display: flex;
+  height: 56px;
+  align-items: center;
+  gap: 12px;
+  border: 1px solid #d7dde3;
+  border-radius: 12px;
+  background: #fff;
+  padding: 0 16px;
+  color: #8190a0;
+  transition: border-color .2s, box-shadow .2s;
+}
+
+.tt-login-input-wrap:focus-within {
+  border-color: #2f6798;
+  box-shadow: 0 0 0 3px rgba(47, 103, 152, .14);
+}
+
+.tt-login-input-wrap.tt-login-input-error {
+  border-color: #ef4444;
+}
+
+.tt-login-input-wrap svg {
+  flex: none;
+}
+
+.tt-login-input-wrap input {
+  width: 100%;
+  min-width: 0;
+  height: 100%;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: #17283b;
+  font-size: 15px;
+}
+
+.tt-login-input-wrap input::placeholder {
+  color: #9aa4af;
+}
+
+.tt-login-input-wrap button {
+  display: grid;
+  width: 28px;
+  height: 28px;
+  flex: none;
+  place-items: center;
+  cursor: pointer;
+}
+
+.tt-login-error {
+  margin-top: 6px;
+  color: #d12740;
+  font-size: 12px;
+}
+
+.tt-login-options {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  min-height: 54px;
+  color: #244f78;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.tt-login-options label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #536172;
+  cursor: pointer;
+}
+
+.tt-login-options input {
+  width: 16px;
+  height: 16px;
+  accent-color: #2f6798;
+}
+
+.tt-login-options span {
+  cursor: help;
+}
+
+.tt-login-submit,
+.tt-login-google {
+  display: flex;
+  width: 100%;
+  height: 56px;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  border-radius: 12px;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.tt-login-submit {
+  background: #244f78;
+  box-shadow: 0 10px 25px rgba(36, 79, 120, .18);
+  color: #fff;
+}
+
+.tt-login-submit:hover {
+  background: #173b5d;
+}
+
+.tt-login-separator {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin: 28px 0;
+  color: #9aa4af;
+  font-size: 12px;
+  letter-spacing: .18em;
+  text-transform: uppercase;
+}
+
+.tt-login-separator::before,
+.tt-login-separator::after {
+  content: '';
+  height: 1px;
+  flex: 1;
+  background: #e0e4e8;
+}
+
+.tt-login-google {
+  border: 1px solid #d7dde3;
+  background: #fff;
+  color: #17283b;
+  font-weight: 500;
+}
+
+.tt-login-google:hover {
+  background: #f2f5f7;
+}
+
+.tt-login-submit:disabled,
+.tt-login-google:disabled,
+.tt-login-input-wrap input:disabled {
+  opacity: .55;
+  cursor: not-allowed;
+}
+
+.tt-login-panel-footer {
+  margin-top: 48px;
+  color: #a2abb5;
+  font-size: 9px;
+  letter-spacing: .34em;
+  text-align: center;
+}
+
+.tt-login-lockout {
+  display: flex;
+  gap: 9px;
+  margin-bottom: 18px;
+  border: 1px solid #fecaca;
+  border-radius: 8px;
+  background: #fff1f2;
+  padding: 12px;
+  color: #b4233a;
+  font-size: 13px;
+}
+
+.tt-login-lockout svg {
+  flex: none;
+}
+
+.tt-login-toast {
+  position: fixed;
+  z-index: 50;
+  top: 24px;
+  right: 24px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  max-width: min(90vw, 400px);
+  border: 1px solid #d7dde3;
+  border-radius: 8px;
+  background: #fff;
+  padding: 14px;
+  box-shadow: 0 12px 40px rgba(19, 43, 67, .15);
+  color: #17283b;
+  font-size: 13px;
+}
+
+.tt-login-toast > svg {
+  color: #0a9d76;
+  flex: none;
+}
+
+.tt-login-toast button {
+  margin-left: auto;
+  cursor: pointer;
+}
+
+@media (max-width: 1023px) {
+  .tt-login {
+    display: block;
+  }
+
+  .tt-login-hero {
+    display: none;
+  }
+
+  .tt-login-panel {
+    height: 100%;
+    padding: 40px 24px;
+  }
+
+  .tt-login-logo {
+    width: clamp(152px, 35vw, 200px);
+    margin-bottom: 24px;
+  }
+
+  .tt-login-mobile-tagline {
+    display: block;
+    margin-bottom: 14px;
+    color: #c8a54b;
+    font-size: 14px;
+    font-weight: 600;
+    text-align: center;
+  }
+}
+
+@media (max-height: 820px) {
+  .tt-login-hero-copy {
+    padding-block: 28px;
+  }
+
+  .tt-login-hero-copy h1 {
+    font-size: clamp(42px, 4vw, 60px);
+  }
+
+  .tt-login-panel {
+    padding-block: 18px;
+  }
+
+  .tt-login-logo {
+    width: 160px;
+    margin-bottom: 14px;
+  }
+
+  .tt-login-intro {
+    margin-bottom: 18px;
+  }
+
+  .tt-login-intro h2 {
+    font-size: 30px;
+  }
+
+  .tt-login-intro p {
+    margin-top: 6px;
+    font-size: 14px;
+  }
+
+  .tt-login-field + .tt-login-field {
+    margin-top: 12px;
+  }
+
+  .tt-login-field > label {
+    margin-bottom: 6px;
+  }
+
+  .tt-login-input-wrap,
+  .tt-login-submit,
+  .tt-login-google {
+    height: 48px;
+  }
+
+  .tt-login-options {
+    min-height: 38px;
+  }
+
+  .tt-login-separator {
+    margin: 15px 0;
+  }
+
+  .tt-login-panel-footer {
+    margin-top: 20px;
+  }
+
+  .tt-login-rule {
+    margin: 22px 0 18px;
+  }
+
+  .tt-login-features {
+    margin-bottom: 20px;
+  }
+
+  .tt-login-hero-bottom {
+    padding-bottom: 20px;
+  }
+}
+
+@media (max-height: 600px) {
+  .tt-login-panel {
+    padding-block: 12px;
+  }
+
+  .tt-login-logo {
+    width: 130px;
+    margin-bottom: 8px;
+  }
+
+  .tt-login-mobile-tagline {
+    margin-bottom: 6px;
+  }
+
+  .tt-login-intro {
+    margin-bottom: 12px;
+  }
+
+  .tt-login-panel-footer {
+    margin-top: 12px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tt-login-cursor {
+    animation: none;
+  }
+}
