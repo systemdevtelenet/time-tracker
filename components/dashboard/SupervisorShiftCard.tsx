@@ -70,7 +70,7 @@ export default function SupervisorShiftCard({
   // Deterministic initial states for SSR hydration consistency
   const [currentStatus, setCurrentStatus] = useState<'working' | 'lunch' | 'break_1' | 'break_2' | 'offline'>('offline');
   const [statusSeconds, setStatusSeconds] = useState<number>(0);
-  const [lastPunchTime, setLastPunchTime] = useState<string>('--:--');
+  const [lastPunchTime, setLastPunchTime] = useState<string>('');
   const [lastPunchType, setLastPunchType] = useState<string>('');
   const [punchesState, setPunchesState] = useState<ShiftPunchesState>(DEFAULT_PUNCHES_STATE);
   const [isPunching, setIsPunching] = useState<boolean>(false);
@@ -182,7 +182,7 @@ export default function SupervisorShiftCard({
       if (data.currentStatus) {
         setCurrentStatus(data.currentStatus.status);
         setStatusSeconds(data.currentStatus.elapsedSeconds || 0);
-        setLastPunchTime(data.currentStatus.lastPunchTime || '--:--');
+        setLastPunchTime(data.currentStatus.lastPunchTime || '');
         setLastPunchType(data.currentStatus.lastPunchType || '');
         if (data.currentStatus.punchesState) {
           setPunchesState(data.currentStatus.punchesState);
@@ -314,6 +314,7 @@ export default function SupervisorShiftCard({
   };
 
   // Shift Milestones Progress Summary
+  const punchesRecorded = Object.values(punchesState).some(Boolean);
   const shiftMilestonesSummary = useMemo(() => [
     {
       id: 'start',
@@ -691,8 +692,12 @@ export default function SupervisorShiftCard({
             <span className="text-[9.5px] font-extrabold text-white/75 uppercase tracking-wider block">
               LAST PUNCH
             </span>
-            <span className="text-xl sm:text-2xl font-black text-white font-mono mt-1 block truncate tracking-tight" title={`${lastPunchType} at ${lastPunchTime}`} suppressHydrationWarning>
-              {lastPunchTime}
+            <span
+              className={`${punchesRecorded ? 'text-xl sm:text-2xl font-black font-mono' : 'text-base sm:text-lg font-semibold'} mt-1 block truncate tracking-tight text-white`}
+              title={punchesRecorded ? `${lastPunchType || 'Last punch'}${lastPunchTime ? ` at ${lastPunchTime}` : ''}` : 'No punches recorded for this shift'}
+              suppressHydrationWarning
+            >
+              {punchesRecorded ? lastPunchTime || 'Punch recorded' : 'No punches yet'}
             </span>
           </div>
         </div>

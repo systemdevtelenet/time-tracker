@@ -41,12 +41,21 @@ async function getActiveEmployee(request: NextRequest) {
   const supabase = getSupabaseAdmin();
   const { data: employee, error } = await supabase
     .from('employees')
-    .select('id, employee_name, employee_email, statuses(status_name)')
+    .select('id, employee_code, employee_name, employee_email, statuses(status_name)')
     .ilike('employee_email', session.email)
     .maybeSingle();
 
   const status = (employee?.statuses as { status_name?: string } | null)?.status_name;
-  if (error || !employee || status?.toLowerCase() !== 'active') {
+  const employeeCode = String(employee?.employee_code || '').trim();
+  const employeeEmail = String(employee?.employee_email || '').trim().toLowerCase();
+  if (
+    error ||
+    !employee ||
+    status?.toLowerCase() !== 'active' ||
+    !employeeCode ||
+    !employeeEmail ||
+    employeeEmail !== session.email.trim().toLowerCase()
+  ) {
     return { response: NextResponse.json({ error: 'Active employee access is required.' }, { status: 403 }) };
   }
 

@@ -22,7 +22,16 @@ export async function getActiveEmployeeAccess(request: NextRequest): Promise<Act
     .select('id, employee_code, employee_name, employee_email, statuses(status_name), roles(role_name), positions(position_name)')
     .ilike('employee_email', session.email)
     .maybeSingle();
-  if (error || !data || (data.statuses as { status_name?: string } | null)?.status_name?.toLowerCase() !== 'active') return null;
+  const employeeCode = String(data?.employee_code || '').trim();
+  const employeeEmail = String(data?.employee_email || '').trim().toLowerCase();
+  if (
+    error ||
+    !data ||
+    (data.statuses as { status_name?: string } | null)?.status_name?.toLowerCase() !== 'active' ||
+    !employeeCode ||
+    !employeeEmail ||
+    employeeEmail !== session.email.trim().toLowerCase()
+  ) return null;
 
   const role = (data.roles as { role_name?: string } | null)?.role_name || '';
   const position = (data.positions as { position_name?: string } | null)?.position_name || '';
@@ -30,8 +39,8 @@ export async function getActiveEmployeeAccess(request: NextRequest): Promise<Act
   const positionLower = position.toLowerCase();
   return {
     id: Number(data.id),
-    employeeCode: String(data.employee_code || data.id),
-    email: data.employee_email || session.email,
+    employeeCode,
+    email: employeeEmail,
     name: data.employee_name || '',
     role,
     position,

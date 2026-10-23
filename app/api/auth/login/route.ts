@@ -55,14 +55,21 @@ export async function POST(request: NextRequest) {
     }
 
     const status = (employee?.statuses as { status_name?: string } | null)?.status_name;
-    if (!employee || status?.toLowerCase() !== 'active') {
+    const employeeCode = String(employee?.employee_code || '').trim();
+    const employeeEmail = String(employee?.employee_email || '').trim().toLowerCase();
+    if (
+      !employee ||
+      status?.toLowerCase() !== 'active' ||
+      !employeeCode ||
+      !employeeEmail ||
+      employeeEmail !== cleanEmail
+    ) {
       return NextResponse.json({ error: 'Invalid email or password' }, { status: 401 });
     }
 
     const role = (employee.roles as { role_name?: string } | null)?.role_name || '';
     const position = (employee.positions as { position_name?: string } | null)?.position_name || '';
     const roleAndPosition = `${role} ${position}`.toLowerCase();
-    const employeeCode = String(employee.employee_code || '').trim();
     const isCsa = /\bcsa\b/.test(roleAndPosition);
     const csaDefaultPasswordValid = Boolean(
       isCsa && employeeCode && password === `CTNP-${employeeCode}`
@@ -110,7 +117,7 @@ export async function POST(request: NextRequest) {
       account_code?: string;
       account_name?: string;
     } | null;
-    const employeeNumber = employee.employee_code || String(employee.id);
+    const employeeNumber = employeeCode;
     const name = employee.employee_name || '';
 
     loginAttemptsMap.delete(rateLimitKey);

@@ -36,15 +36,24 @@ export async function GET(request: NextRequest) {
       .ilike('employee_email', email)
       .maybeSingle();
     const status = (employee?.statuses as { status_name?: string } | null)?.status_name;
+    const employeeCode = String(employee?.employee_code || '').trim();
+    const employeeEmail = String(employee?.employee_email || '').trim().toLowerCase();
 
-    if (employeeError || !employee || status?.toLowerCase() !== 'active') {
+    if (
+      employeeError ||
+      !employee ||
+      status?.toLowerCase() !== 'active' ||
+      !employeeCode ||
+      !employeeEmail ||
+      employeeEmail !== email
+    ) {
       await supabase.auth.signOut();
       return NextResponse.redirect(`${origin}/login?error=not_authorized`);
     }
 
     const response = NextResponse.redirect(`${origin}/?tab=dashboard`);
     response.cookies.set('ctnp_session', signAuthSession({
-      id: employee.employee_code || String(employee.id),
+      id: employeeCode,
       name: employee.employee_name || '',
       email,
       role: (employee.roles as { role_name?: string } | null)?.role_name || '',

@@ -17,7 +17,16 @@ export async function GET(request: NextRequest) {
       .maybeSingle();
 
     const status = (employee?.statuses as { status_name?: string } | null)?.status_name;
-    if (error || !employee || status?.toLowerCase() !== 'active') {
+    const employeeCode = String(employee?.employee_code || '').trim();
+    const employeeEmail = String(employee?.employee_email || '').trim().toLowerCase();
+    if (
+      error ||
+      !employee ||
+      status?.toLowerCase() !== 'active' ||
+      !employeeCode ||
+      !employeeEmail ||
+      employeeEmail !== session.email.trim().toLowerCase()
+    ) {
       const response = NextResponse.json({ error: 'Employee access is no longer active.' }, { status: 401 });
       response.cookies.delete('ctnp_session');
       return response;
@@ -61,7 +70,7 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({
       user: {
-        id: employee.employee_code || String(employee.id),
+        id: employeeCode,
         name: employee.employee_name || '',
         email: employee.employee_email || '',
         role: (employee.roles as { role_name?: string } | null)?.role_name || '',

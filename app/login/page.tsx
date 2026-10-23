@@ -124,17 +124,21 @@ function LoginFormContent() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: email.trim(), password: password.trim() }),
       });
-      const data = await response.json();
-      if (!response.ok || !data.success) {
-        const nextAttempts = failedAttempts + 1;
-        setFailedAttempts(nextAttempts);
-        localStorage.setItem('ctnp_login_failed_attempts', nextAttempts.toString());
-        if (nextAttempts >= 5) {
-          localStorage.setItem('ctnp_lockout_until', (Date.now() + 60000).toString());
-          setLockoutSeconds(60);
-          setGeneralError('Too many failed attempts. Locked out for 60 seconds. (60s remaining)');
+      const data = await response.json().catch(() => null);
+      if (!response.ok || !data?.success) {
+        if (response.status === 401) {
+          const nextAttempts = failedAttempts + 1;
+          setFailedAttempts(nextAttempts);
+          localStorage.setItem('ctnp_login_failed_attempts', nextAttempts.toString());
+          if (nextAttempts >= 5) {
+            localStorage.setItem('ctnp_lockout_until', (Date.now() + 60000).toString());
+            setLockoutSeconds(60);
+            setGeneralError('Too many failed attempts. Locked out for 60 seconds. (60s remaining)');
+          } else {
+            setPasswordError('Sign-in requires the correct credentials and an active employee record with an employee code and email.');
+          }
         } else {
-          setPasswordError('Password does not match employee identification code.');
+          setGeneralError(data?.error || `The login service could not complete the request (HTTP ${response.status}).`);
         }
         setIsLoading(false);
         return;
@@ -157,7 +161,7 @@ function LoginFormContent() {
       router.push('/?tab=dashboard');
     } catch (error) {
       console.error('Login exception:', error);
-      setPasswordError('Password does not match employee identification code.');
+      setGeneralError('Unable to reach the login service. Check your connection and try again.');
       setIsLoading(false);
       setIsRedirecting(false);
     }

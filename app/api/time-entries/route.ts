@@ -12,7 +12,8 @@ export async function GET(request: NextRequest) {
     const searchParams = request.nextUrl.searchParams;
     const account = searchParams.get('account') || 'ALL';
     const agent = searchParams.get('agent') || 'ALL';
-    const limit = parseInt(searchParams.get('limit') || '1000', 10);
+    const requestedLimit = Number.parseInt(searchParams.get('limit') || '1000', 10);
+    const limit = Number.isFinite(requestedLimit) ? Math.min(Math.max(requestedLimit, 1), 1000) : 1000;
 
     const cacheKey = `${TIME_ENTRIES_CACHE_PREFIX}${account}_${agent}_${limit}`;
     const cached = getCachedData<any>(cacheKey);
@@ -29,7 +30,7 @@ export async function GET(request: NextRequest) {
 
     let query = supabase
       .from('phone_time_tracker')
-      .select('*')
+      .select('id, date_of_shift, name, account, total_minutes, ticket_number, tagging, summary, created_at')
       .order('date_of_shift', { ascending: false })
       .limit(limit);
 

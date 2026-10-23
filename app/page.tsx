@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useMemo, useCallback, Suspense } from 'react';
+import dynamic from 'next/dynamic';
 import { useSearchParams, useRouter } from 'next/navigation';
 import CompanySidebar, { isHeadOrAdminUser } from '@/components/dashboard/CompanySidebar';
 import CompanyTopNav from '@/components/dashboard/CompanyTopNav';
@@ -8,29 +9,32 @@ import HeroKpiCards from '@/components/dashboard/HeroKpiCards';
 import FilterControlsBar from '@/components/dashboard/FilterControlsBar';
 import ExecutivePerformanceOverview from '@/components/dashboard/ExecutivePerformanceOverview';
 import DepartmentalTrendsChart from '@/components/dashboard/DepartmentalTrendsChart';
-import KpiSummary from '@/components/KpiSummary';
 import TimerTracker from '@/components/TimerTracker';
-import ManualEntryModal from '@/components/ManualEntryModal';
 import MemberAttendanceRosterTable from '@/components/dashboard/MemberAttendanceRosterTable';
 import PersonalDashboardSummary from '@/components/dashboard/PersonalDashboardSummary';
-import AnalyticsCharts from '@/components/AnalyticsCharts';
-import AnalyticsView from '@/components/dashboard/AnalyticsView';
-import HoursReportTab from '@/components/dashboard/HoursReportTab';
-import FlowHubView from '@/components/dashboard/FlowHubView';
-import AttendanceCalendarView from '@/components/dashboard/AttendanceCalendarView';
-import AttendanceRosterHub from '@/components/dashboard/AttendanceRosterHub';
-import SupervisorShiftCard from '@/components/dashboard/SupervisorShiftCard';
-import LiveShiftPunchTimeline from '@/components/dashboard/LiveShiftPunchTimeline';
-import SettingsView from '@/components/dashboard/SettingsView';
-import SettingsModal from '@/components/dashboard/SettingsModal';
-import ActivityLogsView from '@/components/dashboard/ActivityLogsView';
 import WeatherWidgetCard from '@/components/dashboard/WeatherWidgetCard';
 import FullScreenLoader from '@/components/dashboard/FullScreenLoader';
 import { AccountOption, EmployeeOption, PhoneTimeRecord, KpiSummaryStats } from '@/lib/types';
 import { parseDurationToSeconds, formatTotalDurationHuman, isValidAvatarUrl } from '@/lib/utils';
 import { addActivityLog } from '@/lib/activityLogs';
 import { showToast } from '@/lib/toast';
-import { Plus, CheckCircle2, User, Sparkles, Award } from 'lucide-react';
+import { CheckCircle2 } from 'lucide-react';
+
+const LazyTabFallback = () => (
+  <div className="flex min-h-40 items-center justify-center text-sm text-slate-500 dark:text-slate-400">
+    Loading section...
+  </div>
+);
+
+const ManualEntryModal = dynamic(() => import('@/components/ManualEntryModal'), { loading: LazyTabFallback });
+const ActivityLogsView = dynamic(() => import('@/components/dashboard/ActivityLogsView'), { loading: LazyTabFallback });
+const FlowHubView = dynamic(() => import('@/components/dashboard/FlowHubView'), { loading: LazyTabFallback });
+const AttendanceRosterHub = dynamic(() => import('@/components/dashboard/AttendanceRosterHub'), { loading: LazyTabFallback });
+const AnalyticsView = dynamic(() => import('@/components/dashboard/AnalyticsView'), { loading: LazyTabFallback });
+const SupervisorShiftCard = dynamic(() => import('@/components/dashboard/SupervisorShiftCard'), { loading: LazyTabFallback });
+const LiveShiftPunchTimeline = dynamic(() => import('@/components/dashboard/LiveShiftPunchTimeline'), { loading: LazyTabFallback });
+const SettingsView = dynamic(() => import('@/components/dashboard/SettingsView'), { loading: LazyTabFallback });
+const SettingsModal = dynamic(() => import('@/components/dashboard/SettingsModal'), { loading: LazyTabFallback });
 
 const VALID_TABS = ['dashboard', 'tracker', 'activity', 'flowhub', 'attendance', 'analytics', 'settings'] as const;
 
@@ -256,6 +260,14 @@ function HomePageContent() {
         resUser.ok ? resUser.json() : Promise.resolve({}),
       ]);
 
+      if (resUser.status === 401) {
+        localStorage.removeItem('ctnp_current_user');
+        sessionStorage.removeItem('ctnp_cached_records');
+        sessionStorage.removeItem('ctnp_cached_meta');
+        router.replace('/login');
+        return;
+      }
+
       if (dataLogs.data) {
         setRecords(dataLogs.data);
         if (typeof window !== 'undefined') {
@@ -322,7 +334,7 @@ function HomePageContent() {
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [router]);
 
   useEffect(() => {
     fetchData();
@@ -794,21 +806,25 @@ function HomePageContent() {
       </div>
 
       {/* Manual Entry Modal Dialog */}
-      <ManualEntryModal
-        isOpen={isManualModalOpen}
-        onClose={() => setIsManualModalOpen(false)}
-        currentAgent={currentAgent}
-        accounts={accounts}
-        onRecordAdded={handleRecordAdded}
-      />
+      {isManualModalOpen && (
+        <ManualEntryModal
+          isOpen
+          onClose={() => setIsManualModalOpen(false)}
+          currentAgent={currentAgent}
+          accounts={accounts}
+          onRecordAdded={handleRecordAdded}
+        />
+      )}
 
       {/* Settings Modal Dialog */}
-      <SettingsModal
-        isOpen={isSettingsOpen}
-        onClose={() => setIsSettingsOpen(false)}
-        isDark={isDark}
-        onToggleTheme={toggleTheme}
-      />
+      {isSettingsOpen && (
+        <SettingsModal
+          isOpen
+          onClose={() => setIsSettingsOpen(false)}
+          isDark={isDark}
+          onToggleTheme={toggleTheme}
+        />
+      )}
 
     </div>
   );

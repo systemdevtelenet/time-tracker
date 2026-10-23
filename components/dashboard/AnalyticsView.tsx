@@ -195,6 +195,41 @@ export default function AnalyticsView({
     });
   }, [records]);
 
+  const kpiCards = [
+    {
+      label: 'PUNCTUALITY / ON-TIME RATE',
+      value: `${punctualityRate}%`,
+      detail: `${attendanceBreakdown.lateCount} late clock-in${attendanceBreakdown.lateCount === 1 ? '' : 's'} recorded`,
+      icon: CheckCircle2,
+      valueColor: 'text-emerald-600 dark:text-emerald-300',
+      iconColor: 'text-emerald-600 bg-emerald-50 border-emerald-100 dark:text-emerald-300 dark:bg-emerald-950/55 dark:border-emerald-800/70',
+    },
+    {
+      label: 'TOTAL LOGGED WORK TIME',
+      value: formatTotalDurationHuman(totalSeconds),
+      detail: `${records.length} verified shift log${records.length === 1 ? '' : 's'}`,
+      icon: Clock,
+      valueColor: 'text-[#24537D] dark:text-blue-300',
+      iconColor: 'text-[#24537D] bg-blue-50 border-blue-100 dark:text-blue-300 dark:bg-blue-950/55 dark:border-blue-800/70',
+    },
+    {
+      label: 'LATE PUNCHES',
+      value: `${attendanceBreakdown.lateCount} Logs`,
+      detail: attendanceBreakdown.lateCount === 0 ? 'No late punches recorded' : `${attendanceBreakdown.latePct}% of total shifts`,
+      icon: AlertTriangle,
+      valueColor: 'text-amber-600 dark:text-amber-300',
+      iconColor: 'text-amber-600 bg-amber-50 border-amber-100 dark:text-amber-300 dark:bg-amber-950/55 dark:border-amber-800/70',
+    },
+    {
+      label: 'ACTIVE CONTRIBUTORS',
+      value: `${activeContributorsCount} Active`,
+      detail: `${activeContributorsCount} of ${totalRosterCount} roster members logged`,
+      icon: Users,
+      valueColor: 'text-indigo-600 dark:text-indigo-300',
+      iconColor: 'text-indigo-600 bg-indigo-50 border-indigo-100 dark:text-indigo-300 dark:bg-indigo-950/55 dark:border-indigo-800/70',
+    },
+  ];
+
   return (
     <div className="space-y-6 animate-in fade-in select-none">
       
@@ -211,80 +246,23 @@ export default function AnalyticsView({
       </div>
 
       {/* 1. TOP 4 ATTENDANCE & ADHERENCE KPI CARDS */}
-      <div id="analytics-overview" className="scroll-mt-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        
-        {/* Card 1: Punctuality Rate */}
-        <div className="p-4 sm:p-5 rounded-2xl bg-white dark:bg-[#0E1B38] border border-slate-200/90 dark:border-slate-800 shadow-2xs flex items-center justify-between min-h-[96px]">
-          <div className="flex flex-col justify-center min-w-0">
-            <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 tracking-wider uppercase">
-              PUNCTUALITY / ON-TIME RATE
-            </span>
-            <span className="text-2xl sm:text-3xl font-black tracking-tight text-emerald-600 dark:text-emerald-400 mt-1">
-              {punctualityRate}%
-            </span>
-            <span className="text-[10.5px] font-medium text-slate-400 dark:text-slate-500 mt-0.5">
-              {attendanceBreakdown.lateCount} late clock-in{attendanceBreakdown.lateCount === 1 ? '' : 's'} recorded
-            </span>
-          </div>
-          <div className="w-11 h-11 rounded-xl bg-emerald-50 dark:bg-emerald-950/50 text-emerald-600 dark:text-emerald-400 border border-emerald-100 dark:border-emerald-900/40 flex items-center justify-center shrink-0 shadow-2xs">
-            <CheckCircle2 className="w-5 h-5 stroke-[2.2]" />
-          </div>
-        </div>
-
-        {/* Card 2: Total Logged Work Time */}
-        <div className="p-4 sm:p-5 rounded-2xl bg-white dark:bg-[#0E1B38] border border-slate-200/90 dark:border-slate-800 shadow-2xs flex items-center justify-between min-h-[96px]">
-          <div className="flex flex-col justify-center min-w-0">
-            <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 tracking-wider uppercase">
-              TOTAL LOGGED WORK TIME
-            </span>
-            <span className="text-2xl sm:text-3xl font-black tracking-tight text-[#24537D] dark:text-blue-400 mt-1">
-              {formatTotalDurationHuman(totalSeconds)}
-            </span>
-            <span className="text-[10.5px] font-medium text-slate-400 dark:text-slate-500 mt-0.5">
-              {records.length} verified shift log{records.length === 1 ? '' : 's'}
-            </span>
-          </div>
-          <div className="w-11 h-11 rounded-xl bg-blue-50 dark:bg-blue-950/50 text-[#24537D] dark:text-blue-300 border border-blue-100 dark:border-blue-900/40 flex items-center justify-center shrink-0 shadow-2xs">
-            <Clock className="w-5 h-5 stroke-[2.2]" />
-          </div>
-        </div>
-
-        {/* Card 3: Late Punches */}
-        <div className="p-4 sm:p-5 rounded-2xl bg-white dark:bg-[#0E1B38] border border-slate-200/90 dark:border-slate-800 shadow-2xs flex items-center justify-between min-h-[96px]">
-          <div className="flex flex-col justify-center min-w-0">
-            <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 tracking-wider uppercase">
-              LATE PUNCHES
-            </span>
-            <span className="text-2xl sm:text-3xl font-black tracking-tight text-amber-600 dark:text-amber-400 mt-1">
-              {attendanceBreakdown.lateCount} Logs
-            </span>
-            <span className="text-[10.5px] font-medium text-slate-400 dark:text-slate-500 mt-0.5">
-              {attendanceBreakdown.lateCount === 0 ? 'No late punches recorded' : `${attendanceBreakdown.latePct}% of total shifts`}
-            </span>
-          </div>
-          <div className="w-11 h-11 rounded-xl bg-amber-50 dark:bg-amber-950/50 text-amber-600 dark:text-amber-400 border border-amber-100 dark:border-amber-900/40 flex items-center justify-center shrink-0 shadow-2xs">
-            <AlertTriangle className="w-5 h-5 stroke-[2.2]" />
-          </div>
-        </div>
-
-        {/* Card 4: Active Contributors */}
-        <div className="p-4 sm:p-5 rounded-2xl bg-white dark:bg-[#0E1B38] border border-slate-200/90 dark:border-slate-800 shadow-2xs flex items-center justify-between min-h-[96px]">
-          <div className="flex flex-col justify-center min-w-0">
-            <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 tracking-wider uppercase">
-              ACTIVE CONTRIBUTORS
-            </span>
-            <span className="text-2xl sm:text-3xl font-black tracking-tight text-indigo-600 dark:text-indigo-400 mt-1">
-              {activeContributorsCount} Active
-            </span>
-            <span className="text-[10.5px] font-medium text-slate-400 dark:text-slate-500 mt-0.5">
-              {activeContributorsCount} of {totalRosterCount} roster members logged
-            </span>
-          </div>
-          <div className="w-11 h-11 rounded-xl bg-indigo-50 dark:bg-indigo-950/50 text-indigo-600 dark:text-indigo-400 border border-indigo-100 dark:border-indigo-900/40 flex items-center justify-center shrink-0 shadow-2xs">
-            <Users className="w-5 h-5 stroke-[2.2]" />
-          </div>
-        </div>
-
+      <div id="analytics-overview" className="scroll-mt-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-3">
+        {kpiCards.map((item) => {
+          const Icon = item.icon;
+          return (
+            <div key={item.label} className="relative isolate overflow-hidden p-3.5 rounded-2xl bg-white dark:bg-[#363435] border border-slate-200/90 dark:border-[#434142] shadow-xs flex items-center justify-between gap-2 min-h-[82px] sm:min-h-[86px]">
+              <div className="absolute inset-0 -z-10 bg-no-repeat bg-cover bg-center opacity-20 dark:opacity-10 pointer-events-none" style={{ backgroundImage: 'url("https://zhdmsmwrskxowvytedgh.supabase.co/storage/v1/object/public/Images/design%20(1).png")' }} />
+              <div className="relative flex min-w-0 flex-col justify-center">
+                <span className="text-[9.5px] font-bold text-slate-400 dark:text-[#94A3B8] tracking-wider uppercase">{item.label}</span>
+                <span className={`mt-0.5 text-xl sm:text-2xl font-bold tracking-tight ${item.valueColor}`}>{item.value}</span>
+                <span className="mt-0.5 text-[10px] font-semibold text-slate-500 dark:text-slate-400">{item.detail}</span>
+              </div>
+              <div className={`relative w-8.5 h-8.5 rounded-xl border flex items-center justify-center shrink-0 shadow-2xs ${item.iconColor}`}>
+                <Icon className="w-4.5 h-4.5 stroke-[2.2]" />
+              </div>
+            </div>
+          );
+        })}
       </div>
 
       {/* 2. ATTENDANCE STATUS BREAKDOWN & WEEKLY HEATMAP (GRAPH STYLE - SOLID COLORS) */}
