@@ -30,7 +30,7 @@ export async function GET(request: NextRequest) {
 
     let query = supabase
       .from('phone_time_tracker')
-      .select('id, date_of_shift, name, account, total_minutes, ticket_number, tagging, summary, created_at')
+      .select('date_of_shift, name, account, total_minutes, ticket_number, tagging, summary')
       .order('date_of_shift', { ascending: false })
       .limit(limit);
 
