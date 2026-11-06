@@ -1,6 +1,6 @@
 ﻿import { NextRequest, NextResponse } from 'next/server';
 import { getSupabaseAdmin } from '@/lib/supabase/server';
-import { signAuthSession } from '@/lib/authSession';
+import { isHttpsRequest, signAuthSession } from '@/lib/authSession';
 import { createClient } from '@supabase/supabase-js';
 
 export async function GET(request: NextRequest) {
@@ -61,7 +61,7 @@ export async function GET(request: NextRequest) {
       loginAt: Date.now(),
     }), {
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
+      secure: isHttpsRequest(request),
       sameSite: 'lax',
       path: '/',
       maxAge: 60 * 60 * 24 * 7,

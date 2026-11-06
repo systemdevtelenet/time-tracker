@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import bcrypt from 'bcryptjs';
-import { signAuthSession } from '@/lib/authSession';
+import { isHttpsRequest, signAuthSession } from '@/lib/authSession';
 import { getSupabaseAdmin } from '@/lib/supabase/server';
 
 export const dynamic = 'force-dynamic';
@@ -141,7 +141,11 @@ export async function POST(request: NextRequest) {
       loginAt: Date.now(),
     }), {
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
+      // Only mark Secure when the request actually came over HTTPS.
+      // In production on plain HTTP (e.g. http://192.168.x.x:3104) a Secure
+      // cookie is never sent back by the browser, so every API call 401s
+      // and the dashboard redirect bounces straight back to /login.
+      secure: isHttpsRequest(request),
       sameSite: 'lax',
       path: '/',
       maxAge: 60 * 60 * 24 * 7,

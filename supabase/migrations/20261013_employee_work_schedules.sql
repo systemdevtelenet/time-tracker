@@ -69,23 +69,32 @@ $$;
 revoke all on function public.assign_employee_work_schedule(bigint, time without time zone, time without time zone, text, text, bigint) from public, anon, authenticated;
 grant execute on function public.assign_employee_work_schedule(bigint, time without time zone, time without time zone, text, text, bigint) to service_role;
 
-with matching_schedules as (
-  select
-    e.id as employee_id,
-    trim(split_part(tt."Shift", ' to ', 1))::time as shift_start,
-    trim(split_part(tt."Shift", ' to ', 2))::time as shift_end,
-    nullif(trim(tt."Shift Type"), '') as shift_type,
-    row_number() over (partition by e.id order by e.employee_name) as row_number
-  from public.time_tracker_employees tt
-  join public.employees e on e.employee_code = tt."Employee ID"::text
-  join public.statuses s on s.status_id = e.status_id and lower(s.status_name) = 'active'
-  where nullif(trim(tt."Shift"), '') ~* '^\s*[0-9]{1,2}:[0-9]{2}\s*(AM|PM)\s+to\s+[0-9]{1,2}:[0-9]{2}\s*(AM|PM)\s*$'
-)
-insert into public.employee_work_schedules (
-  employee_id, shift_start, shift_end, shift_type, time_zone,
-  effective_from, is_active
-)
-select employee_id, shift_start, shift_end, shift_type, 'Asia/Manila', now(), true
-from matching_schedules
-where row_number = 1
-on conflict do nothing;
+-- Backfill from the legacy import table when it is still present. Older
+-- databases restored without `time_tracker_employees` must not fail here.
+do $$
+begin
+  if to_regclass('public.time_tracker_employees') is null then
+    return;
+  end if;
+
+  with matching_schedules as (
+    select
+      e.id as employee_id,
+      trim(split_part(tt."Shift", ' to ', 1))::time as shift_start,
+      trim(split_part(tt."Shift", ' to ', 2))::time as shift_end,
+      nullif(trim(tt."Shift Type"), '') as shift_type,
+      row_number() over (partition by e.id order by e.employee_name) as row_number
+    from public.time_tracker_employees tt
+    join public.employees e on e.employee_code = tt."Employee ID"::text
+    join public.statuses s on s.status_id = e.status_id and lower(s.status_name) = 'active'
+    where nullif(trim(tt."Shift"), '') ~* '^\s*[0-9]{1,2}:[0-9]{2}\s*(AM|PM)\s+to\s+[0-9]{1,2}:[0-9]{2}\s*(AM|PM)\s*$'
+  )
+  insert into public.employee_work_schedules (
+    employee_id, shift_start, shift_end, shift_type, time_zone,
+    effective_from, is_active
+  )
+  select employee_id, shift_start, shift_end, shift_type, 'Asia/Manila', now(), true
+  from matching_schedules
+  where row_number = 1
+  on conflict do nothing;
+end $$;

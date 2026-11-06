@@ -87,6 +87,14 @@ function LoginFormContent() {
     return () => clearInterval(interval);
   }, [lockoutSeconds]);
 
+  // If the redirect to the dashboard never completes (e.g. the session
+  // cookie was rejected), don't leave the user stuck on the loader forever.
+  useEffect(() => {
+    if (!isRedirecting) return;
+    const timer = window.setTimeout(() => setIsRedirecting(false), 6000);
+    return () => window.clearTimeout(timer);
+  }, [isRedirecting]);
+
   const validateForm = useCallback(() => {
     let valid = true;
     setEmailError(null);

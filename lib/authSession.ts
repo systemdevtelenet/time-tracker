@@ -21,6 +21,23 @@ export function signAuthSession(session: AuthSession) {
   return `${payload}.${signature}`;
 }
 
+/**
+ * Whether the incoming request arrived over HTTPS.
+ * Browsers refuse to send `Secure` cookies over plain HTTP (the localhost
+ * exception does not apply to LAN IPs like 192.168.x.x), so the cookie's
+ * `secure` flag must follow the actual transport — not just NODE_ENV.
+ * Behind a reverse proxy, x-forwarded-proto is the source of truth.
+ */
+export function isHttpsRequest(request: { headers: Headers; url: string }): boolean {
+  const forwardedProto = request.headers.get('x-forwarded-proto')?.split(',')[0]?.trim().toLowerCase();
+  if (forwardedProto) return forwardedProto === 'https';
+  try {
+    return new URL(request.url).protocol === 'https:';
+  } catch {
+    return false;
+  }
+}
+
 export function verifyAuthSession(value: string | undefined): AuthSession | null {
   if (!value) return null;
   const [payload, providedSignature, extra] = value.split('.');
