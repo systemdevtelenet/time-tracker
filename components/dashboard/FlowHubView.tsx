@@ -236,7 +236,9 @@ export default function FlowHubView({ onBackToPortal }: FlowHubViewProps) {
   const [habits, setHabits] = useState<HabitItem[]>([]);
 
   const [activeHabitTab, setActiveHabitTab] = useState<'routine' | 'highlights' | 'stats'>('routine');
-  const [selectedDayIndex, setSelectedDayIndex] = useState<number>(1); // Tuesday active
+  const [selectedDayIndex, setSelectedDayIndex] = useState<number>(0);
+  const [weekDays, setWeekDays] = useState<{ day: string; date: string }[]>([]);
+  const weekDateRef = useRef('');
   const [isAddHabitOpen, setIsAddHabitOpen] = useState(false);
   const [newHabitName, setNewHabitName] = useState('');
   const [newHabitCategory, setNewHabitCategory] = useState<'hydration' | 'mindfulness' | 'stretch' | 'tracker' | 'nutrition' | 'walk' | 'general'>('hydration');
@@ -248,6 +250,24 @@ export default function FlowHubView({ onBackToPortal }: FlowHubViewProps) {
   useEffect(() => {
     const updateTime = () => {
       const now = new Date();
+      const dateParts = new Intl.DateTimeFormat('en-US', {
+        timeZone: 'Asia/Manila', year: 'numeric', month: '2-digit', day: '2-digit',
+      }).formatToParts(now);
+      const part = (type: string) => Number(dateParts.find((item) => item.type === type)?.value);
+      const manilaDate = `${part('year')}-${part('month')}-${part('day')}`;
+      if (weekDateRef.current !== manilaDate) {
+        weekDateRef.current = manilaDate;
+        const today = new Date(Date.UTC(part('year'), part('month') - 1, part('day')));
+        const todayIndex = (today.getUTCDay() + 6) % 7;
+        const monday = new Date(today);
+        monday.setUTCDate(today.getUTCDate() - todayIndex);
+        setSelectedDayIndex(todayIndex);
+        setWeekDays(Array.from({ length: 7 }, (_, index) => {
+          const date = new Date(monday);
+          date.setUTCDate(monday.getUTCDate() + index);
+          return { day: date.toLocaleDateString('en-US', { timeZone: 'UTC', weekday: 'short' }), date: String(date.getUTCDate()) };
+        }));
+      }
       const options: Intl.DateTimeFormatOptions = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
       const dateStr = now.toLocaleDateString('en-US', options);
       const timeStr = now.toLocaleTimeString('en-US', {
@@ -1754,15 +1774,7 @@ export default function FlowHubView({ onBackToPortal }: FlowHubViewProps) {
 
           {/* Weekly Day Capsules Bar matching Reference */}
           <div className="flex items-center justify-between gap-1.5 overflow-x-auto pb-1">
-            {[
-              { day: 'Mon', date: '14' },
-              { day: 'Tue', date: '15' },
-              { day: 'Wed', date: '16' },
-              { day: 'Thu', date: '17' },
-              { day: 'Fri', date: '18' },
-              { day: 'Sat', date: '19' },
-              { day: 'Sun', date: '20' },
-            ].map((item, idx) => {
+            {weekDays.map((item, idx) => {
               const isSelected = selectedDayIndex === idx;
               return (
                 <button

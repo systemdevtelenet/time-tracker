@@ -45,7 +45,7 @@ export async function getActiveEmployeeAccess(request: NextRequest): Promise<Act
     role,
     position,
     isAdmin: ['admin', 'superadmin', 'administrator'].includes(roleLower),
-    canManageAttendance: ['admin', 'superadmin'].includes(roleLower) ||
+    canManageAttendance: ['admin', 'superadmin', 'administrator'].includes(roleLower) ||
       ['head', 'supervisor', 'manager', 'administrator'].some((term) => positionLower.includes(term)),
   };
 }

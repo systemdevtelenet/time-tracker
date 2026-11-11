@@ -177,7 +177,7 @@ export async function getTimeTrackerEmployeesFromDb(): Promise<NormalizedEmploye
 
   if (employeesError) throw employeesError;
   if (assignmentsError) throw assignmentsError;
-  if (schedulesError) throw schedulesError;
+  if (schedulesError && schedulesError.code !== 'PGRST205') throw schedulesError;
   const now = Date.now();
 
   return (employees || [])
@@ -480,6 +480,19 @@ export function computeLiveStatusFromLogs(
   }
 
   const latest = empLogs[0];
+  // A punch from a previous day must not keep the employee clock running indefinitely.
+  // Preserve historical logs; only the live status is reset.
+  if (Date.now() - latest.parsedDate.getTime() > 24 * 60 * 60 * 1000) {
+    return {
+      status: 'offline', elapsedSeconds: 0, lastPunchTime: '--:--',
+      lastPunchType: 'Previous shift not closed',
+      punchesState: {
+        hasShiftStart: false, hasBreak1Start: false, hasBreak1End: false,
+        hasLunchStart: false, hasLunchEnd: false, hasBreak2Start: false,
+        hasBreak2End: false, hasShiftEnd: false,
+      },
+    };
+  }
   const typeLower = latest.punch_type.toLowerCase();
 
   let status: 'working' | 'lunch' | 'break_1' | 'break_2' | 'offline' = 'working';

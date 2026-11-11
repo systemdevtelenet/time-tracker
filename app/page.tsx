@@ -239,10 +239,10 @@ function HomePageContent() {
 
   // Sync state if searchParams change (e.g. browser back/forward buttons)
   useEffect(() => {
-    if (tabParam && VALID_TABS.includes(tabParam as any) && tabParam !== activeTab) {
-      setActiveTab(tabParam);
+    if (tabParam && VALID_TABS.some((tab) => tab === tabParam)) {
+      setActiveTab((currentTab) => currentTab === tabParam ? currentTab : tabParam);
     }
-  }, [tabParam, activeTab]);
+  }, [tabParam]);
 
   // Fetch initial records & metadata from Supabase with non-blocking SWR background sync
   const fetchData = useCallback(async () => {

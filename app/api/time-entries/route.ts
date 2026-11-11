@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSupabaseAdmin } from '@/lib/supabase/server';
+import { getActiveEmployeeAccess } from '@/lib/employeeAccess';
 import { PhoneTimeRecord } from '@/lib/types';
 import { getCachedData, setCachedData, invalidateCache } from '@/lib/serverCache';
 
@@ -9,18 +10,21 @@ const TIME_ENTRIES_CACHE_PREFIX = 'api_time_entries_';
 
 export async function GET(request: NextRequest) {
   try {
+    const access = await getActiveEmployeeAccess(request);
+    if (!access) return NextResponse.json({ error: 'Please sign in to continue.' }, { status: 401 });
+
     const searchParams = request.nextUrl.searchParams;
     const account = searchParams.get('account') || 'ALL';
     const agent = searchParams.get('agent') || 'ALL';
     const requestedLimit = Number.parseInt(searchParams.get('limit') || '1000', 10);
     const limit = Number.isFinite(requestedLimit) ? Math.min(Math.max(requestedLimit, 1), 1000) : 1000;
 
-    const cacheKey = `${TIME_ENTRIES_CACHE_PREFIX}${account}_${agent}_${limit}`;
-    const cached = getCachedData<any>(cacheKey);
+    const cacheKey = TIME_ENTRIES_CACHE_PREFIX + JSON.stringify([access.isAdmin ? 'ALL' : access.employeeCode, access.name, account, agent, limit]);
+    const cached = getCachedData<{ data: PhoneTimeRecord[] }>(cacheKey);
     if (cached) {
       return NextResponse.json(cached, {
         headers: {
-          'Cache-Control': 'public, s-maxage=15, stale-while-revalidate=60',
+          'Cache-Control': 'private, no-store',
           'X-Cache': 'HIT',
         },
       });
@@ -37,7 +41,9 @@ export async function GET(request: NextRequest) {
     if (account && account !== 'ALL') {
       query = query.eq('account', account);
     }
-    if (agent && agent !== 'ALL') {
+    if (!access.isAdmin) {
+      query = query.eq('name', access.name);
+    } else if (agent && agent !== 'ALL') {
       query = query.ilike('name', `%${agent}%`);
     }
 
@@ -53,23 +59,39 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json(result, {
       headers: {
-        'Cache-Control': 'public, s-maxage=15, stale-while-revalidate=60',
+        'Cache-Control': 'private, no-store',
         'X-Cache': 'MISS',
       },
     });
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error('API Error in GET /api/time-entries:', err);
-    return NextResponse.json({ error: err.message, data: [] }, { status: 500 });
+    return NextResponse.json({ error: 'Unable to process time entries.', data: [] }, { status: 500 });
   }
 }
 
 export async function POST(request: NextRequest) {
   try {
-    const body: PhoneTimeRecord = await request.json();
+    const access = await getActiveEmployeeAccess(request);
+    if (!access) return NextResponse.json({ error: 'Please sign in to continue.' }, { status: 401 });
+
+    const body: PhoneTimeRecord | null = await request.json().catch(() => null);
+    if (!body || typeof body !== 'object' || Array.isArray(body)) {
+      return NextResponse.json({ error: 'A JSON object is required.' }, { status: 400 });
+    }
+    if (!access.isAdmin && body.name !== access.name) {
+      return NextResponse.json({ error: 'You can only submit your own time entries.' }, { status: 403 });
+    }
     const supabase = getSupabaseAdmin();
 
-    if (!body.summary) {
+    if (typeof body.summary !== 'string' || !body.summary.trim()) {
       return NextResponse.json({ error: 'Summary is required' }, { status: 400 });
+    }
+
+    if (['date_of_shift', 'name', 'account', 'total_minutes', 'ticket_number'].some((field) => {
+      const value = body[field as keyof PhoneTimeRecord];
+      return typeof value !== 'string' || !value.trim();
+    })) {
+      return NextResponse.json({ error: 'Date, name, account, duration, and ticket number are required.' }, { status: 400 });
     }
 
     // Insert into phone_time_tracker table
@@ -97,14 +119,17 @@ export async function POST(request: NextRequest) {
     invalidateCache(TIME_ENTRIES_CACHE_PREFIX);
 
     return NextResponse.json({ success: true, data: data?.[0] || body }, { status: 201 });
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error('API Error in POST /api/time-entries:', err);
-    return NextResponse.json({ error: err.message }, { status: 500 });
+    return NextResponse.json({ error: 'Unable to process time entries.' }, { status: 500 });
   }
 }
 
 export async function DELETE(request: NextRequest) {
   try {
+    const access = await getActiveEmployeeAccess(request);
+    if (!access) return NextResponse.json({ error: 'Please sign in to continue.' }, { status: 401 });
+
     const { searchParams } = new URL(request.url);
     const ticketNumber = searchParams.get('ticket_number');
 
@@ -114,10 +139,12 @@ export async function DELETE(request: NextRequest) {
 
     const supabase = getSupabaseAdmin();
 
-    const { error } = await supabase
+    let query = supabase
       .from('phone_time_tracker')
       .delete()
       .eq('ticket_number', ticketNumber);
+    if (!access.isAdmin) query = query.eq('name', access.name);
+    const { error } = await query;
 
     if (error) {
       console.error('Supabase delete error:', error);
@@ -128,8 +155,8 @@ export async function DELETE(request: NextRequest) {
     invalidateCache(TIME_ENTRIES_CACHE_PREFIX);
 
     return NextResponse.json({ success: true });
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error('API Error in DELETE /api/time-entries:', err);
-    return NextResponse.json({ error: err.message }, { status: 500 });
+    return NextResponse.json({ error: 'Unable to process time entries.' }, { status: 500 });
   }
 }

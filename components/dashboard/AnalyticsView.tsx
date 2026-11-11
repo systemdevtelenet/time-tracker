@@ -1,6 +1,7 @@
 'use client';
 
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
+import type { PunchLogItem } from '@/lib/punchLogs';
 import { 
   Clock, 
   Users, 
@@ -26,11 +27,50 @@ interface AnalyticsViewProps {
 }
 
 export default function AnalyticsView({
-  records = [],
+  records: taskRecords = [],
   employees = [],
   accounts = [],
 }: AnalyticsViewProps) {
   const totalRosterCount = employees.length;
+  const [punchLogs, setPunchLogs] = useState<PunchLogItem[]>([]);
+  useEffect(() => {
+    let active = true;
+    fetch('/api/punch-logs?empId=ALL')
+      .then((response) => response.ok ? response.json() : Promise.reject(new Error('Unable to load punch logs')))
+      .then((result) => { if (active) setPunchLogs(Array.isArray(result.data) ? result.data : []); })
+      .catch((error) => console.error('Attendance analytics unavailable:', error));
+    return () => { active = false; };
+  }, []);
+  const records = useMemo<PhoneTimeRecord[]>(() => {
+    const byEmployee = new Map<string, PunchLogItem[]>();
+    for (const log of punchLogs) {
+      const list = byEmployee.get(log.empId) || [];
+      list.push(log);
+      byEmployee.set(log.empId, list);
+    }
+    const shifts: PhoneTimeRecord[] = [];
+    for (const [empId, logs] of byEmployee) {
+      logs.sort((a, b) => Date.parse(a.timestamp) - Date.parse(b.timestamp));
+      let start: PunchLogItem | null = null;
+      for (const log of logs) {
+        const type = log.type.toLowerCase();
+        if (type.includes('shift start')) start = log;
+        else if ((type.includes('shift end') || type.includes('end shift')) && start) {
+          const seconds = Math.floor((Date.parse(log.timestamp) - Date.parse(start.timestamp)) / 1000);
+          if (seconds > 0 && seconds <= 24 * 60 * 60) {
+            shifts.push({
+              date_of_shift: start.timestamp,
+              name: employees.find((employee) => String(employee.id) === empId)?.name || empId,
+              account: '', total_minutes: `${seconds} seconds`,
+              ticket_number: log.id, tagging: start.status, summary: '',
+            });
+          }
+          start = null;
+        }
+      }
+    }
+    return shifts;
+  }, [punchLogs, employees]);
 
   // 1. Core Total Durations and Calculations
   const { totalSeconds, regularSeconds, overtimeSeconds } = useMemo(() => {
@@ -70,25 +110,22 @@ export default function AnalyticsView({
     let manualEditCount = 0;
 
     records.forEach((r) => {
-      const text = `${r.tagging || ''} ${r.summary || ''}`.toLowerCase();
+      const text = String(r.tagging || '').toLowerCase();
       const secs = parseDurationToSeconds(r.total_minutes);
       
-      const isLate = text.includes('late') || text.includes('tardy') || text.includes('delay');
-      const isUndertime = (secs > 0 && secs < 28800) || text.includes('undertime') || text.includes('early out');
+      const isLate = text.includes('late');
+      const isUndertime = (secs > 0 && secs < 28800);
 
-      if (isLate) {
-        lateCount += 1;
-      }
-      if (isUndertime) {
-        undertimeCount += 1;
-      }
+      if (isLate) lateCount += 1;
+      else if (isUndertime) undertimeCount += 1;
       if (text.includes('manual') || text.includes('adjust') || text.includes('edited')) {
         manualEditCount += 1;
       }
     });
 
-    const presentCount = Math.max(0, totalLogs - lateCount);
-    const absentCount = Math.max(0, totalRosterCount - activeContributorsCount);
+    const presentCount = Math.max(0, totalLogs - lateCount - undertimeCount);
+    // An absent shift requires a schedule for the same day; roster size alone is insufficient.
+    const absentCount = 0;
 
     const baseTotal = (presentCount + absentCount + lateCount + undertimeCount) || (totalRosterCount || 1);
 
@@ -107,15 +144,15 @@ export default function AnalyticsView({
 
   // 3. Punctuality & Adherence Key Ratios
   const adherenceRate = useMemo(() => {
-    if (totalRosterCount === 0) return 100;
+    if (totalRosterCount === 0) return 0;
     const baseExpectedSeconds = activeContributorsCount * 8 * 3600;
-    if (baseExpectedSeconds === 0) return records.length > 0 ? 100 : 0;
+    if (baseExpectedSeconds === 0) return 0;
     return Math.min(100, Math.round((totalSeconds / baseExpectedSeconds) * 100));
   }, [totalSeconds, activeContributorsCount, totalRosterCount, records.length]);
 
   const punctualityRate = useMemo(() => {
     const totalShifts = attendanceBreakdown.presentCount + attendanceBreakdown.lateCount;
-    if (totalShifts === 0) return records.length > 0 ? 100 : 0;
+    if (totalShifts === 0) return 0;
     return Math.round((attendanceBreakdown.presentCount / totalShifts) * 100);
   }, [attendanceBreakdown, records.length]);
 
@@ -156,8 +193,8 @@ export default function AnalyticsView({
         if (!isNaN(d.getTime())) {
           const dayIdx = d.getDay();
           buckets[dayIdx].shifts += 1;
-          const text = `${r.tagging || ''} ${r.summary || ''}`.toLowerCase();
-          if (text.includes('late') || text.includes('tardy') || text.includes('delay')) {
+          const text = String(r.tagging || '').toLowerCase();
+          if (text.includes('late')) {
             buckets[dayIdx].late += 1;
           }
         }
@@ -168,7 +205,7 @@ export default function AnalyticsView({
 
     return dayDefs.map((def) => {
       const b = buckets[def.key];
-      let rate = 100;
+      let rate = 0;
       const shifts = b.shifts;
 
       if (totalLogs > 0 && shifts > 0) {
@@ -207,7 +244,7 @@ export default function AnalyticsView({
     {
       label: 'TOTAL LOGGED WORK TIME',
       value: formatTotalDurationHuman(totalSeconds),
-      detail: `${records.length} verified shift log${records.length === 1 ? '' : 's'}`,
+      detail: `${records.length} completed shift log${records.length === 1 ? '' : 's'}`,
       icon: Clock,
       valueColor: 'text-[#24537D] dark:text-blue-300',
       iconColor: 'text-[#24537D] bg-blue-50 border-blue-100 dark:text-blue-300 dark:bg-blue-950/55 dark:border-blue-800/70',
@@ -232,6 +269,7 @@ export default function AnalyticsView({
 
   return (
     <div className="space-y-6 animate-in fade-in select-none">
+      <p className="text-xs text-slate-500">Attendance figures use completed punch shifts. {taskRecords.length} task entries are excluded.</p>
       
       {/* Top Header without Live Tracker pill */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">

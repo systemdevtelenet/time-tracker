@@ -38,7 +38,7 @@ export async function GET(request: NextRequest) {
       .eq('employee_id', employee.id)
       .eq('is_active', true)
       .order('effective_from', { ascending: false });
-    if (scheduleError) throw scheduleError;
+    if (scheduleError && scheduleError.code !== 'PGRST205') throw scheduleError;
     const now = Date.now();
     const schedule = schedules?.find((item) => {
       const startsAt = item.effective_from ? new Date(item.effective_from).getTime() : 0;
