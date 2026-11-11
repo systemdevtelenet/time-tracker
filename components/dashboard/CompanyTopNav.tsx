@@ -605,7 +605,7 @@ export default function CompanyTopNav({
                         {supervisor.name}
                       </h4>
                       <p className="text-[10px] text-[#94A3B8] truncate leading-tight mt-0.5">
-                        {supervisor.email || 'nreguero.telenet@gmail.com'}
+                        {supervisor.email || '—'}
                       </p>
                     </div>
                   </div>

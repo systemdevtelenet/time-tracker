@@ -14,7 +14,6 @@ import {
   Mail, 
   Calendar, 
   Clock, 
-  Briefcase, 
   Hash, 
   Check, 
   CheckCircle2, 
@@ -102,7 +101,6 @@ export default function SettingsView({
   const emailContact = activeUser.email || (displayName ? `${displayName.toLowerCase().replace(/\s+/g, '.')}@cebutelenet.com` : '—');
   const department = activeUser.department || (activeUser.account ? `${activeUser.account} Operations` : 'Operations');
   const assignedShift = activeUser.shift || '—';
-  const directSupervisor = activeUser.directSupervisor || activeUser.supervisor || '—';
   const accountLOB = activeUser.accounts || activeUser.account || '—';
   const startDate = activeUser.startDate || activeUser.hire_date || '—';
 
@@ -647,20 +645,6 @@ export default function SettingsView({
                 type="text"
                 readOnly
                 value={assignedShift}
-                className="w-full py-3 px-4 rounded-xl border-none bg-[#f1f1f1] dark:bg-[#272626] dark:border dark:border-[#434142] text-sm font-medium text-slate-800 dark:text-[#F8F8F6] cursor-default select-none pointer-events-none outline-none"
-              />
-            </div>
-
-            {/* Direct Supervisor */}
-            <div className="space-y-2">
-              <label className="flex items-center gap-1.5 text-xs font-bold text-slate-400 dark:text-[#94A3B8]">
-                <Briefcase className="w-3.5 h-3.5 text-slate-400 dark:text-[#94A3B8]" />
-                <span>Direct Supervisor</span>
-              </label>
-              <input
-                type="text"
-                readOnly
-                value={directSupervisor}
                 className="w-full py-3 px-4 rounded-xl border-none bg-[#f1f1f1] dark:bg-[#272626] dark:border dark:border-[#434142] text-sm font-medium text-slate-800 dark:text-[#F8F8F6] cursor-default select-none pointer-events-none outline-none"
               />
             </div>

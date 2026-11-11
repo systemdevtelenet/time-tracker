@@ -59,6 +59,27 @@ export interface ShiftPunchesState {
 
 export const INITIAL_PUNCH_LOGS: PunchLogItem[] = [];
 
+// The two 15-minute breaks are paid; only the expected one-hour meal is
+// deducted from the shift span. This is a regular-hours display, capped at 8h.
+export function formatCompletedShiftDuration(
+  shiftStartTimestamp?: string | null,
+  shiftEndTimestamp?: string | null
+): string {
+  if (!shiftEndTimestamp) return 'Awaiting shift end';
+  if (!shiftStartTimestamp) return 'Duration unavailable';
+
+  const startMs = new Date(shiftStartTimestamp).getTime();
+  const endMs = new Date(shiftEndTimestamp).getTime();
+  if (!Number.isFinite(startMs) || !Number.isFinite(endMs) || endMs <= startMs) {
+    return 'Duration unavailable';
+  }
+
+  const grossHours = (endMs - startMs) / 3_600_000;
+  if (grossHours > 9.5) return '8.0 hrs regular (Auto-Capped)';
+  const regularHours = Math.min(8, Math.max(0, grossHours - 1));
+  return `${regularHours.toFixed(1)} hrs completed`;
+}
+
 export function getEmployeePunches(empId: string, punchList: PunchLogItem[] = INITIAL_PUNCH_LOGS): PunchLogItem[] {
   return punchList
     .filter(p => String(p.empId) === String(empId))
@@ -336,28 +357,10 @@ export function computeShiftMilestonesAndAudit(
     ? formatWorkforceTime(new Date(shiftEndPunch.timestamp), { hour: 'numeric', minute: '2-digit', second: '2-digit', hour12: true })
     : 'No punch recorded';
 
-  // Calculate shift duration capped at 8.0 regular work hours (9.0 hrs total shift span)
-  let shiftEndDuration = '9.0 hrs total shift';
-  if (hasShiftEnd) {
-    if (shiftStartPunch) {
-      const startMs = new Date(shiftStartPunch.timestamp).getTime();
-      const endMs = new Date(shiftEndPunch.timestamp).getTime();
-      if (!isNaN(startMs) && !isNaN(endMs) && endMs > startMs) {
-        const grossHours = (endMs - startMs) / (1000 * 3600);
-        if (grossHours > 9.5) {
-          // Forgotten punch-out auto-caps to regular 8.0 hours
-          shiftEndDuration = '8.0 hrs regular (Auto-Capped)';
-        } else {
-          const netHours = Math.min(8.0, Math.max(0, grossHours - 1.0));
-          shiftEndDuration = `${netHours.toFixed(1)} hrs completed`;
-        }
-      } else {
-        shiftEndDuration = '8.0 hrs completed';
-      }
-    } else {
-      shiftEndDuration = '8.0 hrs completed';
-    }
-  }
+  const shiftEndDuration = formatCompletedShiftDuration(
+    shiftStartPunch?.timestamp,
+    shiftEndPunch?.timestamp
+  );
 
   const m5: ShiftMilestoneItem = {
     id: 'm5',

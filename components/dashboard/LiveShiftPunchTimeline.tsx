@@ -16,7 +16,7 @@ import {
   Send,
   LucideIcon
 } from 'lucide-react';
-import { ShiftMilestoneItem, PunchLogItem } from '@/lib/punchLogs';
+import { ShiftMilestoneItem, PunchLogItem, formatCompletedShiftDuration } from '@/lib/punchLogs';
 import DatePickerPopover from './DatePickerPopover';
 import { getShiftDate, parseShiftStartHour } from '@/lib/shiftSchedule';
 import { WORKFORCE_TIME_ZONE } from '@/lib/timeZone';
@@ -266,22 +266,10 @@ export default function LiveShiftPunchTimeline({
     };
 
     // 5. Shift End
-    let shiftEndDuration = '9.0 hrs total shift';
-    if (shiftEndPunch) {
-      if (shiftStartPunch) {
-        const startMs = new Date(shiftStartPunch.timestamp).getTime();
-        const endMs = new Date(shiftEndPunch.timestamp).getTime();
-        if (!isNaN(startMs) && !isNaN(endMs) && endMs > startMs) {
-          const grossHours = (endMs - startMs) / (1000 * 3600);
-          const netHours = Math.max(0, grossHours - 1.25);
-          shiftEndDuration = `${netHours.toFixed(1)} hrs completed`;
-        } else {
-          shiftEndDuration = '8.0 hrs completed';
-        }
-      } else {
-        shiftEndDuration = '8.0 hrs completed';
-      }
-    }
+    const shiftEndDuration = formatCompletedShiftDuration(
+      shiftStartPunch?.timestamp,
+      shiftEndPunch?.timestamp
+    );
     const m5: ShiftMilestoneItem = {
       id: 'm5',
       type: 'punch_out',
